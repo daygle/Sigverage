@@ -13,6 +13,7 @@ import com.signalspotter.app.location.FixSample
 import com.signalspotter.app.location.LocationTracker
 import com.signalspotter.app.model.NetworkType
 import com.signalspotter.app.model.SignalReading
+import com.signalspotter.app.model.ThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +42,8 @@ data class HomeUiState(
     val coverageZoom: Int = CoverageGridOverlay.DEFAULT_STORAGE_ZOOM,
     /** Retention in days; `0` means "forever" (the default — opt-in expiry). */
     val retentionDays: Int = PreferencesStore.DEFAULT_RETENTION_DAYS,
+    /** Light/dark theme override (default: follow OS via [ThemeMode.System]). */
+    val themeMode: ThemeMode = ThemeMode.Default,
 )
 
 /**
@@ -84,6 +87,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val initialRetention = prefs.retentionDays
         _ui.value = _ui.value.copy(retentionDays = initialRetention)
         if (initialRetention > 0) applyRetention(initialRetention, announce = false)
+
+        // Load the persisted theme preference so the very first frame is
+        // already drawn in the right palette — no flash of light → dark.
+        _ui.value = _ui.value.copy(themeMode = prefs.themeMode)
 
         viewModelScope.launch(Dispatchers.IO) {
             _ui.value = _ui.value.copy(lastFix = location.lastKnown())
@@ -154,6 +161,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 CoverageGridOverlay.MAX_STORAGE_ZOOM
             )
         )
+    }
+
+    /**
+     * Update the user's theme override and re-emit it on [ui]. The activity
+     * root `SignalSpotterTheme` observes [ui] and swaps colour schemes
+     * accordingly. Persisted via the existing [PreferencesStore] so the
+     * choice survives app restarts.
+     */
+    fun setThemeMode(mode: ThemeMode) {
+        prefs.themeMode = mode
+        _ui.value = _ui.value.copy(themeMode = mode)
     }
 
     /**

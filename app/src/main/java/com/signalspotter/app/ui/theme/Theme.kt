@@ -11,6 +11,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.signalspotter.app.model.NetworkType
+import com.signalspotter.app.model.ThemeMode
+
+/* ---- Slate/sky palette used as the static fallback when dynamic
+        Material You colours are unavailable (Android <12). ---- */
 
 private val Sky500 = Color(0xFF0EA5E9)
 private val Sky400 = Color(0xFF38BDF8)
@@ -72,12 +76,26 @@ private val DarkColors = darkColorScheme(
     error = Color(0xFFFCA5A5)
 )
 
+/**
+ * Top-level theme entry. Accepts a [themeMode] override from user prefs on
+ * top of the dynamic (Material You) colour support that already exists.
+ *
+ * Resolution order:
+ *  1. `themeMode` decides whether we're dark.
+ *  2. `dynamicColor` + Android 12+ uses Material You palette.
+ *  3. Otherwise, fall back to the static slate/sky palettes above.
+ */
 @Composable
 fun SignalSpotterTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    themeMode: ThemeMode = ThemeMode.Default,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val darkTheme: Boolean = when (themeMode) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
     val context = LocalContext.current
     val colors = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {

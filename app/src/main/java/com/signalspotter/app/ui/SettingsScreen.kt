@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.signalspotter.app.BuildConfig
 import com.signalspotter.app.R
+import com.signalspotter.app.model.ThemeMode
 
 /**
  * Top-level Settings screen, reachable via the bottom NavigationBar tab.
@@ -61,6 +62,7 @@ fun SettingsScreen(
     var showGranularityDialog by remember { mutableStateOf(false) }
     var showRetentionDialog by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
 
     val scroll = rememberScrollState()
     Column(
@@ -91,6 +93,19 @@ fun SettingsScreen(
                     stringResource(sizeLabelFor(ui.coverageZoom)),
                 ),
                 onClick = { showGranularityDialog = true },
+            )
+        }
+
+        Spacer(Modifier.height(8.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+        Spacer(Modifier.height(8.dp))
+
+        Section(stringResource(R.string.settings_section_appearance)) {
+            SettingsRow(
+                title = stringResource(R.string.settings_theme_title),
+                subtitle = stringResource(R.string.settings_theme_subtitle),
+                value = themeLabelFor(ui.themeMode),
+                onClick = { showThemeDialog = true },
             )
         }
 
@@ -189,6 +204,16 @@ fun SettingsScreen(
             onPick = { days ->
                 viewModel.setRetentionDays(days)
                 showRetentionDialog = false
+            },
+        )
+    }
+    if (showThemeDialog) {
+        ThemeDialog(
+            current = ui.themeMode,
+            onDismiss = { showThemeDialog = false },
+            onPick = { mode ->
+                viewModel.setThemeMode(mode)
+                showThemeDialog = false
             },
         )
     }
@@ -303,6 +328,13 @@ private fun intervalLabelFor(ms: Long): String = when (ms) {
     15_000L -> stringResource(R.string.interval_option_slow)
     60_000L -> stringResource(R.string.interval_option_glacial)
     else -> stringResource(R.string.time_seconds, (ms / 1_000L).toInt())
+}
+
+@Composable
+private fun themeLabelFor(mode: ThemeMode): String = when (mode) {
+    ThemeMode.System -> stringResource(R.string.theme_system)
+    ThemeMode.Light -> stringResource(R.string.theme_light)
+    ThemeMode.Dark -> stringResource(R.string.theme_dark)
 }
 
 @Composable

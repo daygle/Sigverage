@@ -125,6 +125,7 @@
     <!-- Settings screen: section headers + row labels -->
     <string name="settings_section_recording">Recording</string>
     <string name="settings_section_coverage">Coverage map</string>
+    <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_data">Data</string>
     <string name="settings_sample_interval_title">Sample interval</string>
     <string name="settings_sample_interval_subtitle">How often to record when sampling is on.</string>
@@ -137,6 +138,13 @@
     <string name="settings_delete_all_empty">No readings to delete</string>
     <string name="time_seconds">%1$d s</string>
     <string name="time_days">%1$d days</string>
+
+    <!-- Theme picker -->
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_subtitle">Choose how the app looks.</string>
+    <string name="theme_system">Follow system</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
 
     <!-- Settings screen -->
     <string name="tab_settings">Settings</string>
