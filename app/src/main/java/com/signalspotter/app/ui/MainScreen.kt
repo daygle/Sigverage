@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,7 +34,7 @@ import com.signalspotter.app.model.SignalReading
 import com.signalspotter.app.service.SamplingService
 import kotlinx.coroutines.launch
 
-private enum class Tab { Map, List }
+private enum class Tab { Map, List, Settings }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -170,6 +171,12 @@ fun MainScreen(viewModel: MainViewModel) {
                     icon = { Icon(Icons.Default.List, contentDescription = null) },
                     label = { Text(stringResource(R.string.tab_list)) }
                 )
+                NavigationBarItem(
+                    selected = tab == Tab.Settings,
+                    onClick = { tab = Tab.Settings },
+                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                    label = { Text(stringResource(R.string.tab_settings)) }
+                )
             }
         },
         floatingActionButton = {
@@ -207,6 +214,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     onClick = { sheetReading = it },
                     onDelete = viewModel::delete
                 )
+                Tab.Settings -> SettingsScreen()
             }
             StatusBanner(
                 sampling = ui.isSampling,
