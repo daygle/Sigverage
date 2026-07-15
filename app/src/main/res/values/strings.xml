@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Signal Spotter</string>
+
+    <!-- Top bar -->
+    <string name="start_sampling">Start sampling</string>
+    <string name="stop_sampling">Stop sampling</string>
+    <string name="delete_all">Delete all readings</string>
+    <string name="export_csv">Export CSV</string>
+
+    <!-- Tabs -->
+    <string name="tab_map">Map</string>
+    <string name="tab_list">List</string>
+
+    <!-- Map / FAB -->
+    <string name="record_at_location">Record here</string>
+    <string name="empty_map_hint">Tap the button to record your first signal reading.</string>
+    <string name="legend_title">Marker colour</string>
+    <string name="legend_5g">5G NR / NSA</string>
+    <string name="legend_lte">LTE (4G)</string>
+    <string name="legend_hspa">HSPA (3G)</string>
+    <string name="legend_gsm">GPRS (2G)</string>
+    <string name="legend_edge">EDGE (2.5G)</string>
+    <string name="legend_cdma">CDMA</string>
+    <string name="legend_unknown">Other</string>
+    <string name="legend_dbm_strong">Strong (&gt; -90 dBm)</string>
+    <string name="legend_dbm_ok">OK (-90 to -105 dBm)</string>
+    <string name="legend_dbm_weak">Weak (&lt; -105 dBm)</string>
+    <string name="legend_size_explainer">Marker size scales with signal strength</string>
+
+    <!-- Status banner -->
+    <string name="status_recording">Recording · %1$d readings</string>
+    <string name="status_idle">Idle</string>
+    <string name="status_no_fix">Waiting for GPS fix…</string>
+
+    <!-- Permissions -->
+    <string name="perms_title">Permissions required</string>
+    <string name="perms_foreground">Signal Spotter needs location access to record where each reading was taken.</string>
+    <string name="perms_background_title">Background location</string>
+    <string name="perms_background_msg">To keep recording while the screen is off, allow location access \"All the time\". On some Android versions, this opens device settings.</string>
+    <string name="perms_notification_title">Notification permission</string>
+    <string name="perms_notification_msg">Signal Spotter posts a persistent notification while sampling so Android keeps the service alive. Please allow notifications.</string>
+    <string name="perms_grant">Grant access</string>
+    <string name="perms_open_settings">Open settings</string>
+    <string name="perms_cancel">Not now</string>
+
+    <!-- Sampling interval -->
+    <string name="interval_title">Sampling interval</string>
+    <string name="interval_option_fast">3 s</string>
+    <string name="interval_option_normal">5 s</string>
+    <string name="interval_option_slow">15 s</string>
+    <string name="interval_option_glacial">60 s</string>
+
+    <!-- List -->
+    <string name="empty_list_hint">No readings yet. Switch to Map and tap Record.</string>
+    <string name="delete_reading">Delete</string>
+
+    <!-- Details sheet -->
+    <string name="detail_provider">Provider</string>
+    <string name="detail_accuracy">Accuracy</string>
+    <string name="detail_accuracy_value">±%1$d m</string>
+    <string name="detail_network">Network</string>
+    <string name="detail_dbm">Signal</string>
+    <string name="detail_dbm_value">%1$d dBm</string>
+    <string name="detail_lte_rsrp">LTE RSRP</string>
+    <string name="detail_lte_rsrq">LTE RSRQ</string>
+    <string name="detail_lte_snr">LTE SNR</string>
+    <string name="detail_db_value">%1$d dB</string>
+    <string name="detail_operator">Operator</string>
+    <string name="detail_mcc_mnc">MCC / MNC</string>
+    <string name="detail_mcc_mnc_value">%1$d / %2$d</string>
+    <string name="detail_cell_id">Cell ID</string>
+    <string name="detail_recorded">Recorded</string>
+    <string name="detail_lat_lng">Lat / Lng</string>
+    <string name="detail_lat_lng_value">%1$.6f, %2$.6f</string>
+    <string name="detail_close">Close</string>
+
+    <!-- Notification (foreground service) -->
+    <string name="notif_channel_sampling">Background sampling</string>
+    <string name="notif_channel_sampling_desc">Persistent notification while Signal Spotter is recording cellular readings.</string>
+    <string name="notif_sampling_title">Recording signal readings</string>
+    <string name="notif_sampling_text">%1$d readings · opens Signal Spotter</string>
+    <string name="notif_action_stop">Stop</string>
+
+    <!-- Misc -->
+    <string name="recording_saved">Reading saved</string>
+    <string name="recording_failed">Could not record: %1$s</string>
+    <string name="export_started">Exporting %1$d readings…</string>
+    <string name="export_nothing">No readings to export</string>
+    <string name="export_done">Exported %1$d readings</string>
+    <string name="export_failed">Export failed: %1$s</string>
+    <string name="confirm_delete_all_title">Delete every reading?</string>
+    <string name="confirm_delete_all_msg">This cannot be undone.</string>
+    <string name="confirm_yes">Delete</string>
+    <string name="confirm_no">Cancel</string>
+</resources>
