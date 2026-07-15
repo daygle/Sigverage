@@ -1,13 +1,8 @@
 package com.signalspotter.app.ui
 
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color as AColor
-import android.graphics.Paint
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -15,39 +10,51 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.signalspotter.app.R
+import com.signalspotter.app.coverage.CoverageFilterChips
+import com.signalspotter.app.coverage.CoverageGridOverlay
+import com.signalspotter.app.coverage.aggregate
 import com.signalspotter.app.location.FixSample
 import com.signalspotter.app.model.NetworkType
 import com.signalspotter.app.model.SignalReading
-import com.signalspotter.app.ui.theme.NetworkColors
+import org.osmdroid.events.MapListener
+import org.osmdroid.events.ScrollEvent
+import org.osmdroid.events.ZoomEvent
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
 /**
- * Wraps osmdroid's MapView in Compose, draws colour-coded markers for each
- * reading, adds a "you-are-here" overlay, and exposes the legend for the
- * colour-to-network mapping.
+ * Map view with the coverage grid overlay and filter chips.
  *
- * Marker bitmap generation is cached in a `mutableMapOf` keyed by
- * `(networkType, signalBucket)` so recomposition doesn't thrash the heap.
+ *  - **Pins are gone.** The MapPanel now draws a single `CoverageGridOverlay`
+ *    that paints one sliding-pane-sized quad per tile using the HSL hybrid
+ *    encoding (hue = dominant network, alpha = signal strength).
+ *  - **Zooms adaptively.** A `MapListener` tracks the current zoom and the
+ *    overlay's `storageZoom` is clamped into a useful range, so the grid
+ *    feels "alive" at every zoom the user lands on.
+ *  - **Filter chips drive the overlay directly.** Toggle visibility in memory
+ *    — no re-query against Room needed for snappy UX.
+ *
+ *  The `CoverageGridOverlay` obeys the contract documented in `CoverageGrid.kt`:
+ *  zero allocations inside `draw()`, viewport + pixel-rect culling.
  */
 @Composable
 fun MapPanel(
     readings: List<SignalReading>,
     lastFix: FixSample?,
-    onMarkerClick: (SignalReading) -> Unit
+    coverageFilter: Set<NetworkType>,
+    onToggleFilter: (NetworkType) -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -66,56 +73,75 @@ fun MapPanel(
             enableMyLocation()
         }
     }
-    val markerCache = remember { mutableMapOf<String, Drawable>() }
+    val coverageOverlay = remember { CoverageGridOverlay() }
+
+    /** Mirrored from `MapListener.onZoom` so a `LaunchedEffect` can react. */
+    val zoom = remember { mutableStateOf(mapView.zoomLevelDouble) }
 
     DisposableEffect(Unit) {
+        // Order matters: the coverage grid is drawn first (below), so the
+        // "you-are-here" dot from `MyLocationNewOverlay` sits clearly on top.
+        mapView.overlays.add(coverageOverlay)
         mapView.overlays.add(locationOverlay)
         mapView.onResume()
+
+        val listener = object : MapListener {
+            override fun onScroll(event: ScrollEvent?): Boolean = false
+            override fun onZoom(event: ZoomEvent?): Boolean {
+                zoom.value = event?.zoomLevel ?: mapView.zoomLevelDouble
+                return false
+            }
+        }
+        mapView.addMapListener(listener)
+
         onDispose {
+            mapView.removeMapListener(listener)
             mapView.overlays.remove(locationOverlay)
+            mapView.overlays.remove(coverageOverlay)
             locationOverlay.disableMyLocation()
             mapView.onPause()
             mapView.onDetach()
         }
     }
 
+    // Centre on the most recent fix whenever it changes.
     LaunchedEffect(lastFix?.latitude, lastFix?.longitude) {
         lastFix?.let { fix ->
             mapView.controller.animateTo(GeoPoint(fix.latitude, fix.longitude))
         }
     }
 
-    LaunchedEffect(readings) {
-        // Remove only the markers WE added (those whose relatedObject is a
-        // SignalReading). The MyLocationNewOverlay's bubble is untouched.
-        val toRemove = mapView.overlays
-            .filterIsInstance<Marker>()
-            .filter { it.relatedObject is SignalReading }
-        mapView.overlays.removeAll(toRemove)
-        readings.forEach { reading ->
-            val bucket = signalStrengthBucket(reading.signalDbm)
-            val key = "${reading.networkType.name}|$bucket"
-            val drawable = markerCache.getOrPut(key) {
-                buildMarkerBitmap(context, reading.networkType, bucket)
-            }
-            val marker = Marker(mapView).apply {
-                position = GeoPoint(reading.latitude, reading.longitude)
-                title = reading.networkType.label
-                snippet = formatSnippet(reading)
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                icon = drawable
-                relatedObject = reading
-                setOnMarkerClickListener { _, _ ->
-                    onMarkerClick(reading); true
-                }
-            }
-            mapView.overlays.add(marker)
-        }
+    // Re-aggregate on either readings-change or zoom-change. Storage zoom
+    // adapts to the current map zoom so the grid feels at home at every
+    // zoom level (clamped to a sensible band so we don't blow GC at z=22).
+    LaunchedEffect(readings, zoom.value) {
+        val storageZoom = zoom.value.toInt().coerceIn(
+            CoverageGridOverlay.MIN_STORAGE_ZOOM,
+            CoverageGridOverlay.MAX_STORAGE_ZOOM
+        )
+        coverageOverlay.storageZoom = storageZoom
+        coverageOverlay.setStats(aggregate(readings, storageZoom))
+        mapView.invalidate()
+    }
+
+    // Filter toggles don't need re-aggregation; just change visibility and
+    // invalidate the canvas.
+    LaunchedEffect(coverageFilter) {
+        coverageOverlay.setAllowed(coverageFilter)
         mapView.invalidate()
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+
+        CoverageFilterChips(
+            selected = coverageFilter,
+            onToggle = onToggleFilter,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 8.dp),
+        )
+
         if (readings.isEmpty()) {
             Surface(
                 modifier = Modifier
@@ -123,128 +149,14 @@ fun MapPanel(
                     .padding(16.dp),
                 shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-                tonalElevation = 4.dp
+                tonalElevation = 4.dp,
             ) {
                 Text(
-                    text = stringResource(R.string.empty_map_hint),
+                    text = stringResource(R.string.coverage_empty_hint),
                     modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
-        } else {
-            Legend(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(16.dp)
-            )
         }
     }
-}
-
-@Composable
-private fun Legend(modifier: Modifier = Modifier) {
-    val entries = listOf(
-        NetworkType.FiveG to R.string.legend_5g,
-        NetworkType.NR_NSA to R.string.legend_5g,
-        NetworkType.LTE to R.string.legend_lte,
-        NetworkType.HSPA to R.string.legend_hspa,
-        NetworkType.GSM to R.string.legend_gsm,
-        NetworkType.EDGE to R.string.legend_edge,
-        NetworkType.CDMA to R.string.legend_cdma,
-        NetworkType.Unknown to R.string.legend_unknown
-    ).distinctBy { it.first }
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-        tonalElevation = 4.dp
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.legend_title),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary
-            )
-            entries.forEach { (type, label) ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .background(NetworkColors[type] ?: Color.Gray, shape = RoundedCornerShape(50))
-                    )
-                    Text(
-                        text = stringResource(label),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-            Text(
-                text = stringResource(R.string.legend_size_explainer),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.outline
-            )
-        }
-    }
-}
-
-/** Bucket of signal strength for marker sizing. */
-private enum class SignalBucket { Strong, Ok, Weak, Unknown }
-
-private fun signalStrengthBucket(dbm: Int?): SignalBucket = when {
-    dbm == null -> SignalBucket.Unknown
-    dbm >= -90 -> SignalBucket.Strong
-    dbm >= -105 -> SignalBucket.Ok
-    else -> SignalBucket.Weak
-}
-
-/** Generate a marker bitmap. Cached by `(networkType, bucket)`. */
-private fun buildMarkerBitmap(
-    context: android.content.Context,
-    type: NetworkType,
-    bucket: SignalBucket
-): Drawable {
-    val baseColor = NetworkColors[type]?.let { AColor.argb(
-        (it.alpha * 255).toInt(), (it.red * 255).toInt(), (it.green * 255).toInt(), (it.blue * 255).toInt()
-    ) } ?: AColor.GRAY
-
-    val dp = context.resources.displayMetrics.density
-    val outerR = when (bucket) {
-        SignalBucket.Strong -> 22f * dp
-        SignalBucket.Ok -> 16f * dp
-        SignalBucket.Weak -> 11f * dp
-        SignalBucket.Unknown -> 14f * dp
-    }
-    val sizePx = (outerR * 2 + 4f * dp).toInt()
-    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    val cx = sizePx / 2f
-    val cy = sizePx / 2f
-
-    val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = baseColor }
-    val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = AColor.argb(60, 0, 0, 0)
-        style = Paint.Style.STROKE
-        strokeWidth = 2f * dp
-    }
-    val core = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = AColor.WHITE }
-
-    canvas.drawCircle(cx, cy, outerR, fill)
-    canvas.drawCircle(cx, cy, outerR, ring)
-    canvas.drawCircle(cx, cy, outerR * 0.4f, core)
-
-    return BitmapDrawable(context.resources, bitmap)
-}
-
-private fun formatSnippet(r: SignalReading): String {
-    val dbm = r.signalDbm?.let { "$it dBm" } ?: "–"
-    val op = r.operatorName ?: "–"
-    val time = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.US)
-        .format(java.util.Date(r.timestamp))
-    return "$op · $dbm · $time"
 }

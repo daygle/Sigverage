@@ -93,4 +93,8 @@
     <string name="confirm_delete_all_msg">This cannot be undone.</string>
     <string name="confirm_yes">Delete</string>
     <string name="confirm_no">Cancel</string>
+
+    <!-- Coverage grid overlay -->
+    <string name="coverage_empty_hint">No readings yet. Tap the button to record one, or enable sampling and move around to build a coverage map.</string>
+    <string name="coverage_filter_label">Coverage</string>
 </resources>

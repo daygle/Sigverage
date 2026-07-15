@@ -173,7 +173,8 @@ fun MainScreen(viewModel: MainViewModel) {
                 Tab.Map -> MapPanel(
                     readings = readings,
                     lastFix = ui.lastFix,
-                    onMarkerClick = { sheetReading = it }
+                    coverageFilter = ui.coverageFilter,
+                    onToggleFilter = viewModel::toggleCoverageFilter,
                 )
                 Tab.List -> ListPanel(
                     readings = readings,

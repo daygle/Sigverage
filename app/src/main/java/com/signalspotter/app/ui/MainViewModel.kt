@@ -8,6 +8,7 @@ import com.signalspotter.app.cellular.CellularScanner
 import com.signalspotter.app.data.SignalRepository
 import com.signalspotter.app.location.FixSample
 import com.signalspotter.app.location.LocationTracker
+import com.signalspotter.app.model.NetworkType
 import com.signalspotter.app.model.SignalReading
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +28,8 @@ data class HomeUiState(
     val lastFix: FixSample? = null,
     val latestReading: SignalReading? = null,
     val samplingIntervalMs: Long = 5_000L,
+    /** Networks currently displayed by the coverage grid. Defaults to all. */
+    val coverageFilter: Set<NetworkType> = NetworkType.values().toSet(),
 )
 
 /**
@@ -91,6 +94,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setInterval(ms: Long) {
         _ui.value = _ui.value.copy(samplingIntervalMs = ms)
+    }
+
+    /**
+     * Toggle inclusion of [type] in the visible coverage grid.
+     *
+     * An empty filter set hides every tile; if the user toggles every
+     * network off they can pan around with a blank map and re-enable
+     * individual networks one by one.
+     */
+    fun toggleCoverageFilter(type: NetworkType) {
+        _ui.value = _ui.value.let { current ->
+            val next = current.coverageFilter.toMutableSet()
+            if (!next.add(type)) next.remove(type)
+            current.copy(coverageFilter = next)
+        }
     }
 
     /**
