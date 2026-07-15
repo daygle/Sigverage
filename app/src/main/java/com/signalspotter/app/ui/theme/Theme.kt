@@ -29,20 +29,68 @@ private val Slate100 = Color(0xFFF1F5F9)
 private val Slate50 = Color(0xFFFAFAFC)
 
 /**
- * Marker colours per cellular technology. These stay stable even with
- * dynamic (Material You) colors enabled, because the map is the source of
- * truth for network identity.
+ * Marker colours for the static slate/sky fallback palette. Use this only
+ * from non-Compose contexts (DAOs, ViewModels, plain helpers) where we
+ * can't observe the live `ColorScheme`. UI code should always go through
+ * [rememberNetworkColors] instead so the marker palette tracks the
+ * user's chosen theme.
+ *
+ * Identity mapping (stable across themes):
+ *   5G    → palette's primary          (often blue/cool)
+ *   NR_NSA→ palette's primaryContainer (softer version)
+ *   LTE   → palette's tertiary         (often warm/green)
+ *   HSPA  → palette's tertiaryContainer
+ *   GSM   → palette's secondary        (typically analogous to primary)
+ *   EDGE  → palette's secondaryContainer
+ *   CDMA  → palette's error            (red-ish, distinct category)
+ *   Unknown→ palette's outline          (neutral, low-saturation)
  */
 val NetworkColors: Map<NetworkType, Color> = mapOf(
-    NetworkType.FiveG to Color(0xFF22C55E),
-    NetworkType.NR_NSA to Color(0xFF34D399),
-    NetworkType.LTE to Sky500,
-    NetworkType.HSPA to Color(0xFFEA580C),
+    NetworkType.FiveG to Sky500,
+    NetworkType.NR_NSA to Color(0xFFE0F2FE),       // primaryContainer in LightColors
+    NetworkType.LTE to SignalGreen,
+    NetworkType.HSPA to Color(0xFFA7F3D0),          // secondaryContainer-ish
     NetworkType.GSM to Color(0xFFA855F7),
-    NetworkType.EDGE to SignalAmber,
-    NetworkType.CDMA to Color(0xFF7C3AED),
+    NetworkType.EDGE to Color(0xFF7C3AED),         // EDGE ≈ CDMA-deep-purple in static
+    NetworkType.CDMA to SignalRed,
     NetworkType.Unknown to Color(0xFF94A3B8)
 )
+
+/**
+ * Composable that returns the network palette tied to the live [ColorScheme].
+ *
+ * Each `NetworkType` is bound to a fixed slot in the scheme (primary,
+ * primaryContainer, tertiary, …). When the user changes theme or
+ * dynamic-colour toggle, the underlying scheme rebuilds and so do these
+ * colours — but the *identity* of "5G is the primary slot" stays put, so
+ * the legend is meaningful regardless of the active palette.
+ *
+ * Identity mapping (stable across themes — same as the static fallback):
+ *   5G    → scheme.primary
+ *   NR_NSA→ scheme.primaryContainer
+ *   LTE   → scheme.tertiary
+ *   HSPA  → scheme.tertiaryContainer
+ *   GSM   → scheme.secondary
+ *   EDGE  → scheme.secondaryContainer
+ *   CDMA  → scheme.error
+ *   Unknown→ scheme.outline
+ */
+@Composable
+fun rememberNetworkColors(
+    scheme: androidx.compose.material3.ColorScheme =
+        androidx.compose.material3.MaterialTheme.colorScheme,
+): Map<NetworkType, Color> = androidx.compose.runtime.remember(scheme) {
+    mapOf(
+        NetworkType.FiveG to scheme.primary,
+        NetworkType.NR_NSA to scheme.primaryContainer,
+        NetworkType.LTE to scheme.tertiary,
+        NetworkType.HSPA to scheme.tertiaryContainer,
+        NetworkType.GSM to scheme.secondary,
+        NetworkType.EDGE to scheme.secondaryContainer,
+        NetworkType.CDMA to scheme.error,
+        NetworkType.Unknown to scheme.outline,
+    )
+}
 
 private val LightColors = lightColorScheme(
     primary = Sky500,

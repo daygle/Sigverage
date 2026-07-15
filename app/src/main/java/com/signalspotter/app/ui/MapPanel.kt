@@ -24,6 +24,7 @@ import com.signalspotter.app.coverage.aggregate
 import com.signalspotter.app.location.FixSample
 import com.signalspotter.app.model.NetworkType
 import com.signalspotter.app.model.SignalReading
+import com.signalspotter.app.ui.theme.rememberNetworkColors
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -77,6 +78,11 @@ fun MapPanel(
     }
     val coverageOverlay = remember { CoverageGridOverlay(initialStorageZoom = coverageZoom) }
 
+    // Marker palette tied to the live ColorScheme. Recomputes whenever the
+    // user toggles light/dark or dynamic-colour, and we push it into the
+    // osmdroid Overlay so the next paint uses the new colours.
+    val networkColors = rememberNetworkColors()
+
     DisposableEffect(Unit) {
         // Coverage grid is drawn below the location overlay so the
         // "you-are-here" dot sits clearly on top.
@@ -103,6 +109,12 @@ fun MapPanel(
     // Slider → storage zoom, sync immediately.
     LaunchedEffect(coverageZoom) {
         coverageOverlay.storageZoom = coverageZoom
+        mapView.invalidate()
+    }
+
+    // Theme/dynamic toggle → swap palette into the overlay.
+    LaunchedEffect(networkColors) {
+        coverageOverlay.setPalette(networkColors)
         mapView.invalidate()
     }
 

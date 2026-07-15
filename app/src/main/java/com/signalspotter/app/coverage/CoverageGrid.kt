@@ -49,6 +49,16 @@ class CoverageGridOverlay(
     private var stats: Map<TileId, CellStats> = emptyMap()
     private var allowed: Set<NetworkType> = NetworkType.values().toSet()
 
+    /**
+     * Network → colour map. Defaults to the static [com.signalspotter.app.ui.theme.NetworkColors]
+     * fallback so the overlay still draws correctly if the host forgets to
+     * inject the live palette. When the active `ColorScheme` changes (light/dark,
+     * dynamic-colour toggle, future wallpaper-derived Material You), the host
+     * should call this with the result of `rememberNetworkColors()`.
+     */
+    private var palette: Map<NetworkType, androidx.compose.ui.graphics.Color> =
+        com.signalspotter.app.ui.theme.NetworkColors
+
     // Pre-allocated scratch. Never reassigned in draw().
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -70,9 +80,19 @@ class CoverageGridOverlay(
         allowed = newAllowed
     }
 
-    fun update(newStats: Map<TileId, CellStats>, newAllowed: Set<NetworkType>) {
+    /** Inject the live palette produced by `rememberNetworkColors()`. */
+    fun setPalette(newPalette: Map<NetworkType, androidx.compose.ui.graphics.Color>) {
+        palette = newPalette
+    }
+
+    fun update(
+        newStats: Map<TileId, CellStats>,
+        newAllowed: Set<NetworkType>,
+        newPalette: Map<NetworkType, androidx.compose.ui.graphics.Color> = palette,
+    ) {
         stats = newStats
         allowed = newAllowed
+        palette = newPalette
     }
 
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
@@ -91,7 +111,7 @@ class CoverageGridOverlay(
 
             val pick = pickDominant(cellStats, allowed) ?: continue
             val bucket = bucketFor(pick.second.meanDbm)
-            fillPaint.color = colorFor(pick.first, bucket).toArgb()
+            fillPaint.color = colorFor(pick.first, bucket, palette).toArgb()
 
             val bounds = tileBounds(tile)
 
@@ -154,7 +174,7 @@ class CoverageGridOverlay(
         for (slot in SLOT_LAYOUT) {
             val agg = cellStats.perNetwork[slot.type] ?: continue
             if (slot.type !in allowed) continue
-            slotPaint.color = colorFor(slot.type, bucketFor(agg.meanDbm)).toArgb()
+            slotPaint.color = colorFor(slot.type, bucketFor(agg.meanDbm), palette).toArgb()
             val cx = originX + slot.col * pitchPx + slotRadiusPx
             val cy = originY + slot.row * pitchPx + slotRadiusPx
             canvas.drawCircle(cx, cy, slotRadiusPx, slotPaint)

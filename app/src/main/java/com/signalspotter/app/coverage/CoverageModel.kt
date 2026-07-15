@@ -160,12 +160,22 @@ fun bucketFor(meanDbm: Int): SignalBucket = when {
 }
 
 /**
- * Final colour for a tile: network hue from [NetworkColors], alpha from the
+ * Final colour for a tile: network hue from [palette], alpha from the
  * signal strength bucket. This is the **HSL hybrid** encoding — single
  * visual channel, two dimensions.
+ *
+ * [palette] defaults to the static [NetworkColors] fallback so non-Compose
+ * callers (DAOs, ViewModels, tests) keep working unchanged. Compose
+ * callers should pass the result of `rememberNetworkColors()` so the
+ * network hues track the live `ColorScheme` and the legend stays stable
+ * across light/dark/dynamic-colour changes.
  */
-fun colorFor(network: NetworkType, bucket: SignalBucket): Color {
-    val base = NetworkColors[network] ?: Color.Gray
+fun colorFor(
+    network: NetworkType,
+    bucket: SignalBucket,
+    palette: Map<NetworkType, Color> = NetworkColors,
+): Color {
+    val base = palette[network] ?: Color.Gray
     return base.copy(alpha = bucket.alpha)
 }
 
