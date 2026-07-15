@@ -97,4 +97,28 @@
     <!-- Coverage grid overlay -->
     <string name="coverage_empty_hint">No readings yet. Tap the button to record one, or enable sampling and move around to build a coverage map.</string>
     <string name="coverage_filter_label">Coverage</string>
+
+    <!-- Granularity slider dialog -->
+    <string name="granularity_slider_title">Coverage cell size</string>
+    <string name="granularity_current_label">%1$s per cell</string>
+    <string name="granularity_help">Slide right for finer detail. Slide left for a wider area overview. Independent of map zoom.</string>
+    <string name="granularity_size_unknown">—</string>
+    <string name="granularity_size_75">75 m</string>
+    <string name="granularity_size_150">150 m</string>
+    <string name="granularity_size_300">300 m</string>
+    <string name="granularity_size_600">600 m</string>
+    <string name="granularity_size_1200">1.2 km</string>
+    <string name="granularity_size_2400">2.4 km</string>
+    <string name="granularity_size_4800">4.8 km</string>
+    <string name="granularity_size_9600">9.6 km</string>
+
+    <!-- Reading retention / auto-expiry -->
+    <string name="retention_dialog_title">Auto-expire readings</string>
+    <string name="retention_dialog_help">Readings older than the chosen age are removed automatically. Stored locally only.</string>
+    <string name="retention_forever">Forever</string>
+    <string name="retention_30_days">30 days</string>
+    <string name="retention_90_days">90 days</string>
+    <string name="retention_6_months">6 months</string>
+    <string name="retention_1_year">1 year</string>
+    <string name="retention_purge_count">Removed %1$d old readings</string>
 </resources>

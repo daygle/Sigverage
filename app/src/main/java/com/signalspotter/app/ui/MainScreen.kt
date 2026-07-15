@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -47,6 +49,19 @@ fun MainScreen(viewModel: MainViewModel) {
     var sheetReading by remember { mutableStateOf<SignalReading?>(null) }
     var showDeleteAll by remember { mutableStateOf(false) }
     var showIntervalDialog by remember { mutableStateOf(false) }
+    var showGranularityDialog by remember { mutableStateOf(false) }
+    var showRetentionDialog by remember { mutableStateOf(false) }
+
+    // Pump one-shot UI events (purge counts after a retention change,
+    // future export-failed notifications, etc.) into the snackbar host.
+    // `LaunchedEffect` keeps the collector in the Composable scope and
+    // cancels it automatically when the composable leaves composition,
+    // avoiding leaks across configuration changes.
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { message ->
+            snackbar.showSnackbar(message)
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -85,10 +100,7 @@ fun MainScreen(viewModel: MainViewModel) {
             viewModel.setSampling(true)
             SamplingService.start(ctx, ui.samplingIntervalMs)
         }
-    }
-
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
+    }                Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
@@ -109,6 +121,18 @@ fun MainScreen(viewModel: MainViewModel) {
                         Icon(
                             imageVector = Icons.Default.IosShare,
                             contentDescription = stringResource(R.string.interval_title)
+                        )
+                    }
+                    IconButton(onClick = { showGranularityDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.GridView,
+                            contentDescription = stringResource(R.string.granularity_slider_title)
+                        )
+                    }
+                    IconButton(onClick = { showRetentionDialog = true }) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = stringResource(R.string.retention_dialog_title)
                         )
                     }
                     IconButton(
@@ -175,6 +199,8 @@ fun MainScreen(viewModel: MainViewModel) {
                     lastFix = ui.lastFix,
                     coverageFilter = ui.coverageFilter,
                     onToggleFilter = viewModel::toggleCoverageFilter,
+                    coverageZoom = ui.coverageZoom,
+                    onCoverageZoomChange = viewModel::setCoverageZoom,
                 )
                 Tab.List -> ListPanel(
                     readings = readings,
@@ -231,6 +257,25 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.setInterval(ms)
                 showIntervalDialog = false
             }
+        )
+    }
+
+    if (showGranularityDialog) {
+        GranularityDialog(
+            currentZoom = ui.coverageZoom,
+            onDismiss = { showGranularityDialog = false },
+            onChange = viewModel::setCoverageZoom,
+        )
+    }
+
+    if (showRetentionDialog) {
+        RetentionDialog(
+            currentDays = ui.retentionDays,
+            onDismiss = { showRetentionDialog = false },
+            onPick = { days ->
+                viewModel.setRetentionDays(days)
+                showRetentionDialog = false
+            },
         )
     }
 }

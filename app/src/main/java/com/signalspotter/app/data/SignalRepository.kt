@@ -22,6 +22,14 @@ class SignalRepository(private val dao: SignalReadingDao) {
     suspend fun delete(reading: SignalReading) = dao.delete(reading)
     suspend fun deleteAll() = dao.deleteAll()
 
+    /**
+     * Hard-delete every reading whose timestamp precedes [thresholdMillis].
+     * Returns the count deleted — primarily used so the UI can show feedback
+     * like "Removed 23 old readings" when the user changes retention.
+     */
+    suspend fun deleteOlderThan(thresholdMillis: Long): Int =
+        dao.deleteOlderThan(thresholdMillis)
+
     companion object {
         private const val DB_NAME = "signals.db"
 

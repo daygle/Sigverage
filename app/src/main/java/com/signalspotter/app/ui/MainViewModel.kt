@@ -5,16 +5,22 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.signalspotter.app.cellular.CellularScanner
+import com.signalspotter.app.coverage.CoverageGridOverlay
+import com.signalspotter.app.R
+import com.signalspotter.app.data.PreferencesStore
 import com.signalspotter.app.data.SignalRepository
 import com.signalspotter.app.location.FixSample
 import com.signalspotter.app.location.LocationTracker
 import com.signalspotter.app.model.NetworkType
 import com.signalspotter.app.model.SignalReading
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,6 +36,11 @@ data class HomeUiState(
     val samplingIntervalMs: Long = 5_000L,
     /** Networks currently displayed by the coverage grid. Defaults to all. */
     val coverageFilter: Set<NetworkType> = NetworkType.values().toSet(),
+    /** Storage-zoom level (Mercator tile Z) the coverage grid bins into.
+     *  Defaults to 18 ≈ a city block. Manipulated from the AppBar slider. */
+    val coverageZoom: Int = CoverageGridOverlay.DEFAULT_STORAGE_ZOOM,
+    /** Retention in days; `0` means "forever" (the default — opt-in expiry). */
+    val retentionDays: Int = PreferencesStore.DEFAULT_RETENTION_DAYS,
 )
 
 /**
@@ -45,6 +56,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = SignalRepository.get(app)
     private val location = LocationTracker(app)
     private val cellular = CellularScanner(app)
+    private val prefs = PreferencesStore(app)
+
+    /**
+     * One-shot UI events (snackbar messages, transient notifications). Each
+     * event is consumed exactly once, even across configuration changes,
+     * because we wrap the underlying `Channel` in `receiveAsFlow()` rather
+     * than folding the event into `HomeUiState` (which would re-emit the
+     * same snackbar on rotation).
+     */
+    private val _events = Channel<String>(Channel.BUFFERED)
+    val events: Flow<String> = _events.receiveAsFlow()
 
     val readings: StateFlow<List<SignalReading>> = repo.observeReadings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -56,6 +78,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val ui: StateFlow<HomeUiState> = _ui.asStateFlow()
 
     init {
+        // Apply retention sweep silently on startup. The user already
+        // accepted the policy by leaving it active; no need to spam them
+        // with a snackbar mentioning how many rows got cleaned out.
+        val initialRetention = prefs.retentionDays
+        _ui.value = _ui.value.copy(retentionDays = initialRetention)
+        if (initialRetention > 0) applyRetention(initialRetention, announce = false)
+
         viewModelScope.launch(Dispatchers.IO) {
             _ui.value = _ui.value.copy(lastFix = location.lastKnown())
         }
@@ -108,6 +137,58 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val next = current.coverageFilter.toMutableSet()
             if (!next.add(type)) next.remove(type)
             current.copy(coverageFilter = next)
+        }
+    }
+
+    /**
+     * Set the storage-zoom used to bin readings into Mercator tiles. The
+     * AppBar slider drives this; clamped to the legal range.
+     *
+     * Decoupled from the visible map zoom — users can pan/zoom the map
+     * freely without changing the analytics granularity, and vice versa.
+     */
+    fun setCoverageZoom(z: Int) {
+        _ui.value = _ui.value.copy(
+            coverageZoom = z.coerceIn(
+                CoverageGridOverlay.MIN_STORAGE_ZOOM,
+                CoverageGridOverlay.MAX_STORAGE_ZOOM
+            )
+        )
+    }
+
+    /**
+     * Update the retention policy. `0` means "forever" (no automatic
+     * deletion); any positive value is the number of days readings may
+     * live before being pruned.
+     *
+     * Persists to SharedPreferences and immediately sweeps the database of
+     * stale rows. The deletion count is emitted on [events] for the UI to
+     * show in a snackbar. Calling with the same value is essentially a
+     * re-sweep and produces another (possibly zero) snackbar.
+     */
+    fun setRetentionDays(days: Int) {
+        val normalized = days.coerceAtLeast(0)
+        prefs.retentionDays = normalized
+        _ui.value = _ui.value.copy(retentionDays = normalized)
+        if (normalized > 0) applyRetention(normalized, announce = true)
+    }
+
+    /**
+     * Sweep readings older than [days] days. When [announce] is true the
+     * deletion count is emitted on [events] for the UI to show in a
+     * snackbar; when false (used at app start), the sweep is silent.
+     */
+    private fun applyRetention(days: Int, announce: Boolean) {
+        val cutoff = System.currentTimeMillis() -
+            days.toLong() * 24L * 60L * 60L * 1000L
+        viewModelScope.launch(Dispatchers.IO) {
+            val count = repo.deleteOlderThan(cutoff)
+            if (announce && count > 0) {
+                _events.trySend(
+                    getApplication<Application>()
+                        .getString(R.string.retention_purge_count, count)
+                )
+            }
         }
     }
 

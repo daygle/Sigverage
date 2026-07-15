@@ -162,8 +162,10 @@ class CoverageGridOverlay(
     }
 
     companion object {
-        /** Default storage zoom (~600 m tiles at the equator). */
-        const val DEFAULT_STORAGE_ZOOM = 16
+        /** Default storage zoom (~150 m tiles at the equator). Picked because
+         *  it matches "one city block / one doorway" — the natural unit for
+         *  "where am I standing". */
+        const val DEFAULT_STORAGE_ZOOM = 18
 
         /** Lower clamp for storage zoom. */
         const val MIN_STORAGE_ZOOM = 12

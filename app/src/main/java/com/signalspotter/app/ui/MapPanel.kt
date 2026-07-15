@@ -10,7 +10,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,9 +24,6 @@ import com.signalspotter.app.coverage.aggregate
 import com.signalspotter.app.location.FixSample
 import com.signalspotter.app.model.NetworkType
 import com.signalspotter.app.model.SignalReading
-import org.osmdroid.events.MapListener
-import org.osmdroid.events.ScrollEvent
-import org.osmdroid.events.ZoomEvent
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -37,17 +33,19 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 /**
  * Map view with the coverage grid overlay and filter chips.
  *
- *  - **Pins are gone.** The MapPanel now draws a single `CoverageGridOverlay`
- *    that paints one sliding-pane-sized quad per tile using the HSL hybrid
- *    encoding (hue = dominant network, alpha = signal strength).
- *  - **Zooms adaptively.** A `MapListener` tracks the current zoom and the
- *    overlay's `storageZoom` is clamped into a useful range, so the grid
- *    feels "alive" at every zoom the user lands on.
- *  - **Filter chips drive the overlay directly.** Toggle visibility in memory
- *    — no re-query against Room needed for snappy UX.
+ * Storage zoom and visible map zoom are **fully decoupled**:
  *
- *  The `CoverageGridOverlay` obeys the contract documented in `CoverageGrid.kt`:
- *  zero allocations inside `draw()`, viewport + pixel-rect culling.
+ *  - `coverageZoom` (driven by the AppBar slider) chooses how finely
+ *    readings are binned into Mercator tiles. The default is
+ *    [CoverageGridOverlay.DEFAULT_STORAGE_ZOOM] = 18, ≈150 m per side.
+ *  - The visible map's `controller.zoomLevel` is whatever the user
+ *    pinches/pans to, independent of the storage zoom. When the user
+ *    pans, the same tile stats re-render at new screen positions; we
+ *    do NOT need a MapListener to mirror zoom changes.
+ *
+ *  Re-aggregation only fires when the *data* shape changes
+ *  (`readings`-change or `coverageZoom`-change). Toggling a network chip
+ *  just changes the in-memory `allowed` set; map zoom/pan stays cheap.
  */
 @Composable
 fun MapPanel(
@@ -55,6 +53,8 @@ fun MapPanel(
     lastFix: FixSample?,
     coverageFilter: Set<NetworkType>,
     onToggleFilter: (NetworkType) -> Unit,
+    coverageZoom: Int,
+    onCoverageZoomChange: (Int) -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -64,7 +64,9 @@ fun MapPanel(
             setMultiTouchControls(true)
             isHorizontalMapRepetitionEnabled = false
             isVerticalMapRepetitionEnabled = false
-            controller.setZoom(14.0)
+            // Start at the new default so the user opens to the granularity
+            // they want by default; they can pinch from there.
+            controller.setZoom(CoverageGridOverlay.DEFAULT_STORAGE_ZOOM.toDouble())
             controller.setCenter(GeoPoint(37.7749, -122.4194))
         }
     }
@@ -73,29 +75,16 @@ fun MapPanel(
             enableMyLocation()
         }
     }
-    val coverageOverlay = remember { CoverageGridOverlay() }
-
-    /** Mirrored from `MapListener.onZoom` so a `LaunchedEffect` can react. */
-    val zoom = remember { mutableStateOf(mapView.zoomLevelDouble) }
+    val coverageOverlay = remember { CoverageGridOverlay(initialStorageZoom = coverageZoom) }
 
     DisposableEffect(Unit) {
-        // Order matters: the coverage grid is drawn first (below), so the
-        // "you-are-here" dot from `MyLocationNewOverlay` sits clearly on top.
+        // Coverage grid is drawn below the location overlay so the
+        // "you-are-here" dot sits clearly on top.
         mapView.overlays.add(coverageOverlay)
         mapView.overlays.add(locationOverlay)
         mapView.onResume()
 
-        val listener = object : MapListener {
-            override fun onScroll(event: ScrollEvent?): Boolean = false
-            override fun onZoom(event: ZoomEvent?): Boolean {
-                zoom.value = event?.zoomLevel ?: mapView.zoomLevelDouble
-                return false
-            }
-        }
-        mapView.addMapListener(listener)
-
         onDispose {
-            mapView.removeMapListener(listener)
             mapView.overlays.remove(locationOverlay)
             mapView.overlays.remove(coverageOverlay)
             locationOverlay.disableMyLocation()
@@ -111,21 +100,21 @@ fun MapPanel(
         }
     }
 
-    // Re-aggregate on either readings-change or zoom-change. Storage zoom
-    // adapts to the current map zoom so the grid feels at home at every
-    // zoom level (clamped to a sensible band so we don't blow GC at z=22).
-    LaunchedEffect(readings, zoom.value) {
-        val storageZoom = zoom.value.toInt().coerceIn(
-            CoverageGridOverlay.MIN_STORAGE_ZOOM,
-            CoverageGridOverlay.MAX_STORAGE_ZOOM
-        )
-        coverageOverlay.storageZoom = storageZoom
-        coverageOverlay.setStats(aggregate(readings, storageZoom))
+    // Slider → storage zoom, sync immediately.
+    LaunchedEffect(coverageZoom) {
+        coverageOverlay.storageZoom = coverageZoom
         mapView.invalidate()
     }
 
-    // Filter toggles don't need re-aggregation; just change visibility and
-    // invalidate the canvas.
+    // Re-aggregate ONLY on readings-change or slider-change. Pan/zoom of
+    // the visible map doesn't need re-aggregation; draw() re-projects the
+    // same stats at new screen positions for free.
+    LaunchedEffect(readings, coverageZoom) {
+        coverageOverlay.setStats(aggregate(readings, coverageZoom))
+        mapView.invalidate()
+    }
+
+    // Filter toggles don't need re-aggregation; just change visibility.
     LaunchedEffect(coverageFilter) {
         coverageOverlay.setAllowed(coverageFilter)
         mapView.invalidate()
@@ -159,4 +148,10 @@ fun MapPanel(
             }
         }
     }
+
+    // Suppress unused-parameter warning on the callback when the parent
+    // doesn't wire it through. (Future taps could open the same dialog
+    // from the corner of the map.)
+    @Suppress("UNUSED_EXPRESSION")
+    onCoverageZoomChange
 }

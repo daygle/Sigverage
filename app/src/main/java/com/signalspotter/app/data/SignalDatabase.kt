@@ -39,6 +39,14 @@ interface SignalReadingDao {
     @Query("DELETE FROM signal_readings")
     suspend fun deleteAll()
 
+    /**
+     * Hard-delete every reading whose `timestamp` is older than [threshold].
+     * Returns the row count actually deleted (Room surfaces this for
+     * `@Query DELETE … ` statements since 2.4).
+     */
+    @Query("DELETE FROM signal_readings WHERE timestamp < :threshold")
+    suspend fun deleteOlderThan(threshold: Long): Int
+
     @Delete
     suspend fun delete(reading: SignalReading)
 }
