@@ -30,7 +30,10 @@ class MainActivity : ComponentActivity() {
             // Observe the ViewModel at the activity root so the theme
             // re-resolves whenever the user toggles the override in Settings.
             val ui by viewModel.ui.collectAsState()
-            SignalSpotterTheme(themeMode = ui.themeMode) {
+            SignalSpotterTheme(
+                themeMode = ui.themeMode,
+                dynamicColor = ui.dynamicColorEnabled,
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

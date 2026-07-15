@@ -20,6 +20,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -106,6 +107,12 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_theme_subtitle),
                 value = themeLabelFor(ui.themeMode),
                 onClick = { showThemeDialog = true },
+            )
+            SwitchRow(
+                title = stringResource(R.string.settings_dynamic_color_title),
+                subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
+                checked = ui.dynamicColorEnabled,
+                onCheckedChange = viewModel::setDynamicColorEnabled,
             )
         }
 
@@ -248,6 +255,43 @@ private fun Section(title: String, content: @Composable () -> Unit) {
         )
         content()
     }
+}
+
+/**
+ * Variant of [SettingsRow] with a trailing [Switch]. The whole row is
+ * tappable so the user doesn't have to fish for the small switch hit-target,
+ * matching Android Settings' standard pattern.
+ */
+@Composable
+private fun SwitchRow(
+    title: String,
+    subtitle: String?,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    ListItem(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) },
+        shape = RoundedCornerShape(0.dp),
+        headlineContent = { Text(text = title) },
+        supportingContent = {
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            }
+        },
+        trailingContent = {
+            Switch(
+                checked = checked,
+                onCheckedChange = onCheckedChange,
+            )
+        },
+    )
+    HorizontalDivider()
 }
 
 /**

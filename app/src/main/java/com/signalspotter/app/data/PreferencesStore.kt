@@ -41,6 +41,19 @@ class PreferencesStore(context: Context) {
             prefs.edit().putString(KEY_THEME_MODE, value.name).apply()
         }
 
+    /**
+     * Material You palette opt-in. On Android 12+ the system derives a colour
+     * scheme from the user's wallpaper; older devices fall back to the
+     * static slate/sky palette regardless of this setting. Defaults to
+     * [DEFAULT_DYNAMIC_COLOR_ENABLED] (= true) so users get Material You out
+     * of the box on supported devices.
+     */
+    var dynamicColorEnabled: Boolean
+        get() = prefs.getBoolean(KEY_DYNAMIC_COLOR_ENABLED, DEFAULT_DYNAMIC_COLOR_ENABLED)
+        set(value) {
+            prefs.edit().putBoolean(KEY_DYNAMIC_COLOR_ENABLED, value).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "signal_spotter_prefs"
         private const val KEY_RETENTION_DAYS = "retention_days"
@@ -48,6 +61,10 @@ class PreferencesStore(context: Context) {
         /** `0` = forever. The user opts in by changing the policy. */
         const val DEFAULT_RETENTION_DAYS = 0
 
+        /** Material You palette is on by default. */
+        const val DEFAULT_DYNAMIC_COLOR_ENABLED = true
+
         private const val KEY_THEME_MODE = "theme_mode"
+        private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_enabled"
     }
 }

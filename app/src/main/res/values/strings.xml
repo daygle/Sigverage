@@ -146,6 +146,10 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
 
+    <!-- Dynamic colour toggle (Android 12+) -->
+    <string name="settings_dynamic_color_title">Dynamic colour</string>
+    <string name="settings_dynamic_color_subtitle">Use Material You colours derived from your wallpaper (Android 12 and above). On older devices this has no visible effect.</string>
+
     <!-- Settings screen -->
     <string name="tab_settings">Settings</string>
     <string name="settings_section_permissions">Permissions</string>

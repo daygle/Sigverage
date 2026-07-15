@@ -44,6 +44,13 @@ data class HomeUiState(
     val retentionDays: Int = PreferencesStore.DEFAULT_RETENTION_DAYS,
     /** Light/dark theme override (default: follow OS via [ThemeMode.System]). */
     val themeMode: ThemeMode = ThemeMode.Default,
+    /**
+     * Material You palette opt-in. Drives the `dynamicColor` argument of
+     * `SignalSpotterTheme` at the activity root. No-op on Android <12;
+     * see [com.signalspotter.app.ui.theme.SignalSpotterTheme] for the
+     * dynamic-vs-static palette resolution.
+     */
+    val dynamicColorEnabled: Boolean = PreferencesStore.DEFAULT_DYNAMIC_COLOR_ENABLED,
 )
 
 /**
@@ -88,9 +95,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _ui.value = _ui.value.copy(retentionDays = initialRetention)
         if (initialRetention > 0) applyRetention(initialRetention, announce = false)
 
-        // Load the persisted theme preference so the very first frame is
-        // already drawn in the right palette — no flash of light → dark.
-        _ui.value = _ui.value.copy(themeMode = prefs.themeMode)
+        // Load the persisted theme + dynamic-colour preference so the very
+        // first frame is already drawn in the right palette — no flash of
+        // light → dark, material-you → static.
+        _ui.value = _ui.value.copy(
+            themeMode = prefs.themeMode,
+            dynamicColorEnabled = prefs.dynamicColorEnabled,
+        )
 
         viewModelScope.launch(Dispatchers.IO) {
             _ui.value = _ui.value.copy(lastFix = location.lastKnown())
@@ -172,6 +183,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setThemeMode(mode: ThemeMode) {
         prefs.themeMode = mode
         _ui.value = _ui.value.copy(themeMode = mode)
+    }
+
+    /**
+     * Toggle the Material You (Android 12+) dynamic palette. On devices
+     * older than Android 12 this preference has no effect — the static
+     * slate/sky palette is always used — but the flag is still read so a
+     * future upgrade "just works".
+     */
+    fun setDynamicColorEnabled(enabled: Boolean) {
+        prefs.dynamicColorEnabled = enabled
+        _ui.value = _ui.value.copy(dynamicColorEnabled = enabled)
     }
 
     /**
