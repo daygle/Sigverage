@@ -1,24 +1,19 @@
 package com.signalspotter.app.ui
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddLocation
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -48,10 +43,9 @@ fun MainScreen(viewModel: MainViewModel) {
 
     var tab by rememberSaveable { mutableStateOf(Tab.Map) }
     var sheetReading by remember { mutableStateOf<SignalReading?>(null) }
-    var showDeleteAll by remember { mutableStateOf(false) }
-    var showIntervalDialog by remember { mutableStateOf(false) }
-    var showGranularityDialog by remember { mutableStateOf(false) }
-    var showRetentionDialog by remember { mutableStateOf(false) }
+    // Dialogs that USED to live here (sample-interval, granularity, retention,
+    // delete-all confirm) have been moved into SettingsScreen because the
+    // user prefers them reachable from the Settings tab.
 
     // Pump one-shot UI events (purge counts after a retention change,
     // future export-failed notifications, etc.) into the snackbar host.
@@ -101,7 +95,9 @@ fun MainScreen(viewModel: MainViewModel) {
             viewModel.setSampling(true)
             SamplingService.start(ctx, ui.samplingIntervalMs)
         }
-    }                Scaffold(
+    }
+
+    Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
@@ -116,42 +112,12 @@ fun MainScreen(viewModel: MainViewModel) {
                         )
                     }
                     IconButton(
-                        onClick = { showIntervalDialog = true },
-                        enabled = !ui.isSampling
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.IosShare,
-                            contentDescription = stringResource(R.string.interval_title)
-                        )
-                    }
-                    IconButton(onClick = { showGranularityDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.GridView,
-                            contentDescription = stringResource(R.string.granularity_slider_title)
-                        )
-                    }
-                    IconButton(onClick = { showRetentionDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Schedule,
-                            contentDescription = stringResource(R.string.retention_dialog_title)
-                        )
-                    }
-                    IconButton(
                         onClick = { createCsvLauncher.launch("signal_spotter_${'$'}{System.currentTimeMillis()}.csv") },
                         enabled = readings.isNotEmpty()
                     ) {
                         Icon(
                             imageVector = Icons.Default.IosShare,
                             contentDescription = stringResource(R.string.export_csv)
-                        )
-                    }
-                    IconButton(
-                        onClick = { showDeleteAll = readings.isNotEmpty() },
-                        enabled = readings.isNotEmpty()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteSweep,
-                            contentDescription = stringResource(R.string.delete_all)
                         )
                     }
                 }
@@ -214,7 +180,7 @@ fun MainScreen(viewModel: MainViewModel) {
                     onClick = { sheetReading = it },
                     onDelete = viewModel::delete
                 )
-                Tab.Settings -> SettingsScreen()
+                Tab.Settings -> SettingsScreen(viewModel = viewModel)
             }
             StatusBanner(
                 sampling = ui.isSampling,
@@ -235,55 +201,6 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.delete(reading.id)
                 sheetReading = null
             }
-        )
-    }
-
-    if (showDeleteAll) {
-        AlertDialog(
-            onDismissRequest = { showDeleteAll = false },
-            title = { Text(stringResource(R.string.confirm_delete_all_title)) },
-            text = { Text(stringResource(R.string.confirm_delete_all_msg)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteAll()
-                    showDeleteAll = false
-                }) { Text(stringResource(R.string.confirm_yes)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteAll = false }) {
-                    Text(stringResource(R.string.confirm_no))
-                }
-            }
-        )
-    }
-
-    if (showIntervalDialog) {
-        IntervalDialog(
-            current = ui.samplingIntervalMs,
-            onDismiss = { showIntervalDialog = false },
-            onPicked = { ms ->
-                viewModel.setInterval(ms)
-                showIntervalDialog = false
-            }
-        )
-    }
-
-    if (showGranularityDialog) {
-        GranularityDialog(
-            currentZoom = ui.coverageZoom,
-            onDismiss = { showGranularityDialog = false },
-            onChange = viewModel::setCoverageZoom,
-        )
-    }
-
-    if (showRetentionDialog) {
-        RetentionDialog(
-            currentDays = ui.retentionDays,
-            onDismiss = { showRetentionDialog = false },
-            onPick = { days ->
-                viewModel.setRetentionDays(days)
-                showRetentionDialog = false
-            },
         )
     }
 }
