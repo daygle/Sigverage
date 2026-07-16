@@ -33,7 +33,7 @@
 
 Sigverage runs on your phone, records a `SignalReading` (network type, signal dBm, GPS fix, timestamp, MCC/MNC/cell ID where available) at a configurable interval, and aggregates your readings into a coverage overlay on top of OpenStreetMap. **Everything stays on the device.** There is no account, no backend, no telemetry, no remote sync. You can export to CSV at any time and the retention policy is configurable from *Settings → Data → Auto-expire*.
 
-The map paints a small filled **box per Mercator tile** at a configurable storage zoom (default 18 ≈ 150 m per side). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips at the top of the map hide / reveal each network family.
+The map paints a small filled **box per Mercator tile** at a configurable storage zoom (default 19 ≈ 75 m per side). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips at the top of the map hide / reveal each network family.
 
 ---
 
@@ -76,7 +76,7 @@ Markdown placeholders (leave them commented until you push images):
 ### 🗺️ Coverage map
 - **HSL-hybrid encoding**: hue = dominant network, alpha = mean dBm bucket (Strong / OK / Weak).
 - **2×4 corner slot grid**: a fixed-layout indicator grid in the bottom-right of every tile, with one slot per `NetworkType` (5G, NR_NSA, LTE, HSPA, GSM, EDGE, CDMA, Other). Filled = network present; alpha = its bucket strength. Filter-aware: disabled chips remove their slot everywhere. Slot positions are fixed so the legend is stable across the whole map.
-- **Web-Mercator slippy-tile aggregation** at zoom 12 (≈9.6 km) … zoom 19 (≈75 m). Default storage zoom is **18** (≈150 m, "a doorway / a city block").
+- **Web-Mercator slippy-tile aggregation** at zoom 12 (≈9.6 km) … zoom 19 (≈75 m). Default storage zoom is **19** (≈75 m per cell).
 - **Decoupled zoom axes**: visible map zoom (pinch gestures) is independent of coverage storage zoom (slider in *Settings → Coverage map*).
 - **Filter chips** at the top of the map: multi-select toggle for each `NetworkType`, live re-render without re-aggregation.
 - **Themed palette**: marker / box colours come from `rememberNetworkColors(MaterialTheme.colorScheme)`, so the legend stays consistent across Light / Dark / Material You.
@@ -223,7 +223,7 @@ You have two categorical × continuous dimensions to show: **which network** (ca
 
 Each tile aggregates its readings into `CellStats.perNetwork: Map<NetworkType, NetworkAggregate>`. A single dominant network is then picked via `pickDominant()` (highest count; tiebreakers: more recent → stronger mean dBm). The corner grid still exposes the *non-dominant* networks that were present in the same tile — so you can read *"mostly LTE, with patches of 5G"* at a glance.
 
-A tile below ~22 dp either dimension suppresses the corner grid (rare at the default zoom 18 — kept as a safety net for when the user dials the slider down).
+A tile below ~22 dp either dimension suppresses the corner grid (rare at the default zoom 19 — kept as a safety net for when the user dials the slider down).
 
 Filter chips above the map hide/reveal **both** encodings: turning 5G off removes 5G from the dominant pick *and* greys out its slot across every tile.
 
@@ -330,7 +330,7 @@ The bottom navigation has three tabs. The first two (Map / List) show your data;
 | Section | Row | What it does |
 | ------- | --- | ------------ |
 | **Recording** | Sample interval | 3 s / 5 s / 15 s / 60 s. |
-| **Coverage map** | Cell granularity | Slider 12 (≈9.6 km / tile) → 19 (≈75 m / tile). Live label: *"150 m per cell"*. |
+| **Coverage map** | Cell granularity | Slider 12 (≈9.6 km / tile) → 19 (≈75 m / tile). Live label: *"75 m per cell"*. |
 | **Data** | Auto-expire readings | Forever / 30 d / 90 d / 6 mo / 1 y. Persisted in SharedPreferences. Silent sweep on app start. Snackbar feedback on manual change. |
 | **Data** | Delete all readings | Confirmation dialog → hard delete of the whole `signal_readings` table. |
 | **Permissions** | Precise location, Coarse, Background, Notifications, Phone state | Live grant status, **Grant** / **Open settings** actions, refreshes on `ON_RESUME`. |
