@@ -154,7 +154,7 @@ SamplingService (foregroundServiceType=location)   ── ServiceCompat.startFor
 
 Two deliberate separation-of-concerns choices worth noting:
 
-- **Storage zoom ≠ visible map zoom.** The AppBar slider (`coverageZoom: Int`, default 18) drives how readings are binned. `MapController.setZoom()` is whatever the user pinches to. They are fully decoupled — zoom out to a city view and keep door-step granularity, or zoom in to building level and keep a coarse nationwide view.
+- **Storage zoom ≠ visible map zoom.** The AppBar slider (`coverageZoom: Int`, default zoom 19 ≈75 m) drives how readings are binned. `MapController.setZoom()` is whatever the user pinches to. They are fully decoupled — zoom out to a city view and keep door-step granularity, or zoom in to building level and keep a coarse nationwide view.
 - **Map palette is live, not static.** `rememberNetworkColors(MaterialTheme.colorScheme)` recomputes on every theme / dynamic-colour change and a `LaunchedEffect(networkColors)` injects it into `CoverageGridOverlay.setPalette(...)`. The legend is meaningful across both Material You and the static slate/sky fallback.
 
 ---

@@ -38,7 +38,7 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
  *
  *  - `coverageZoom` (driven by the AppBar slider) chooses how finely
  *    readings are binned into Mercator tiles. The default is
- *    [CoverageGridOverlay.DEFAULT_STORAGE_ZOOM] = 18, ≈150 m per side.
+ *    [CoverageGridOverlay.DEFAULT_STORAGE_ZOOM] = 19, ≈75 m per side.
  *  - The visible map's `controller.zoomLevel` is whatever the user
  *    pinches/pans to, independent of the storage zoom. When the user
  *    pans, the same tile stats re-render at new screen positions; we
