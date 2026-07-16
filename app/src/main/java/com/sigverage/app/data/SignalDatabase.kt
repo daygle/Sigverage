@@ -34,10 +34,10 @@ interface SignalReadingDao {
     suspend fun insert(reading: SignalReading): Long
 
     @Query("DELETE FROM signal_readings WHERE id = :id")
-    suspend fun deleteById(id: Long)
+    suspend fun deleteById(id: Long): Int
 
     @Query("DELETE FROM signal_readings")
-    suspend fun deleteAll()
+    suspend fun deleteAll(): Int
 
     /**
      * Hard-delete every reading whose `timestamp` is older than [threshold].
