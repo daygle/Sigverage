@@ -47,7 +47,7 @@ class SignalRepository(private val dao: SignalReadingDao) {
                 SignalDatabase::class.java,
                 DB_NAME
             )
-                .fallbackToDestructiveMigration() // v1 only; add proper migrations later
+                .fallbackToDestructiveMigration(dropAllTables = true) // v1 only; drop everything on schema mismatch and add proper migrations later
                 .build()
             return SignalRepository(db.signalReadingDao())
         }

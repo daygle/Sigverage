@@ -156,26 +156,28 @@ class CellularScanner(private val context: Context) {
         (info as? android.telephony.CellInfoTdscdma)?.cellSignalStrength
 
     private fun extractMcc(info: CellInfo): Int? = when (info) {
-        is android.telephony.CellInfoLte -> info.cellIdentity.mcc
-            ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
+        is android.telephony.CellInfoLte -> info.cellIdentity.mccString?.toIntOrNull()
+            ?.takeIf { it in 0..999 }
         is android.telephony.CellInfoNr ->
             (info.cellIdentity as? android.telephony.CellIdentityNr)?.mccString?.toIntOrNull()
-        is android.telephony.CellInfoWcdma -> info.cellIdentity.mcc
-            ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
-        is android.telephony.CellInfoGsm -> info.cellIdentity.mcc
-            ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
+                ?.takeIf { it in 0..999 }
+        is android.telephony.CellInfoWcdma -> info.cellIdentity.mccString?.toIntOrNull()
+            ?.takeIf { it in 0..999 }
+        is android.telephony.CellInfoGsm -> info.cellIdentity.mccString?.toIntOrNull()
+            ?.takeIf { it in 0..999 }
         else -> null
     }
 
     private fun extractMnc(info: CellInfo): Int? = when (info) {
-        is android.telephony.CellInfoLte -> info.cellIdentity.mnc
-            ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
+        is android.telephony.CellInfoLte -> info.cellIdentity.mncString?.toIntOrNull()
+            ?.takeIf { it in 0..999 }
         is android.telephony.CellInfoNr ->
             (info.cellIdentity as? android.telephony.CellIdentityNr)?.mncString?.toIntOrNull()
-        is android.telephony.CellInfoWcdma -> info.cellIdentity.mnc
-            ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
-        is android.telephony.CellInfoGsm -> info.cellIdentity.mnc
-            ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
+                ?.takeIf { it in 0..999 }
+        is android.telephony.CellInfoWcdma -> info.cellIdentity.mncString?.toIntOrNull()
+            ?.takeIf { it in 0..999 }
+        is android.telephony.CellInfoGsm -> info.cellIdentity.mncString?.toIntOrNull()
+            ?.takeIf { it in 0..999 }
         else -> null
     }
 

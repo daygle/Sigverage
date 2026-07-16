@@ -14,6 +14,7 @@
 
     <!-- Map / FAB -->
     <string name="record_at_location">Record here</string>
+    <string name="my_location_cd">Centre map on my location</string>
     <string name="empty_map_hint">Tap the button to record your first signal reading.</string>
     <string name="legend_title">Marker colour</string>
     <string name="legend_5g">5G NR / NSA</string>
