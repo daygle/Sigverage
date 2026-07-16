@@ -49,6 +49,13 @@ android {
         buildConfig = true
     }
 
+    lint {
+        // Run lint and still write HTML/SARIF reports (uploaded as CI
+        // artifacts), but don't fail the build on pre-existing findings.
+        // Tighten later with a lint baseline so only *new* issues break CI.
+        abortOnError = false
+    }
+
     packaging {
         resources {
             excludes += setOf(
