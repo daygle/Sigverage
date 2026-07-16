@@ -112,7 +112,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         )
                     }
                     IconButton(
-                        onClick = { createCsvLauncher.launch("sigverage_${'$'}{System.currentTimeMillis()}.csv") },
+                        onClick = { createCsvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
                         enabled = readings.isNotEmpty()
                     ) {
                         Icon(
@@ -152,7 +152,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         viewModel.captureNow()
                         scope.launch {
                             val n = viewModel.count.value + 1
-                            snackbar.showSnackbar("Recording… (#${'$'}n)")
+                            snackbar.showSnackbar("Recording… (#$n)")
                         }
                     },
                     icon = { Icon(Icons.Default.AddLocation, contentDescription = null) },
@@ -239,7 +239,7 @@ private fun StatusBanner(
 }
 
 @Composable
-private fun IntervalDialog(
+fun IntervalDialog(
     current: Long,
     onDismiss: () -> Unit,
     onPicked: (Long) -> Unit

@@ -6,7 +6,6 @@ import android.content.Context
 import android.os.Build
 import android.telephony.CellInfo
 import android.telephony.CellSignalStrength
-import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
 import androidx.annotation.RequiresPermission
 import com.sigverage.app.model.NetworkType
@@ -125,11 +124,18 @@ class CellularScanner(private val context: Context) {
         }
     }
 
-    /** 5G NSA enDC. Only meaningful on API 30+. */
-    private fun isNrNsa(): Boolean = runCatching {
-        telephonyManager.displayInfo?.overrideNetworkType ==
-            TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA
-    }.getOrDefault(false)
+    /**
+     * 5G NSA (enDC) detection.
+     *
+     * There is no synchronous getter for [android.telephony.TelephonyDisplayInfo]
+     * on [TelephonyManager]; the override network type is only delivered
+     * asynchronously through `TelephonyCallback.DisplayInfoListener` (API 31+)
+     * or `PhoneStateListener#onDisplayInfoChanged` (API 30). Until that
+     * listener is wired up we conservatively report the LTE anchor instead of
+     * guessing, so NSA cells are classified as [NetworkType.LTE] rather than
+     * mislabelled.
+     */
+    private fun isNrNsa(): Boolean = false
 
     /** Unified dBm estimate across all cell types (CellSignalStrength.dbm, API 23+). */
     private fun signalDbmOf(info: CellInfo): Int? {
@@ -139,7 +145,7 @@ class CellularScanner(private val context: Context) {
             is android.telephony.CellInfoWcdma -> info.cellSignalStrength
             is android.telephony.CellInfoGsm -> info.cellSignalStrength
             is android.telephony.CellInfoCdma -> info.cellSignalStrength
-            else -> return tdscdmaStrength(info)
+            else -> tdscdmaStrength(info) ?: return null
         }
         // Ignore uninitialised values reported by some OEMs.
         return s.dbm.takeIf { it != Int.MAX_VALUE && it > -150 && it < 0 }
@@ -152,7 +158,8 @@ class CellularScanner(private val context: Context) {
     private fun extractMcc(info: CellInfo): Int? = when (info) {
         is android.telephony.CellInfoLte -> info.cellIdentity.mcc
             ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
-        is android.telephony.CellInfoNr -> info.cellIdentity.mccString?.toIntOrNull()
+        is android.telephony.CellInfoNr ->
+            (info.cellIdentity as? android.telephony.CellIdentityNr)?.mccString?.toIntOrNull()
         is android.telephony.CellInfoWcdma -> info.cellIdentity.mcc
             ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
         is android.telephony.CellInfoGsm -> info.cellIdentity.mcc
@@ -163,7 +170,8 @@ class CellularScanner(private val context: Context) {
     private fun extractMnc(info: CellInfo): Int? = when (info) {
         is android.telephony.CellInfoLte -> info.cellIdentity.mnc
             ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
-        is android.telephony.CellInfoNr -> info.cellIdentity.mncString?.toIntOrNull()
+        is android.telephony.CellInfoNr ->
+            (info.cellIdentity as? android.telephony.CellIdentityNr)?.mncString?.toIntOrNull()
         is android.telephony.CellInfoWcdma -> info.cellIdentity.mnc
             ?.takeIf { it != Int.MAX_VALUE && it >= 0 }
         is android.telephony.CellInfoGsm -> info.cellIdentity.mnc
@@ -173,8 +181,9 @@ class CellularScanner(private val context: Context) {
 
     private fun extractCellId(info: CellInfo): Long? = when (info) {
         is android.telephony.CellInfoLte -> info.cellIdentity.ci.toLong()
-        is android.telephony.CellInfoNr -> info.cellIdentity.nci
-        is android.telephony.CellInfoWcdma -> info.cellIdentity.ci.toLong()
+        is android.telephony.CellInfoNr ->
+            (info.cellIdentity as? android.telephony.CellIdentityNr)?.nci
+        is android.telephony.CellInfoWcdma -> info.cellIdentity.cid.toLong()
         is android.telephony.CellInfoGsm -> info.cellIdentity.cid.toLong()
         is android.telephony.CellInfoCdma -> info.cellIdentity.basestationId.toLong()
         else -> null

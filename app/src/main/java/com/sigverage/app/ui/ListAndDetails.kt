@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -20,6 +21,7 @@ import com.sigverage.app.R
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.ui.theme.NetworkColors
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -133,6 +135,7 @@ fun DetailsSheet(
     onDelete: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
     val fmt = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -223,7 +226,8 @@ fun DetailsSheet(
             ) {
                 TextButton(
                     onClick = {
-                        sheetState.hide(); onDelete()
+                        scope.launch { sheetState.hide() }
+                            .invokeOnCompletion { onDelete() }
                     }
                 ) {
                     Icon(
