@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Used as the host activity theme before Compose takes over.
-         Compose drives the actual visual style via SignalSpotterTheme. -->
-    <style name="Theme.SignalSpotter" parent="Theme.AppCompat.DayNight.NoActionBar">
+         Compose drives the actual visual style via SigverageTheme. -->
+    <style name="Theme.Sigverage" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>

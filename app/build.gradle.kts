@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.signalspotter.app"
+    namespace = "com.sigverage.app"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.signalspotter.app"
+        applicationId = "com.sigverage.app"
         minSdk = 26
         targetSdk = 34
         versionCode = 1

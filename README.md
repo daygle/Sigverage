@@ -1,6 +1,6 @@
-# Signal Spotter
+# Sigverage
 
-> **Native Android app that records the cellular technology and signal strength at your location, then paints a coverage map from your own readings.**
+> **Record cellular technology and signal strength at your location, then paint a coverage map from your own readings.**
 > 2G / 3G / HSPA / LTE / 5G NR / 5G NSA, on OpenStreetMap, fully on-device.
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.24-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
@@ -31,7 +31,7 @@
 
 ## TL;DR
 
-Signal Spotter runs on your phone, records a `SignalReading` (network type, signal dBm, GPS fix, timestamp, MCC/MNC/cell ID where available) at a configurable interval, and aggregates your readings into a coverage overlay on top of OpenStreetMap. **Everything stays on the device.** There is no account, no backend, no telemetry, no remote sync. You can export to CSV at any time and the retention policy is configurable from *Settings → Data → Auto-expire*.
+Sigverage runs on your phone, records a `SignalReading` (network type, signal dBm, GPS fix, timestamp, MCC/MNC/cell ID where available) at a configurable interval, and aggregates your readings into a coverage overlay on top of OpenStreetMap. **Everything stays on the device.** There is no account, no backend, no telemetry, no remote sync. You can export to CSV at any time and the retention policy is configurable from *Settings → Data → Auto-expire*.
 
 The map paints a small filled **box per Mercator tile** at a configurable storage zoom (default 18 ≈ 150 m per side). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips at the top of the map hide / reveal each network family.
 
@@ -102,7 +102,7 @@ Markdown placeholders (leave them commented until you push images):
 
 ### 🔐 Privacy posture
 - No analytics SDK.
-- No network calls other than OSM tile downloads (configurable `User-Agent` in `SignalSpotterApp.onCreate`).
+- No network calls other than OSM tile downloads (configurable `User-Agent` in `SigverageApp.onCreate`).
 - No shared-storage write unless the user explicitly taps **Export**.
 - `SharedPreferences`, the SQLite database, and the tile cache all live under app-private storage.
 
@@ -130,7 +130,7 @@ Markdown placeholders (leave them commented until you push images):
 
 ```
 MainActivity
-   └── SignalSpotterTheme(dynamicColor, themeMode)        (Material 3 + dynamic palette)
+   └── SigverageTheme(dynamicColor, themeMode)        (Material 3 + dynamic palette)
         └── MainScreen  ── Scaffold
              ├── TopAppBar     (start/stop + export only)
              ├── Tab content
@@ -179,8 +179,8 @@ Two deliberate separation-of-concerns choices worth noting:
         │   ├── xml/         (backup + data-extraction rules)
         │   ├── drawable/    (launcher bg/fg, notification icon)
         │   └── mipmap-anydpi-v26/ (adaptive launcher icons)
-        └── java/com/signalspotter/app/
-            ├── SignalSpotterApp.kt           (Application + osmdroid config + notif channel)
+        └── java/com/sigverage/app/
+            ├── SigverageApp.kt           (Application + osmdroid config + notif channel)
             ├── MainActivity.kt               (Compose host)
             ├── model/
             │   ├── Models.kt                 (NetworkType + SignalReading entity + ThemeMode)
@@ -314,7 +314,7 @@ Every permission is justified by a concrete feature, and the manifest comments n
 
 **Permission flow**: `MainScreen.toggleSampling` triggers `RequestMultiplePermissions` when anything is missing. Background location is automatically routed to system Settings by Android — we surface a status banner in *Settings → Permissions* if it's still missing, with an **Open settings** action deep-linking to `ACTION_APPLICATION_DETAILS_SETTINGS`.
 
-**Single source of truth**: `app/src/main/java/com/signalspotter/app/permissions/PermissionsInventory.kt`. UI rows in *Settings → Permissions* are generated from this list, so adding a new permission is one entry.
+**Single source of truth**: `app/src/main/java/com/sigverage/app/permissions/PermissionsInventory.kt`. UI rows in *Settings → Permissions* are generated from this list, so adding a new permission is one entry.
 
 ---
 
@@ -349,8 +349,8 @@ Two icons only:
 
 osmdroid fetches tiles from the OpenStreetMap public servers (or any tile source you wire in). Their [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) asks apps to:
 
-1. **Set a real `User-Agent`** that identifies the app and includes a contact channel. Configured in `SignalSpotterApp.onCreate()` — change it to something like `SignalSpotter/1.0 (+https://your-website.example)`.
-2. **Don't be a heavy site** — don't precompute large regions for offline use. Signal Spotter only zooms on demand, so this should be fine.
+1. **Set a real `User-Agent`** that identifies the app and includes a contact channel. Configured in `SigverageApp.onCreate()` — change it to something like `Sigverage/1.0 (+https://your-website.example)`.
+2. **Don't be a heavy site** — don't precompute large regions for offline use. Sigverage only zooms on demand, so this should be fine.
 3. **Bulk downloads require your own tile server** or a paid provider (e.g. Mapbox / Stadia / Thunderforest). If you want true offline, bake tiles into the APK using [MOBAC](https://mobac.sourceforge.io/) + osmdroid's `MAPBOX`/`ZIP` archives.
 
 If you change the tile source, do it in `MapPanel.MapView`'s `setTileSource(TileSourceFactory.MAPNIK)` call. Other `TileSourceFactory` options exist for OpenTopoMap, USGS, etc., and paid providers expose their own factories.
