@@ -1,7 +1,12 @@
 package com.sigverage.app.ui
 
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -22,6 +27,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
@@ -42,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -59,6 +67,8 @@ import com.sigverage.app.R
 import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.launch
 
 /**
@@ -100,6 +110,21 @@ fun SettingsScreen(
             }
             viewModel.emitEvent(msg)
         }
+    }
+
+    // Background-reliability status (battery-optimisation exemption + exact
+    // alarms). Owned by the OS, not our prefs, so re-read it whenever we
+    // return to the app - e.g. after the user changes it in system settings.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var reliability by remember { mutableStateOf(readReliabilityStatus(context)) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                reliability = readReliabilityStatus(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // Dedicated permissions sub-page
@@ -155,6 +180,37 @@ fun SettingsScreen(
                         else stringResource(R.string.schedule_count, schedules.size),
                 onClick = { showSchedulesPage = true },
             )
+        }
+
+        // -- Reliability section --
+        // These control whether Android lets the app keep sampling in the
+        // background and fire schedule alarms on time. Both are OS-level
+        // toggles we can only deep-link to, not set directly.
+        SettingsCard(
+            headerIcon = Icons.Default.Bolt,
+            headerTitle = stringResource(R.string.settings_section_reliability),
+        ) {
+            SettingsRow(
+                title = stringResource(R.string.settings_battery_opt_title),
+                subtitle = stringResource(R.string.settings_battery_opt_subtitle),
+                value = stringResource(
+                    if (reliability.batteryUnrestricted) R.string.settings_battery_opt_on
+                    else R.string.settings_battery_opt_off
+                ),
+                onClick = { openBatteryOptimizationSettings(context) },
+            )
+            if (reliability.exactAlarmRelevant) {
+                CardDivider()
+                SettingsRow(
+                    title = stringResource(R.string.settings_exact_alarm_title),
+                    subtitle = stringResource(R.string.settings_exact_alarm_subtitle),
+                    value = stringResource(
+                        if (reliability.exactAlarmAllowed) R.string.settings_exact_alarm_on
+                        else R.string.settings_exact_alarm_off
+                    ),
+                    onClick = { openExactAlarmSettings(context) },
+                )
+            }
         }
 
         // -- Appearance section --
@@ -522,6 +578,72 @@ private fun themeLabelFor(mode: ThemeMode): String = when (mode) {
     ThemeMode.System -> stringResource(R.string.theme_system)
     ThemeMode.Light -> stringResource(R.string.theme_light)
     ThemeMode.Dark -> stringResource(R.string.theme_dark)
+}
+
+// ---------------------------------------------------------------------------
+// Background-reliability status + system deep-links
+// ---------------------------------------------------------------------------
+
+/**
+ * Live OS-level reliability state for the Settings rows. [exactAlarmRelevant]
+ * is false below Android 12, where exact alarms are always permitted and the
+ * row is hidden.
+ */
+private data class ReliabilityStatus(
+    val batteryUnrestricted: Boolean,
+    val exactAlarmRelevant: Boolean,
+    val exactAlarmAllowed: Boolean,
+)
+
+private fun readReliabilityStatus(context: Context): ReliabilityStatus {
+    val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+    // If the service is missing (shouldn't happen), assume unrestricted so we
+    // don't nag the user about something they can't change.
+    val batteryUnrestricted =
+        pm?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+
+    val exactAlarmRelevant = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    // Inline the SDK guard (not via the local above) so lint's API check sees it.
+    val exactAlarmAllowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+        am?.canScheduleExactAlarms() ?: false
+    } else {
+        true
+    }
+    return ReliabilityStatus(batteryUnrestricted, exactAlarmRelevant, exactAlarmAllowed)
+}
+
+/**
+ * Open the system battery-optimisation list so the user can mark Sigverage
+ * "unrestricted". Uses the settings-list action, which needs no extra
+ * permission (unlike the direct-request dialog).
+ */
+private fun openBatteryOptimizationSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
+}
+
+/**
+ * Open the per-app "Alarms & reminders" screen (Android 12+) so the user can
+ * allow exact alarms, which schedules rely on to start/stop on time.
+ */
+private fun openExactAlarmSettings(context: Context) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+    val perApp = Intent(
+        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+        Uri.fromParts("package", context.packageName, null),
+    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(perApp) }.onFailure {
+        // Some OEMs don't honour the per-app data URI; fall back to the
+        // generic action.
+        runCatching {
+            context.startActivity(
+                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        }
+    }
 }
 
 @Composable
