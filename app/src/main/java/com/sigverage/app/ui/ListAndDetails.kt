@@ -39,6 +39,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -226,6 +227,10 @@ private fun signalStrengthColor(dbm: Int): Color = when {
 @Composable
 fun NetworkBadge(network: NetworkType) {
     val color = NetworkColors[network] ?: Color.Gray
+    // Some network hues are very light (e.g. 5G NSA, HSPA); white label text
+    // is unreadable on them. Pick black/white by the badge's luminance so the
+    // short label stays legible on every network colour.
+    val labelColor = if (color.luminance() > 0.5f) Color.Black else Color.White
     Surface(
         modifier = Modifier.size(width = 52.dp, height = 38.dp),
         shape = RoundedCornerShape(10.dp),
@@ -234,7 +239,7 @@ fun NetworkBadge(network: NetworkType) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = network.shortLabel,
-                color = Color.White,
+                color = labelColor,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold
             )

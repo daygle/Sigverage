@@ -12,6 +12,7 @@ import com.sigverage.app.location.FixSample
 import com.sigverage.app.location.LocationTracker
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.RecordingSchedule
+import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.model.ThemeMode
 import com.sigverage.app.service.ScheduleManager
@@ -70,6 +71,12 @@ data class HomeUiState(
      * UI will do on the next composition.
      */
     val autoRecordEnabled: Boolean = PreferencesStore.DEFAULT_AUTO_RECORD_ENABLED,
+    /**
+     * Location sampling mode: the battery-vs-accuracy trade-off applied while
+     * recording. Consumed by the foreground service; surfaced here so the
+     * Settings row reflects the persisted choice.
+     */
+    val samplingMode: SamplingMode = SamplingMode.Default,
 )
 
 /**
@@ -159,6 +166,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // Auto-record opt-in. Default false; only flips true if the
             // user has explicitly toggled the Settings switch.
             autoRecordEnabled = prefs.autoRecordEnabled,
+            // Battery-vs-accuracy sampling mode. Default Auto.
+            samplingMode = prefs.samplingMode,
         )
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -167,13 +176,28 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Capture a single reading at the device's current fix.
-     * Returns silently if location is unavailable - UI shows a snackbar from
-     * the call site.
+     * Capture a single reading at the device's current location.
+     *
+     * Requests a fresh single fix (not the possibly-stale last-known cache) so
+     * the reading reflects where the user is now, then reports the outcome via
+     * [events]. The radio is powered only for the one fix.
      */
     fun captureNow() {
         viewModelScope.launch(Dispatchers.IO) {
-            val fix = location.lastKnown() ?: return@launch
+            val app = getApplication<Application>()
+            val fix = location.currentFix()
+            if (fix == null) {
+                // No fix available: tell the user instead of silently doing
+                // nothing while the UI implies a reading was captured.
+                _events.trySend(app.getString(R.string.capture_no_location))
+                return@launch
+            }
+            if (!fix.isAccurateEnough()) {
+                // The only fix we have is too coarse to place on the map;
+                // storing it would drop the reading into the wrong tile.
+                _events.trySend(app.getString(R.string.capture_low_accuracy))
+                return@launch
+            }
             val reading = cellular.snapshot(
                 provider = fix.provider,
                 latitude = fix.latitude,
@@ -182,6 +206,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             )
             repo.add(reading)
             _ui.value = _ui.value.copy(lastFix = fix, latestReading = reading)
+            _events.trySend(app.getString(R.string.capture_snackbar, count.value + 1))
         }
     }
 
@@ -306,6 +331,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
+     * Update the location sampling mode (battery-vs-accuracy trade-off).
+     * Persisted immediately; the running foreground service picks up the new
+     * mode the next time it (re)starts the location stream on a still ->
+     * moving transition, so an in-progress burst isn't interrupted.
+     */
+    fun setSamplingMode(mode: SamplingMode) {
+        prefs.samplingMode = mode
+        _ui.value = _ui.value.copy(samplingMode = mode)
+    }
+
+    /**
      * Update the retention policy. `0` means "forever" (no automatic
      * deletion); any positive value is the number of days readings may
      * live before being pruned.
@@ -334,8 +370,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val count = repo.deleteOlderThan(cutoff)
             if (announce && count > 0) {
                 _events.trySend(
-                    getApplication<Application>()
-                        .getString(R.string.retention_purge_count, count)
+                    getApplication<Application>().resources
+                        .getQuantityString(R.plurals.retention_purge_count, count, count)
                 )
             }
         }
@@ -391,10 +427,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         writer.append('\n')
     }
 
-    /** RFC-4180 style "quote fields with comma/quote/newline, double inner quotes". */
+    /**
+     * RFC-4180 quoting (quote fields with comma/quote/newline, double inner
+     * quotes) plus spreadsheet formula-injection defence: a field beginning
+     * with a formula trigger (`=`, `+`, `-`, `@`, tab or CR) is prefixed with a
+     * single quote so Excel/Sheets treat it as text rather than executing it.
+     * The only free-text field exported is the network operator name, which is
+     * normally harmless but is ultimately attacker-influenceable (a rogue base
+     * station can advertise an arbitrary operator name).
+     */
     private fun csvEscape(s: String): String {
-        val needsQuote = s.any { it == ',' || it == '"' || it == '\n' || it == '\r' }
-        val escaped = s.replace("\"", "\"\"")
+        val guarded = if (s.isNotEmpty() && s.first() in FORMULA_TRIGGERS) "'$s" else s
+        val needsQuote = guarded.any { it == ',' || it == '"' || it == '\n' || it == '\r' }
+        val escaped = guarded.replace("\"", "\"\"")
         return if (needsQuote) "\"$escaped\"" else escaped
+    }
+
+    private companion object {
+        /** Leading characters that make a spreadsheet interpret a cell as a formula. */
+        private const val FORMULA_TRIGGERS = "=+-@\t\r"
     }
 }

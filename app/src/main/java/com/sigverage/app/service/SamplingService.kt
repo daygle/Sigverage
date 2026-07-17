@@ -19,6 +19,7 @@ import com.sigverage.app.R
 import com.sigverage.app.SigverageApp
 import com.sigverage.app.cellular.CellularScanner
 import com.sigverage.app.coverage.CoverageGridOverlay
+import com.sigverage.app.data.PreferencesStore
 import com.sigverage.app.data.SignalRepository
 import com.sigverage.app.location.LocationTracker
 import kotlinx.coroutines.CoroutineScope
@@ -52,7 +53,9 @@ class SamplingService : Service() {
     private lateinit var location: LocationTracker
     private lateinit var cellular: CellularScanner
     private lateinit var repo: SignalRepository
+    private lateinit var prefs: PreferencesStore
     private var locationJob: Job? = null
+    private var transitionsRegistered = false
 
     private val transitionPendingIntent: PendingIntent by lazy {
         val intent = TransitionReceiver.buildIntent(this)
@@ -69,6 +72,7 @@ class SamplingService : Service() {
         location = LocationTracker(applicationContext)
         cellular = CellularScanner(applicationContext)
         repo = SignalRepository.get(applicationContext)
+        prefs = PreferencesStore(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -101,9 +105,16 @@ class SamplingService : Service() {
     private fun startSampling() {
         if (locationJob?.isActive == true) return
 
+        // Read the user's battery-vs-accuracy mode at start time so a change
+        // in Settings takes effect on the next still -> moving transition.
+        val mode = prefs.samplingMode
         locationJob = scope.launch {
-            // Stream location updates at ~5 s intervals while moving.
-            location.stream(SAMPLE_INTERVAL_MS).collectLatest { fix ->
+            // Stream location fixes at the mode's cadence while moving.
+            location.stream(mode).collectLatest { fix ->
+                // Quality gate: drop coarse fixes that would be binned into the
+                // wrong tile. Another fix will arrive shortly while moving.
+                if (!fix.isAccurateEnough()) return@collectLatest
+
                 // Smart sampling: skip if a reading already exists in
                 // the current coverage tile (~50 m cell at zoom 20).
                 val alreadyCovered = repo.hasReadingInTile(
@@ -129,6 +140,9 @@ class SamplingService : Service() {
     }
 
     private fun registerTransitions() {
+        // onStartCommand runs on every movement transition; only arm the
+        // Activity Recognition request once to avoid needless re-registration.
+        if (transitionsRegistered) return
         val activities = listOf(
             DetectedActivity.STILL,
             DetectedActivity.WALKING,
@@ -152,6 +166,7 @@ class SamplingService : Service() {
             ActivityRecognition.getClient(this).requestActivityTransitionUpdates(
                 request, transitionPendingIntent
             )
+            transitionsRegistered = true
         } catch (_: SecurityException) {
             // ACTIVITY_RECOGNITION not granted - degrade gracefully.
         }
@@ -165,6 +180,7 @@ class SamplingService : Service() {
         } catch (_: Exception) {
             // Best-effort cleanup.
         }
+        transitionsRegistered = false
     }
 
     private fun promoteToForeground() {
@@ -205,9 +221,6 @@ class SamplingService : Service() {
         const val NOTIFICATION_ID = 7
         const val EXTRA_IS_MOVING = "extra_is_moving"
         const val TRANSITION_REQUEST_CODE = 42
-
-        /** Interval for location updates while the device is in motion. */
-        private const val SAMPLE_INTERVAL_MS = 5_000L
 
         /**
          * Called by [TransitionReceiver] when the device transitions

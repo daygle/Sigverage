@@ -2,6 +2,7 @@ package com.sigverage.app.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
 
 /**
@@ -88,6 +89,18 @@ class PreferencesStore(context: Context) {
             prefs.edit().putBoolean(KEY_AUTO_RECORD_ENABLED, value).apply()
         }
 
+    /**
+     * Location sampling mode - the battery-vs-accuracy trade-off applied while
+     * recording. Defaults to [SamplingMode.Default] (= Auto). Consumed by the
+     * foreground [com.sigverage.app.service.SamplingService] when it opens the
+     * location stream.
+     */
+    var samplingMode: SamplingMode
+        get() = SamplingMode.fromString(prefs.getString(KEY_SAMPLING_MODE, null))
+        set(value) {
+            prefs.edit().putString(KEY_SAMPLING_MODE, value.name).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "sigverage_prefs"
         private const val KEY_RETENTION_DAYS = "retention_days"
@@ -102,6 +115,7 @@ class PreferencesStore(context: Context) {
         private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_enabled"
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed_v1"
         private const val KEY_AUTO_RECORD_ENABLED = "auto_record_enabled_v1"
+        private const val KEY_SAMPLING_MODE = "sampling_mode"
 
         /** First launch defaults to showing the onboarding screen. */
         const val DEFAULT_ONBOARDING_COMPLETED = false

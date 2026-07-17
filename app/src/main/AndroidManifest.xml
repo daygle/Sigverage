@@ -25,9 +25,6 @@
     <!-- Android 13+: must request POST_NOTIFICATIONS at runtime -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Keep CPU alive for short sampling windows -->
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-
     <!-- Activity Recognition: detect still/moving transitions for battery-efficient sampling -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 

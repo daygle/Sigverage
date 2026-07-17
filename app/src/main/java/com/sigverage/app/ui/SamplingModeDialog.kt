@@ -20,31 +20,35 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.R
+import com.sigverage.app.model.SamplingMode
 
 /**
- * Modal dialog for picking reading retention policy. Five discrete options,
- * no freeform input - keeps the UX simple and predictable. `0` (forever) is
- * an explicit choice so it's never an accidental default.
+ * Modal dialog for choosing the location [SamplingMode] - the battery-vs-
+ * accuracy trade-off applied while recording.
+ *
+ * Each option shows a title and a one-line description of its power impact so
+ * the choice is self-explanatory. Selecting a row applies it immediately via
+ * [MainViewModel.setSamplingMode] and dismisses the dialog.
  */
 @Composable
-fun RetentionDialog(
-    currentDays: Int,
+fun SamplingModeDialog(
+    current: SamplingMode,
     onDismiss: () -> Unit,
-    onPick: (Int) -> Unit,
+    onPick: (SamplingMode) -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.retention_dialog_title)) },
+        title = { Text(stringResource(R.string.settings_sampling_mode_title)) },
         text = {
             Column(Modifier.selectableGroup()) {
                 OPTIONS.forEach { option ->
-                    val selected = option.days == currentDays
+                    val selected = option.mode == current
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .selectable(
                                 selected = selected,
-                                onClick = { onPick(option.days) },
+                                onClick = { onPick(option.mode) },
                                 role = Role.RadioButton,
                             )
                             .padding(vertical = 8.dp),
@@ -55,15 +59,19 @@ fun RetentionDialog(
                             onClick = null,
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(option.labelRes))
+                        Column {
+                            Text(
+                                text = stringResource(option.labelRes),
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                            Text(
+                                text = stringResource(option.descRes),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
-                Spacer(Modifier.padding(top = 8.dp))
-                Text(
-                    text = stringResource(R.string.retention_dialog_help),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
-                )
             }
         },
         confirmButton = {
@@ -74,12 +82,31 @@ fun RetentionDialog(
     )
 }
 
-private data class RetentionOption(val days: Int, val labelRes: Int)
+private data class SamplingModeOption(
+    val mode: SamplingMode,
+    val labelRes: Int,
+    val descRes: Int,
+)
 
-private val OPTIONS: List<RetentionOption> = listOf(
-    RetentionOption(days = 0,   labelRes = R.string.retention_forever),
-    RetentionOption(days = 30,  labelRes = R.string.retention_30_days),
-    RetentionOption(days = 90,  labelRes = R.string.retention_90_days),
-    RetentionOption(days = 180, labelRes = R.string.retention_6_months),
-    RetentionOption(days = 365, labelRes = R.string.retention_1_year),
+private val OPTIONS: List<SamplingModeOption> = listOf(
+    SamplingModeOption(
+        SamplingMode.Auto,
+        R.string.sampling_mode_auto,
+        R.string.sampling_mode_auto_desc,
+    ),
+    SamplingModeOption(
+        SamplingMode.PowerSaver,
+        R.string.sampling_mode_power_saver,
+        R.string.sampling_mode_power_saver_desc,
+    ),
+    SamplingModeOption(
+        SamplingMode.Balanced,
+        R.string.sampling_mode_balanced,
+        R.string.sampling_mode_balanced_desc,
+    ),
+    SamplingModeOption(
+        SamplingMode.HighAccuracy,
+        R.string.sampling_mode_high_accuracy,
+        R.string.sampling_mode_high_accuracy_desc,
+    ),
 )

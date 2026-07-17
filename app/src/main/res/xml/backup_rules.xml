@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
-    <include domain="database" path="signals.db" />
+    <!--
+        Legacy backup rules for Android 11 and below. fullBackupContent has no
+        cloud-vs-device split, so it governs cloud backup here: exclude the
+        location-history database and back up only the non-sensitive osmdroid
+        tile-cache prefs, matching the app's local-only promise.
+    -->
+    <exclude domain="database" path="signals.db" />
     <include domain="sharedpref" path="osmdroid.xml" />
 </full-backup-content>
