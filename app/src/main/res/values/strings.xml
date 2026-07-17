@@ -46,7 +46,7 @@
     <string name="perms_cancel">Not now</string>
 
     <!-- Sampling interval -->
-    <string name="interval_title">Sampling interval</string>
+    <string name="interval_title">Sampling Interval</string>
     <string name="interval_option_fast">3 s</string>
     <string name="interval_option_normal">5 s</string>
     <string name="interval_option_slow">15 s</string>
@@ -55,6 +55,8 @@
     <!-- List -->
     <string name="empty_list_hint">No readings yet. Switch to Map and tap Record.</string>
     <string name="delete_reading">Delete</string>
+    <string name="show_on_map_cd">Show this reading on the map</string>
+    <string name="show_on_map_action">Show on map</string>
 
     <!-- Details sheet -->
     <string name="detail_provider">Provider</string>
@@ -90,7 +92,7 @@
     <string name="export_nothing">No readings to export</string>
     <string name="export_done">Exported %1$d readings</string>
     <string name="export_failed">Export failed: %1$s</string>
-    <string name="confirm_delete_all_title">Delete every reading?</string>
+    <string name="confirm_delete_all_title">Delete Every Reading?</string>
     <string name="confirm_delete_all_msg">This cannot be undone.</string>
     <string name="confirm_yes">Delete</string>
     <string name="confirm_no">Cancel</string>
@@ -99,22 +101,14 @@
     <string name="coverage_empty_hint">No readings yet. Tap the button to record one, or enable sampling and move around to build a coverage map.</string>
     <string name="coverage_filter_label">Coverage</string>
 
-    <!-- Granularity slider dialog -->
-    <string name="granularity_slider_title">Coverage cell size</string>
-    <string name="granularity_current_label">%1$s per cell</string>
-    <string name="granularity_help">Slide right for finer detail. Slide left for a wider area overview. Independent of map zoom.</string>
-    <string name="granularity_size_unknown">—</string>
-    <string name="granularity_size_75">75 m</string>
-    <string name="granularity_size_150">150 m</string>
-    <string name="granularity_size_300">300 m</string>
-    <string name="granularity_size_600">600 m</string>
-    <string name="granularity_size_1200">1.2 km</string>
-    <string name="granularity_size_2400">2.4 km</string>
-    <string name="granularity_size_4800">4.8 km</string>
-    <string name="granularity_size_9600">9.6 km</string>
+    <!-- Filter bottom sheet (Material 3 BottomSheetScaffold) -->
+    <string name="filter_sheet_summary_all">All networks active (8 of 8)</string>
+    <string name="filter_sheet_summary_none">No filters active (0 of 8)</string>
+    <string name="filter_sheet_summary_partial">Filters: %1$s (%2$d of 8 active)</string>
 
+    <!-- Granularity slider dialog -->
     <!-- Reading retention / auto-expiry -->
-    <string name="retention_dialog_title">Auto-expire readings</string>
+    <string name="retention_dialog_title">Auto-Expire Readings</string>
     <string name="retention_dialog_help">Readings older than the chosen age are removed automatically. Stored locally only.</string>
     <string name="retention_forever">Forever</string>
     <string name="retention_30_days">30 days</string>
@@ -125,16 +119,14 @@
 
     <!-- Settings screen: section headers + row labels -->
     <string name="settings_section_recording">Recording</string>
-    <string name="settings_section_coverage">Coverage map</string>
+    <string name="settings_section_coverage">Coverage Map</string>
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_data">Data</string>
-    <string name="settings_sample_interval_title">Sample interval</string>
+    <string name="settings_sample_interval_title">Sample Interval</string>
     <string name="settings_sample_interval_subtitle">How often to record when sampling is on.</string>
-    <string name="settings_granularity_title">Cell granularity</string>
-    <string name="settings_granularity_subtitle">Smaller cells for finer detail, larger cells for an overview.</string>
-    <string name="settings_retention_title">Auto-expire readings</string>
+    <string name="settings_retention_title">Auto-Expire Readings</string>
     <string name="settings_retention_subtitle">Older readings are removed automatically.</string>
-    <string name="settings_delete_all_title">Delete all readings</string>
+    <string name="settings_delete_all_title">Delete All Readings</string>
     <string name="settings_delete_all_count">Permanently remove %1$d readings</string>
     <string name="settings_delete_all_empty">No readings to delete</string>
     <string name="time_seconds">%1$d s</string>
@@ -148,32 +140,54 @@
     <string name="theme_dark">Dark</string>
 
     <!-- Dynamic colour toggle (Android 12+) -->
-    <string name="settings_dynamic_color_title">Dynamic colour</string>
+    <string name="settings_dynamic_color_title">Dynamic Colour</string>
     <string name="settings_dynamic_color_subtitle">Use Material You colours derived from your wallpaper (Android 12 and above). On older devices this has no visible effect.</string>
+
+    <!-- Auto-record on launch toggle (Settings → Recording) -->
+    <string name="settings_auto_record_title">Auto-record on launch</string>
+    <string name="settings_auto_record_subtitle">Begin sampling automatically when the app opens. The persistent notification stays on until you press Pause.</string>
+    <string name="auto_record_started">Auto-record on. Sampling started.</string>
+    <string name="auto_record_no_permissions">Auto-record is on, but location permissions are missing. Grant them from Settings → Permissions to start sampling.</string>
 
     <!-- Settings screen -->
     <string name="tab_settings">Settings</string>
     <string name="settings_section_permissions">Permissions</string>
     <string name="settings_section_about">About</string>
     <string name="about_version_value">Sigverage v%1$s</string>
-    <string name="about_android_version_label">Android version</string>
+    <string name="about_android_version_label">Android Version</string>
     <string name="about_blurb">Native cellular signal mapper. All recordings are stored locally on this device; nothing is sent off the phone.</string>
 
     <!-- Permissions rows -->
     <string name="perm_banner_all_ok">All required permissions are granted.</string>
     <string name="perm_banner_missing">Some required permissions are missing — recording may not work fully.</string>
-    <string name="perm_fine_location_label">Precise location</string>
+    <string name="perm_fine_location_label">Precise Location</string>
     <string name="perm_fine_location_desc">GPS pin for every reading.</string>
-    <string name="perm_coarse_location_label">Coarse location</string>
+    <string name="perm_coarse_location_label">Coarse Location</string>
     <string name="perm_coarse_location_desc">Network-based fallback when GPS is unavailable.</string>
-    <string name="perm_background_location_label">Background location</string>
+    <string name="perm_background_location_label">Background Location</string>
     <string name="perm_background_location_desc">Keep sampling while the screen is off (Android 10+).</string>
     <string name="perm_post_notifications_label">Notifications</string>
     <string name="perm_post_notifications_desc">Allow the foreground-service notification (Android 13+).</string>
-    <string name="perm_phone_state_label">Phone state</string>
+    <string name="perm_phone_state_label">Phone State</string>
     <string name="perm_phone_state_desc">Required only on Android 8–9 to read cellular info; granted automatically on newer Android versions.</string>
     <string name="perm_status_granted">Granted</string>
-    <string name="perm_status_install_time">Auto-granted</string>
+    <string name="perm_status_install_time">Auto-Granted</string>
     <string name="perm_action_grant">Grant</string>
-    <string name="perm_action_open_settings">Open settings</string>
+    <string name="perm_action_open_settings">Open Settings</string>
+
+    <!-- Onboarding (first-launch permission walkthrough) -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_welcome_title">Welcome to Sigorage</string>
+    <string name="onboarding_welcome_body">Sigorage records the cellular signal strength at your current location so you can build a coverage map of places you frequent. Before we get started, we need a couple of permissions. You can change these any time from Settings.</string>
+    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_location_title">Location Access</string>
+    <string name="onboarding_location_body">"Sigorage pins every reading to the GPS coordinate where it was recorded. Without location access we can\'t record where you were. Your location is stored only on this device — it never leaves it."</string>
+    <string name="onboarding_location_grant">Allow location</string>
+    <string name="onboarding_notifications_title">Notifications</string>
+    <string name="onboarding_notifications_body">Sigorage posts a small persistent notification while sampling so Android keeps the service running in the background. You can silence it later from Settings.</string>
+    <string name="onboarding_notifications_grant">Allow notifications</string>
+    <string name="onboarding_done_title">All set</string>
+    <string name="onboarding_done_body">Sigorage is ready. Tap below to open the map. You can update these permissions any time from Settings → Permissions.</string>
+    <string name="onboarding_done_body_partial">Some permissions weren\'t granted yet — Sigorage can\'t fully record without location, and Android won\'t keep sampling alive without notifications. Tap below to open the app and finish granting permissions from Settings → Permissions.</string>
+    <string name="onboarding_open_app">Open Sigorage</string>
 </resources>

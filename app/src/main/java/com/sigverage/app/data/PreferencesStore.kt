@@ -54,6 +54,40 @@ class PreferencesStore(context: Context) {
             prefs.edit().putBoolean(KEY_DYNAMIC_COLOR_ENABLED, value).apply()
         }
 
+    /**
+     * Whether the first-launch permission-onboarding screen has been shown
+     * (or skipped). Default `false` so every fresh install starts on the
+     * onboarding screen; flips to `true` after the user reaches the final
+     * step or taps Skip.
+     */
+    var onboardingCompleted: Boolean
+        get() = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, DEFAULT_ONBOARDING_COMPLETED)
+        set(value) {
+            prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, value).apply()
+        }
+
+    /**
+     * Whether the foreground sampling service should start automatically
+     * whenever the app enters the foreground (i.e. `MainScreen` enters
+     * composition after onboarding completes). Default `false` because this
+     * is an opt-in power-user feature: it posts a persistent notification
+     * and keeps the GPS radio hot until the user explicitly pauses
+     * recording from the AppBar Play/Pause button.
+     *
+     * The actual start is performed by `MainScreen`'s
+     * `LaunchedEffect(autoRecordEnabled, onboardingCompleted)`; this
+     * preference is only the persisted bit. If the required location
+     * permissions aren't granted the LaunchedEffect surfaces a one-shot
+     * snackbar explaining how to fix it instead of crashing the FGS
+     * promotion (Android 14 raises `SecurityException` if the typed FGS
+     * permission isn't held).
+     */
+    var autoRecordEnabled: Boolean
+        get() = prefs.getBoolean(KEY_AUTO_RECORD_ENABLED, DEFAULT_AUTO_RECORD_ENABLED)
+        set(value) {
+            prefs.edit().putBoolean(KEY_AUTO_RECORD_ENABLED, value).apply()
+        }
+
     companion object {
         private const val PREFS_NAME = "sigverage_prefs"
         private const val KEY_RETENTION_DAYS = "retention_days"
@@ -66,5 +100,13 @@ class PreferencesStore(context: Context) {
 
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_DYNAMIC_COLOR_ENABLED = "dynamic_color_enabled"
+        private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed_v1"
+        private const val KEY_AUTO_RECORD_ENABLED = "auto_record_enabled_v1"
+
+        /** First launch defaults to showing the onboarding screen. */
+        const val DEFAULT_ONBOARDING_COMPLETED = false
+
+        /** Auto-record is opt-in — power users only. */
+        const val DEFAULT_AUTO_RECORD_ENABLED = false
     }
 }

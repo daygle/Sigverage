@@ -7,6 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -30,7 +32,8 @@ import java.util.Locale
 fun ListPanel(
     readings: List<SignalReading>,
     onClick: (SignalReading) -> Unit,
-    onDelete: (Long) -> Unit
+    onDelete: (Long) -> Unit,
+    onFocusMap: (SignalReading) -> Unit,
 ) {
     if (readings.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -50,7 +53,13 @@ fun ListPanel(
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         items(readings, key = { it.id }) { r ->
-            ReadingRow(r, fmt, onClick = { onClick(r) }, onDelete = { onDelete(r.id) })
+            ReadingRow(
+                r = r,
+                fmt = fmt,
+                onClick = { onClick(r) },
+                onDelete = { onDelete(r.id) },
+                onFocusMap = { onFocusMap(r) },
+            )
             HorizontalDivider()
         }
     }
@@ -61,7 +70,8 @@ private fun ReadingRow(
     r: SignalReading,
     fmt: SimpleDateFormat,
     onClick: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onFocusMap: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -99,6 +109,13 @@ private fun ReadingRow(
                 }
             )
         }
+        IconButton(onClick = onFocusMap) {
+            Icon(
+                imageVector = Icons.Default.Place,
+                contentDescription = stringResource(R.string.show_on_map_cd),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
         IconButton(onClick = onDelete) {
             Icon(
                 imageVector = Icons.Default.Delete,
@@ -132,7 +149,8 @@ fun NetworkBadge(network: NetworkType) {
 fun DetailsSheet(
     reading: SignalReading,
     onDismiss: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onShowOnMap: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -224,6 +242,17 @@ fun DetailsSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
             ) {
+                TextButton(onClick = {
+                    scope.launch { sheetState.hide() }
+                        .invokeOnCompletion { onShowOnMap() }
+                }) {
+                    Icon(
+                        imageVector = Icons.Default.Map,
+                        contentDescription = null
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(stringResource(R.string.show_on_map_action))
+                }
                 TextButton(
                     onClick = {
                         scope.launch { sheetState.hide() }

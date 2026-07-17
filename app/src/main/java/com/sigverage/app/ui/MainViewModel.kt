@@ -37,9 +37,6 @@ data class HomeUiState(
     val samplingIntervalMs: Long = 5_000L,
     /** Networks currently displayed by the coverage grid. Defaults to all. */
     val coverageFilter: Set<NetworkType> = NetworkType.values().toSet(),
-    /** Storage-zoom level (Mercator tile Z) the coverage grid bins into.
-     *  Defaults to 18 ≈ a city block. Manipulated from the AppBar slider. */
-    val coverageZoom: Int = CoverageGridOverlay.DEFAULT_STORAGE_ZOOM,
     /** Retention in days; `0` means "forever" (the default — opt-in expiry). */
     val retentionDays: Int = PreferencesStore.DEFAULT_RETENTION_DAYS,
     /** Light/dark theme override (default: follow OS via [ThemeMode.System]). */
@@ -51,6 +48,26 @@ data class HomeUiState(
      * dynamic-vs-static palette resolution.
      */
     val dynamicColorEnabled: Boolean = PreferencesStore.DEFAULT_DYNAMIC_COLOR_ENABLED,
+    /**
+     * Whether the first-launch permission-onboarding screen has been
+     * completed (or skipped). Defaults to `false` so a fresh install starts
+     * on the onboarding screen instead of dropping the user straight into
+     * a Map tab that immediately fails to record.
+     */
+    val onboardingCompleted: Boolean = PreferencesStore.DEFAULT_ONBOARDING_COMPLETED,
+    /**
+     * Whether the foreground sampling service should be started
+     * automatically when `MainScreen` enters composition (i.e. once
+     * onboarding has finished). Defaults to `false` because this is an
+     * opt-in power-user feature: it posts a persistent notification and
+     * keeps the GPS radio hot until the user explicitly pauses recording.
+     *
+     * The actual start is performed by the `LaunchedEffect` inside
+     * `MainScreen`; this flag is only the persisted bit. Surfacing it on
+     * `HomeUiState` keeps the Settings switch in lock-step with what the
+     * UI will do on the next composition.
+     */
+    val autoRecordEnabled: Boolean = PreferencesStore.DEFAULT_AUTO_RECORD_ENABLED,
 )
 
 /**
@@ -78,6 +95,27 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val _events = Channel<String>(Channel.BUFFERED)
     val events: Flow<String> = _events.receiveAsFlow()
 
+    /**
+     * One-shot "centre the map on this coordinate" requests, fired when the
+     * user taps a row's "Show on map" affordance on the list page or
+     * details sheet. Modeled as a Channel (not a StateFlow) so identical
+     * consecutive locations — e.g. tapping the same row twice — still trigger
+     * a fresh `animateTo`. Buffered so a request fired before the Map tab is
+     * composed (the user is on List at the time) gets picked up the moment
+     * MapPanel enters composition.
+     */
+    private val _focusEvents = Channel<Pair<Double, Double>>(Channel.BUFFERED)
+    val focusEvents: Flow<Pair<Double, Double>> = _focusEvents.receiveAsFlow()
+
+    /**
+     * Request the map panel to animate to (lat, lng). Safe to call from any
+     * thread; the Channel API is thread-safe and buffers if MapPanel isn't
+     * currently collecting.
+     */
+    fun focusOnLocation(latitude: Double, longitude: Double) {
+        _focusEvents.trySend(latitude to longitude)
+    }
+
     val readings: StateFlow<List<SignalReading>> = repo.observeReadings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
@@ -101,6 +139,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _ui.value = _ui.value.copy(
             themeMode = prefs.themeMode,
             dynamicColorEnabled = prefs.dynamicColorEnabled,
+            // First-launch onboarding gate. Defaults to false so a fresh
+            // install starts on the onboarding screen; flips to true after
+            // the user reaches the final step or taps Skip.
+            onboardingCompleted = prefs.onboardingCompleted,
+            // Auto-record opt-in. Default false; only flips true if the
+            // user has explicitly toggled the Settings switch.
+            autoRecordEnabled = prefs.autoRecordEnabled,
         )
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -159,22 +204,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Set the storage-zoom used to bin readings into Mercator tiles. The
-     * AppBar slider drives this; clamped to the legal range.
-     *
-     * Decoupled from the visible map zoom — users can pan/zoom the map
-     * freely without changing the analytics granularity, and vice versa.
-     */
-    fun setCoverageZoom(z: Int) {
-        _ui.value = _ui.value.copy(
-            coverageZoom = z.coerceIn(
-                CoverageGridOverlay.MIN_STORAGE_ZOOM,
-                CoverageGridOverlay.MAX_STORAGE_ZOOM
-            )
-        )
-    }
-
-    /**
      * Update the user's theme override and re-emit it on [ui]. The activity
      * root `SigverageTheme` observes [ui] and swaps colour schemes
      * accordingly. Persisted via the existing [PreferencesStore] so the
@@ -194,6 +223,35 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setDynamicColorEnabled(enabled: Boolean) {
         prefs.dynamicColorEnabled = enabled
         _ui.value = _ui.value.copy(dynamicColorEnabled = enabled)
+    }
+
+    /**
+     * Mark the first-launch permission-onboarding screen as completed.
+     * Called when the user finishes the onboarding flow or taps Skip on
+     * any of its steps. Persists to SharedPreferences so the app lands on
+     * `MainScreen` instead of the onboarding screen on every subsequent
+     * launch.
+     */
+    fun completeOnboarding() {
+        prefs.onboardingCompleted = true
+        _ui.value = _ui.value.copy(onboardingCompleted = true)
+    }
+
+    /**
+     * Update the "auto-record on launch" preference. The actual service
+     * start happens inside `MainScreen`'s `LaunchedEffect` so the same
+     * path is used whether the user toggled the switch from Settings or
+     * simply opened the app with the preference already enabled.
+     *
+     * Toggling the switch off does NOT stop an in-progress foreground
+     * sampling session — "auto-record" only governs what happens on the
+     * next app launch. Manual pause stays the explicit way to stop a
+     * running session, matching the AppBar Play/Pause button as the
+     * single source of truth.
+     */
+    fun setAutoRecordEnabled(enabled: Boolean) {
+        prefs.autoRecordEnabled = enabled
+        _ui.value = _ui.value.copy(autoRecordEnabled = enabled)
     }
 
     /**

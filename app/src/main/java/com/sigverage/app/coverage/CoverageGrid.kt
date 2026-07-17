@@ -182,16 +182,30 @@ class CoverageGridOverlay(
     }
 
     companion object {
-        /** Default storage zoom (~75 m tiles at the equator). Picked because
-         *  it matches "one city block / one doorway" — the natural unit for
-         *  "where am I standing". */
-        const val DEFAULT_STORAGE_ZOOM = 19
+        /** Fixed storage zoom — the single source of truth for coverage
+         *  cell size. Z=20 in Web-Mercator gives ~38 m tiles at the equator
+         *  and ~27 m east-west at 45° latitude. The user-facing label is
+         *  "50 m cells" — a rounded mid-latitude figure that matches what
+         *  users actually see in the field. **Exact** 50 m would require
+         *  a fractional-zoom refactor (the `aggregate()` function and the
+         *  `TileId` data class in [com.sigorage.app.coverage.CoverageModel]
+         *  currently use `Int` zooms); this constant sits at the integer
+         *  zoom whose cells are slightly finer than 50 m at typical
+         *  mid-latitudes, which is the closest integer Mercator step ≤ 50 m.
+         *  There is no longer a UI slider. */
+        const val DEFAULT_STORAGE_ZOOM = 20
 
-        /** Lower clamp for storage zoom. */
+        /** Lower clamp for storage zoom. Reserved for a possible future
+         *  re-introduction of a granularity control; no caller currently
+         *  consumes this. Kept as part of the public API rather than
+         *  deleted outright to preserve the option. */
         const val MIN_STORAGE_ZOOM = 12
 
-        /** Upper clamp for storage zoom. */
-        const val MAX_STORAGE_ZOOM = 19
+        /** Upper clamp for storage zoom. Reserved for a possible future
+         *  re-introduction of a granularity control; mirrors
+         *  [DEFAULT_STORAGE_ZOOM] for now. Kept as part of the public
+         *  API rather than deleted outright. */
+        const val MAX_STORAGE_ZOOM = 20
 
         // ---- Slot grid geometry (private to companion) ----
 

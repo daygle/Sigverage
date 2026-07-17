@@ -1,7 +1,6 @@
 package com.sigverage.app.ui
 
 import android.os.Build
-import androidx.annotation.StringRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -39,11 +38,15 @@ import com.sigverage.app.model.ThemeMode
  * Top-level Settings screen, reachable via the bottom NavigationBar tab.
  *
  * Sections:
- *  - **Recording** — sample interval (moved from AppBar)
- *  - **Coverage map** — cell granularity (moved from AppBar)
+ *  - **Recording** — sample interval + auto-record-on-launch toggle (moved from AppBar)
+ *  - **Appearance** — theme + dynamic colour
  *  - **Data** — auto-expire retention + delete everything (moved from AppBar)
  *  - **Permissions** — runtime permission status, grant / open-settings actions
  *  - **About** — version + Android version + privacy blurb
+ *
+ * Note: coverage cell size used to live here as a slider, but it has been
+ * hard-coded to a fixed value (see `CoverageGridOverlay.DEFAULT_STORAGE_ZOOM`)
+ * — there is no longer any per-row granularity knob.
  *
  * Each row opens an AlertDialog that owns its own commit-callback. The
  * Scaffold's SnackbarHost (in MainScreen) still receives VM events, so
@@ -59,7 +62,6 @@ fun SettingsScreen(
     val readings by viewModel.readings.collectAsState()
 
     var showIntervalDialog by remember { mutableStateOf(false) }
-    var showGranularityDialog by remember { mutableStateOf(false) }
     var showRetentionDialog by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
@@ -78,21 +80,11 @@ fun SettingsScreen(
                 value = intervalLabelFor(ui.samplingIntervalMs),
                 onClick = { showIntervalDialog = true },
             )
-        }
-
-        Spacer(Modifier.height(8.dp))
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        Spacer(Modifier.height(8.dp))
-
-        Section(stringResource(R.string.settings_section_coverage)) {
-            SettingsRow(
-                title = stringResource(R.string.settings_granularity_title),
-                subtitle = stringResource(R.string.settings_granularity_subtitle),
-                value = stringResource(
-                    R.string.granularity_current_label,
-                    stringResource(sizeLabelFor(ui.coverageZoom)),
-                ),
-                onClick = { showGranularityDialog = true },
+            SwitchRow(
+                title = stringResource(R.string.settings_auto_record_title),
+                subtitle = stringResource(R.string.settings_auto_record_subtitle),
+                checked = ui.autoRecordEnabled,
+                onCheckedChange = viewModel::setAutoRecordEnabled,
             )
         }
 
@@ -194,13 +186,6 @@ fun SettingsScreen(
                 viewModel.setInterval(ms)
                 showIntervalDialog = false
             },
-        )
-    }
-    if (showGranularityDialog) {
-        GranularityDialog(
-            currentZoom = ui.coverageZoom,
-            onDismiss = { showGranularityDialog = false },
-            onChange = viewModel::setCoverageZoom,
         )
     }
     if (showRetentionDialog) {
@@ -362,6 +347,7 @@ private fun SettingsRow(
     HorizontalDivider()
 }
 
+
 @Composable
 private fun intervalLabelFor(ms: Long): String = when (ms) {
     3_000L -> stringResource(R.string.interval_option_fast)
@@ -388,15 +374,3 @@ private fun retentionLabelFor(days: Int): String = when (days) {
     else -> stringResource(R.string.time_days, days)
 }
 
-@StringRes
-private fun sizeLabelFor(zoom: Int): Int = when (zoom) {
-    12 -> R.string.granularity_size_9600
-    13 -> R.string.granularity_size_4800
-    14 -> R.string.granularity_size_2400
-    15 -> R.string.granularity_size_1200
-    16 -> R.string.granularity_size_600
-    17 -> R.string.granularity_size_300
-    18 -> R.string.granularity_size_150
-    19 -> R.string.granularity_size_75
-    else -> R.string.granularity_size_unknown
-}

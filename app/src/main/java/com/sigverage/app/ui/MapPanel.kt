@@ -25,6 +25,8 @@ import com.sigverage.app.location.FixSample
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.ui.theme.rememberNetworkColors
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -54,8 +56,7 @@ fun MapPanel(
     lastFix: FixSample?,
     coverageFilter: Set<NetworkType>,
     onToggleFilter: (NetworkType) -> Unit,
-    coverageZoom: Int,
-    onCoverageZoomChange: (Int) -> Unit,
+    focusEvents: Flow<Pair<Double, Double>> = emptyFlow(),
 ) {
     val context = LocalContext.current
 
@@ -106,10 +107,16 @@ fun MapPanel(
         }
     }
 
-    // Slider → storage zoom, sync immediately.
-    LaunchedEffect(coverageZoom) {
-        coverageOverlay.storageZoom = coverageZoom
-        mapView.invalidate()
+    // Centre on a user-requested coordinate (tap-row-jump-to-map). Channel-
+    // backed so identical consecutive targets still re-animate; buffered so
+    // a request fired while MapPanel isn't composed (user on List tab) gets
+    // picked up the moment MapPanel enters composition. We deliberately do
+    // NOT setZoom() before animateTo, to mirror the GPS-fix centering path
+    // above — the user keeps whatever zoom they last pinched to.
+    LaunchedEffect(Unit) {
+        focusEvents.collect { (latitude, longitude) ->
+            mapView.controller.animateTo(GeoPoint(latitude, longitude))
+        }
     }
 
     // Theme/dynamic toggle → swap palette into the overlay.
@@ -118,11 +125,15 @@ fun MapPanel(
         mapView.invalidate()
     }
 
-    // Re-aggregate ONLY on readings-change or slider-change. Pan/zoom of
-    // the visible map doesn't need re-aggregation; draw() re-projects the
-    // same stats at new screen positions for free.
-    LaunchedEffect(readings, coverageZoom) {
-        coverageOverlay.setStats(aggregate(readings, coverageZoom))
+    // Re-aggregate ONLY when the readings list shape changes. The storage
+    // zoom is now a single fixed constant (CoverageGridOverlay.DEFAULT_STORAGE_ZOOM),
+    // so it isn't a recomposition key. Pan/zoom of the visible map doesn't
+    // need re-aggregation either; draw() re-projects the same stats at new
+    // screen positions for free.
+    LaunchedEffect(readings) {
+        coverageOverlay.setStats(
+            aggregate(readings, CoverageGridOverlay.DEFAULT_STORAGE_ZOOM)
+        )
         mapView.invalidate()
     }
 

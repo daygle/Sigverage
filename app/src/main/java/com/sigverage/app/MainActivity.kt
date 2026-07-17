@@ -1,4 +1,4 @@
-package com.sigverage.app
+package com.sigorage.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,9 +11,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import com.sigverage.app.ui.MainScreen
-import com.sigverage.app.ui.MainViewModel
-import com.sigverage.app.ui.theme.SigverageTheme
+import com.sigorage.app.ui.MainScreen
+import com.sigorage.app.ui.MainViewModel
+import com.sigorage.app.ui.OnboardingScreen
+import com.sigorage.app.ui.theme.SigorageTheme
 
 /**
  * Single-activity host. Everything UI lives inside this Activity under a
@@ -30,7 +31,7 @@ class MainActivity : ComponentActivity() {
             // Observe the ViewModel at the activity root so the theme
             // re-resolves whenever the user toggles the override in Settings.
             val ui by viewModel.ui.collectAsState()
-            SigverageTheme(
+            SigorageTheme(
                 themeMode = ui.themeMode,
                 dynamicColor = ui.dynamicColorEnabled,
             ) {
@@ -38,7 +39,19 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    MainScreen(viewModel = viewModel)
+                    // First-launch gate. Fresh installs (or users who have
+                    // never reached the final onboarding step) land on
+                    // the multi-step permission-onboarding screen;
+                    // everyone else goes straight to the main app. The
+                    // boolean is owned by `HomeUiState.onboardingCompleted`
+                    // and is initialised from `PreferencesStore` in the
+                    // ViewModel's `init` block, so this branch is
+                    // stable across recompositions.
+                    if (ui.onboardingCompleted) {
+                        MainScreen(viewModel = viewModel)
+                    } else {
+                        OnboardingScreen(viewModel = viewModel)
+                    }
                 }
             }
         }

@@ -21,9 +21,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.sigverage.app.R
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.service.SamplingService
@@ -47,6 +50,20 @@ fun MainScreen(viewModel: MainViewModel) {
     // delete-all confirm) have been moved into SettingsScreen because the
     // user prefers them reachable from the Settings tab.
 
+    // Shared "jump to a specific reading on the map" handler — invoked from
+    // both the ListPanel row icon and the DetailsSheet action button.
+    // Closes any open details sheet, switches to the Map tab, and pushes the
+    // coordinate onto the focusEvents channel that MapPanel is collecting.
+    // Kept as a single closure so the next tweak (snackbar, animation,
+    // map-zoom policy) lands everywhere at once. Wrapped in `remember` keyed
+    // on the (stable) ViewModel so the lambda ref stays stable across
+    // recompositions and ListPanel / DetailsSheet memoization can skip work.
+    val jumpToReading: (SignalReading) -> Unit = remember(viewModel) { reading ->
+        sheetReading = null
+        tab = Tab.Map
+        viewModel.focusOnLocation(reading.latitude, reading.longitude)
+    }
+
     // Pump one-shot UI events (purge counts after a retention change,
     // future export-failed notifications, etc.) into the snackbar host.
     // `LaunchedEffect` keeps the collector in the Composable scope and
@@ -56,6 +73,63 @@ fun MainScreen(viewModel: MainViewModel) {
         viewModel.events.collect { message ->
             snackbar.showSnackbar(message)
         }
+    }
+
+    // Auto-record-on-launch. Re-keys on (autoRecordEnabled,
+    // onboardingCompleted) so it fires exactly when those bits flip —
+    // either on the very first composition after onboarding finishes, or
+    // immediately after the user toggles the Settings switch. `start(...)`
+    // is itself idempotent (early return in `onStartCommand` when the
+    // stream job is already active) so re-firing the effect is safe.
+    //
+    // Permission gate: typed foreground services for location on Android
+    // 14+ raise `SecurityException` if FINE/COARSE/POST_NOTIFICATIONS
+    // aren't held, so we route the missing-permissions case to a Snackbar
+    // instead of attempting to start the service.
+    //
+    // We also avoid showing the "Sampling started." snackbar when the
+    // service is already running (e.g. the user toggled auto-record ON
+    // mid-session after a manual Pause+Play) — in that case nothing new
+    // was started and the message would be misleading.
+    LaunchedEffect(ui.autoRecordEnabled, ui.onboardingCompleted) {
+        if (!ui.autoRecordEnabled || !ui.onboardingCompleted) return@LaunchedEffect
+        val missing = missingPermissions(ctx)
+        if (missing.isNotEmpty()) {
+            snackbar.showSnackbar(ctx.getString(R.string.auto_record_no_permissions))
+            return@LaunchedEffect
+        }
+        if (ui.isSampling) return@LaunchedEffect // already running; nothing to do
+        viewModel.setSampling(true)
+        SamplingService.start(ctx, ui.samplingIntervalMs)
+        snackbar.showSnackbar(ctx.getString(R.string.auto_record_started))
+    }
+
+    // Auto-record re-arm hook. The LaunchedEffect above fires only when
+    // (autoRecordEnabled, onboardingCompleted) change — but the user might
+    // toggle auto-record ON while permissions are still missing, see the
+    // "permissions missing" snackbar, then grant them from
+    // Settings → Permissions (which lives in the same Activity and
+    // doesn't change either key). Without this hook they'd have to toggle
+    // auto-record off+on or restart the app to actually start sampling.
+    //
+    // ON_RESUME also covers the case of returning from system Settings
+    // (after granting *Background location* via the "Allow all the time"
+    // deep-link Android forces). Silent catch-up: no snackbar here, since
+    // the user didn't initiate the restart — surfacing a message every
+    // time they come back from the system Settings would be alarming.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
+            val current = viewModel.ui.value
+            if (!current.autoRecordEnabled || !current.onboardingCompleted) return@LifecycleEventObserver
+            if (missingPermissions(ctx).isNotEmpty()) return@LifecycleEventObserver
+            if (current.isSampling) return@LifecycleEventObserver
+            viewModel.setSampling(true)
+            SamplingService.start(ctx, current.samplingIntervalMs)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -172,13 +246,13 @@ fun MainScreen(viewModel: MainViewModel) {
                     lastFix = ui.lastFix,
                     coverageFilter = ui.coverageFilter,
                     onToggleFilter = viewModel::toggleCoverageFilter,
-                    coverageZoom = ui.coverageZoom,
-                    onCoverageZoomChange = viewModel::setCoverageZoom,
+                    focusEvents = viewModel.focusEvents,
                 )
                 Tab.List -> ListPanel(
                     readings = readings,
                     onClick = { sheetReading = it },
-                    onDelete = viewModel::delete
+                    onDelete = viewModel::delete,
+                    onFocusMap = jumpToReading,
                 )
                 Tab.Settings -> SettingsScreen(viewModel = viewModel)
             }
@@ -200,7 +274,8 @@ fun MainScreen(viewModel: MainViewModel) {
             onDelete = {
                 viewModel.delete(reading.id)
                 sheetReading = null
-            }
+            },
+            onShowOnMap = { jumpToReading(reading) },
         )
     }
 }
