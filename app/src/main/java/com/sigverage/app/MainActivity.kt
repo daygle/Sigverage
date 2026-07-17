@@ -1,4 +1,4 @@
-package com.sigorage.app
+package com.sigverage.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -11,10 +11,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import com.sigorage.app.ui.MainScreen
-import com.sigorage.app.ui.MainViewModel
-import com.sigorage.app.ui.OnboardingScreen
-import com.sigorage.app.ui.theme.SigorageTheme
+import com.sigverage.app.ui.MainScreen
+import com.sigverage.app.ui.MainViewModel
+import com.sigverage.app.ui.OnboardingScreen
+import com.sigverage.app.ui.theme.SigorageTheme
 
 /**
  * Single-activity host. Everything UI lives inside this Activity under a

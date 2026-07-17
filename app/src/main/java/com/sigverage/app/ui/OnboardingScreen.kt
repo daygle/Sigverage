@@ -1,4 +1,4 @@
-package com.sigorage.app.ui
+package com.sigverage.app.ui
 
 import android.Manifest
 import android.os.Build
@@ -37,7 +37,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.sigorage.app.R
+import com.sigverage.app.R
 
 /**
  * First-launch onboarding screen.

@@ -1,4 +1,4 @@
-package com.sigorage.app.coverage
+package com.sigverage.app.coverage
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -25,9 +25,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.sigorage.app.R
-import com.sigorage.app.model.NetworkType
-import com.sigorage.app.model.SignalReading
+import com.sigverage.app.R
+import com.sigverage.app.model.NetworkType
+import com.sigverage.app.model.SignalReading
 import org.osmdroid.views.MapView
 
 /**
