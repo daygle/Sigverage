@@ -8,12 +8,13 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.BatteryManager
 import android.os.Build
+import android.os.CancellationSignal
 import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationListenerCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.core.location.LocationRequestCompat
-import androidx.core.os.CancellationSignal
+
 import com.sigverage.app.model.SamplingMode
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -95,20 +96,30 @@ class LocationTracker(private val context: Context) {
      * battery-cheap while guaranteeing the reading reflects where the user
      * actually is now.
      */
+    @Suppress("deprecation")
     suspend fun currentFix(): FixSample? {
         if (!hasFineLocation()) return null
         val provider = bestProvider() ?: return null
         return suspendCancellableCoroutine { cont ->
             val signal = CancellationSignal()
             cont.invokeOnCancellation { signal.cancel() }
-            runCatching {
-                LocationManagerCompat.getCurrentLocation(
-                    manager,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // API 30+: use the non-deprecated platform method
+                manager.getCurrentLocation(
                     provider,
                     signal,
                     ContextCompat.getMainExecutor(context),
                 ) { location -> cont.resume(location?.toFix()) }
-            }.onFailure { cont.resume(null) }
+            } else {
+                // API 26-29: use compat fallback
+                @Suppress("DEPRECATION")
+                LocationManagerCompat.getCurrentLocation(
+                    manager,
+                    provider,
+                    null,
+                    ContextCompat.getMainExecutor(context),
+                ) { location -> cont.resume(location?.toFix()) }
+            }
         }
     }
 
