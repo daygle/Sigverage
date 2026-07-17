@@ -1,58 +1,66 @@
 package com.sigverage.app.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TimeInput
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.R
 import com.sigverage.app.model.RecordingSchedule
 
-private data class DayOption(val isoDay: Int, val labelRes: Int)
+private data class DayOption(val isoDay: Int, val initial: String)
 
 private val DAY_OPTIONS = listOf(
-    DayOption(1, R.string.schedule_day_mon),
-    DayOption(2, R.string.schedule_day_tue),
-    DayOption(3, R.string.schedule_day_wed),
-    DayOption(4, R.string.schedule_day_thu),
-    DayOption(5, R.string.schedule_day_fri),
-    DayOption(6, R.string.schedule_day_sat),
-    DayOption(7, R.string.schedule_day_sun),
+    DayOption(1, "M"),
+    DayOption(2, "T"),
+    DayOption(3, "W"),
+    DayOption(4, "T"),
+    DayOption(5, "F"),
+    DayOption(6, "S"),
+    DayOption(7, "S"),
 )
 
 /**
  * Dialog for creating or editing a [RecordingSchedule].
  *
- * Shows a name field, day-of-week chip selector, and two TimePickers
- * (from / to). Validates that at least one day is selected and the
- * end time is after the start time.
+ * Refined UI with a circular day picker and tappable time rows that open
+ * a clock-face TimePicker dialog. Supports overnight schedules.
  */
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScheduleDialog(
     existing: RecordingSchedule? = null,
@@ -63,34 +71,30 @@ fun ScheduleDialog(
     var selectedDays by remember { mutableStateOf(existing?.daysOfWeek ?: emptySet()) }
     var nameError by remember { mutableStateOf(false) }
     var daysError by remember { mutableStateOf(false) }
-    var timeError by remember { mutableStateOf(false) }
 
-    val startState = rememberTimePickerState(
-        initialHour = existing?.startHour ?: 9,
-        initialMinute = existing?.startMinute ?: 0,
-        is24Hour = true,
-    )
-    val endState = rememberTimePickerState(
-        initialHour = existing?.endHour ?: 17,
-        initialMinute = existing?.endMinute ?: 0,
-        is24Hour = true,
-    )
+    var startHour by remember { mutableStateOf(existing?.startHour ?: 9) }
+    var startMinute by remember { mutableStateOf(existing?.startMinute ?: 0) }
+    var endHour by remember { mutableStateOf(existing?.endHour ?: 17) }
+    var endMinute by remember { mutableStateOf(existing?.endMinute ?: 0) }
+
+    var pickingStartTime by remember { mutableStateOf(false) }
+    var pickingEndTime by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         title = {
             Text(
                 text = if (existing != null) stringResource(R.string.schedule_edit)
                        else stringResource(R.string.schedule_add),
                 style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
             )
         },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 // Name field
                 OutlinedTextField(
@@ -99,7 +103,7 @@ fun ScheduleDialog(
                         name = it
                         nameError = false
                     },
-                    label = { Text(stringResource(R.string.schedule_name_label)) },
+                    label = { Text("Schedule Name") },
                     placeholder = { Text(stringResource(R.string.schedule_name_hint)) },
                     isError = nameError,
                     supportingText = if (nameError) {
@@ -110,35 +114,37 @@ fun ScheduleDialog(
                     shape = RoundedCornerShape(12.dp),
                 )
 
-                // Day-of-week chips
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                // Day-of-week circular picker
                 Column {
                     Text(
-                        text = stringResource(R.string.schedule_days_label),
+                        text = "Days of Week",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
-                    Spacer(Modifier.height(6.dp))
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         for (day in DAY_OPTIONS) {
-                            val selected = day.isoDay in selectedDays
-                            FilterChip(
-                                selected = selected,
+                            val isSelected = day.isoDay in selectedDays
+                            DayCircle(
+                                initial = day.initial,
+                                isSelected = isSelected,
                                 onClick = {
-                                    selectedDays = if (selected) {
+                                    selectedDays = if (isSelected) {
                                         selectedDays - day.isoDay
                                     } else {
                                         selectedDays + day.isoDay
                                     }
                                     daysError = false
-                                },
-                                label = { Text(stringResource(day.labelRes)) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
-                                ),
+                                }
                             )
                         }
                     }
@@ -147,80 +153,190 @@ fun ScheduleDialog(
                             text = stringResource(R.string.schedule_error_days_required),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(top = 4.dp),
+                            modifier = Modifier.padding(top = 8.dp),
                         )
                     }
                 }
 
-                // Time pickers
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                // Time selection rows
                 Column {
                     Text(
-                        text = stringResource(R.string.schedule_time_label),
+                        text = "Active Time Range",
                         style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.height(8.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Column {
-                            Text(
-                                text = stringResource(R.string.schedule_time_from),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            TimeInput(state = startState)
-                        }
-                        Column {
-                            Text(
-                                text = stringResource(R.string.schedule_time_to),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            TimeInput(state = endState)
-                        }
-                    }
-                    if (timeError) {
+                    
+                    TimeRow(
+                        label = "Starts At",
+                        hour = startHour,
+                        minute = startMinute,
+                        onClick = { pickingStartTime = true }
+                    )
+                    
+                    Spacer(Modifier.height(8.dp))
+                    
+                    TimeRow(
+                        label = "Ends At",
+                        hour = endHour,
+                        minute = endMinute,
+                        onClick = { pickingEndTime = true }
+                    )
+                    
+                    if (startHour == endHour && startMinute == endMinute) {
                         Text(
-                            text = stringResource(R.string.schedule_error_time_invalid),
+                            text = "Start and end times cannot be identical",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(top = 4.dp),
+                            modifier = Modifier.padding(top = 8.dp),
                         )
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = {
-                nameError = name.isBlank()
-                daysError = selectedDays.isEmpty()
+            TextButton(
+                onClick = {
+                    nameError = name.isBlank()
+                    daysError = selectedDays.isEmpty()
+                    val identicalTime = startHour == endHour && startMinute == endMinute
 
-                val startMinutes = startState.hour * 60 + startState.minute
-                val endMinutes = endState.hour * 60 + endState.minute
-                timeError = endMinutes <= startMinutes
-
-                if (!nameError && !daysError && !timeError) {
-                    val schedule = RecordingSchedule(
-                        id = existing?.id ?: 0,
-                        name = name.trim(),
-                        daysOfWeek = selectedDays,
-                        startHour = startState.hour,
-                        startMinute = startState.minute,
-                        endHour = endState.hour,
-                        endMinute = endState.minute,
-                        enabled = existing?.enabled ?: true,
-                    )
-                    onSave(schedule)
+                    if (!nameError && !daysError && !identicalTime) {
+                        val schedule = RecordingSchedule(
+                            id = existing?.id ?: 0,
+                            name = name.trim(),
+                            daysOfWeek = selectedDays,
+                            startHour = startHour,
+                            startMinute = startMinute,
+                            endHour = endHour,
+                            endMinute = endMinute,
+                            enabled = existing?.enabled ?: true,
+                        )
+                        onSave(schedule)
+                    }
                 }
-            }) {
-                Text(stringResource(R.string.schedule_save))
+            ) {
+                Text("Save", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.schedule_cancel))
+                Text("Cancel")
             }
         },
     )
+
+    // Time Picker Dialogs
+    if (pickingStartTime) {
+        val state = rememberTimePickerState(startHour, startMinute, is24Hour = true)
+        TimePickerDialog(
+            title = "Select Start Time",
+            onDismissRequest = { pickingStartTime = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    startHour = state.hour
+                    startMinute = state.minute
+                    pickingStartTime = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pickingStartTime = false }) { Text("Cancel") }
+            }
+        ) {
+            TimePicker(state = state)
+        }
+    }
+
+    if (pickingEndTime) {
+        val state = rememberTimePickerState(endHour, endMinute, is24Hour = true)
+        TimePickerDialog(
+            title = "Select End Time",
+            onDismissRequest = { pickingEndTime = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    endHour = state.hour
+                    endMinute = state.minute
+                    pickingEndTime = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pickingEndTime = false }) { Text("Cancel") }
+            }
+        ) {
+            TimePicker(state = state)
+        }
+    }
+}
+
+@Composable
+private fun DayCircle(
+    initial: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primary
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = initial,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun TimeRow(
+    label: String,
+    hour: Int,
+    minute: Int,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.AccessTime,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Text(
+            text = "%02d:%02d".format(hour, minute),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
 }
