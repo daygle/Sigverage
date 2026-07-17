@@ -13,8 +13,8 @@
     <!-- Map / top-bar capture icon -->
     <string name="capture_at_location">Capture reading here</string>
     <string name="capture_snackbar">Captured reading (#%1$d)</string>
-    <string name="capture_no_location">No location fix yet — move to an open area and try again.</string>
-    <string name="capture_low_accuracy">Location is too imprecise right now — move to an open area and try again.</string>
+    <string name="capture_no_location">No location fix yet - move to an open area and try again.</string>
+    <string name="capture_low_accuracy">Location is too imprecise right now - move to an open area and try again.</string>
 
     <!-- List -->
     <string name="empty_list_hint">No readings yet. Switch to Map and tap Capture.</string>
@@ -119,7 +119,7 @@
     <string name="settings_sampling_mode_title">Battery Usage</string>
     <string name="settings_sampling_mode_subtitle">Balance GPS accuracy against battery drain while recording.</string>
     <string name="sampling_mode_auto">Automatic</string>
-    <string name="sampling_mode_auto_desc">Adapts to your device — saves power when the battery is low or Battery Saver is on.</string>
+    <string name="sampling_mode_auto_desc">Adapts to your device - saves power when the battery is low or Battery Saver is on.</string>
     <string name="sampling_mode_power_saver">Power Saver</string>
     <string name="sampling_mode_power_saver_desc">Fewer fixes, lowest battery use. Best for long recordings.</string>
     <string name="sampling_mode_balanced">Balanced</string>
@@ -132,11 +132,11 @@
     <string name="settings_battery_opt_title">Run reliably in background</string>
     <string name="settings_battery_opt_subtitle">Let Sigverage keep recording without being paused by battery optimisation.</string>
     <string name="settings_battery_opt_on">Unrestricted</string>
-    <string name="settings_battery_opt_off">Battery-optimised — tap to allow</string>
+    <string name="settings_battery_opt_off">Battery-optimised - tap to allow</string>
     <string name="settings_exact_alarm_title">Exact schedule timing</string>
     <string name="settings_exact_alarm_subtitle">Allow schedules to start and stop at the exact times you set.</string>
     <string name="settings_exact_alarm_on">Allowed</string>
-    <string name="settings_exact_alarm_off">Not allowed — tap to allow</string>
+    <string name="settings_exact_alarm_off">Not allowed - tap to allow</string>
 
     <!-- Settings screen -->
     <string name="tab_settings">Settings</string>
