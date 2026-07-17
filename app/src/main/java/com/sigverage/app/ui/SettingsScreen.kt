@@ -5,24 +5,37 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -35,9 +48,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.BuildConfig
 import com.sigverage.app.R
@@ -45,23 +61,11 @@ import com.sigverage.app.model.ThemeMode
 import kotlinx.coroutines.launch
 
 /**
- * Top-level Settings screen, reachable via the bottom NavigationBar tab.
+ * Modern card-based Settings screen, reachable via the bottom NavigationBar tab.
  *
- * Sections:
- *  - **Recording** - sample interval + auto-record-on-launch toggle (moved from AppBar)
- *  - **Appearance** - theme + dynamic colour
- *  - **Data** - auto-expire retention + delete everything (moved from AppBar)
- *  - **Permissions** - runtime permission status, grant / open-settings actions
- *  - **About** - version + Android version + privacy blurb
- *
- * Note: coverage cell size used to live here as a slider, but it has been
- * hard-coded to a fixed value (see `CoverageGridOverlay.DEFAULT_STORAGE_ZOOM`)
- * - there is no longer any per-row granularity knob.
- *
- * Each row opens an AlertDialog that owns its own commit-callback. The
- * Scaffold's SnackbarHost (in MainScreen) still receives VM events, so
- * "Removed N old readings" feedback after a retention sweep still surfaces
- * correctly when the user is browsing Settings.
+ * Each section is wrapped in a rounded [Card] with subtle elevation,
+ * section headers use icons for visual hierarchy, and rows follow
+ * Material 3's ListItem patterns with consistent spacing.
  */
 @Composable
 fun SettingsScreen(
@@ -103,9 +107,14 @@ fun SettingsScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scroll)
-            .padding(vertical = 12.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Section(stringResource(R.string.settings_section_recording)) {
+        // -- Recording section --
+        SettingsCard(
+            headerIcon = Icons.Default.Schedule,
+            headerTitle = stringResource(R.string.settings_section_recording),
+        ) {
             SwitchRow(
                 title = stringResource(R.string.settings_auto_record_title),
                 subtitle = stringResource(R.string.settings_auto_record_subtitle),
@@ -114,17 +123,18 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(Modifier.height(8.dp))
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        Spacer(Modifier.height(8.dp))
-
-        Section(stringResource(R.string.settings_section_appearance)) {
+        // -- Appearance section --
+        SettingsCard(
+            headerIcon = Icons.Default.Palette,
+            headerTitle = stringResource(R.string.settings_section_appearance),
+        ) {
             SettingsRow(
                 title = stringResource(R.string.settings_theme_title),
                 subtitle = stringResource(R.string.settings_theme_subtitle),
                 value = themeLabelFor(ui.themeMode),
                 onClick = { showThemeDialog = true },
             )
+            CardDivider()
             SwitchRow(
                 title = stringResource(R.string.settings_dynamic_color_title),
                 subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
@@ -133,17 +143,18 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(Modifier.height(8.dp))
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        Spacer(Modifier.height(8.dp))
-
-        Section(stringResource(R.string.settings_section_data)) {
+        // -- Data section --
+        SettingsCard(
+            headerIcon = Icons.Default.CloudDownload,
+            headerTitle = stringResource(R.string.settings_section_data),
+        ) {
             SettingsRow(
                 title = stringResource(R.string.settings_retention_title),
                 subtitle = stringResource(R.string.settings_retention_subtitle),
                 value = retentionLabelFor(ui.retentionDays),
                 onClick = { showRetentionDialog = true },
             )
+            CardDivider()
             SettingsRow(
                 title = stringResource(R.string.export_csv),
                 subtitle = if (readings.isEmpty()) {
@@ -154,6 +165,7 @@ fun SettingsScreen(
                 enabled = readings.isNotEmpty(),
                 onClick = { csvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
             )
+            CardDivider()
             SettingsRow(
                 title = stringResource(R.string.settings_delete_all_title),
                 subtitle = if (readings.isEmpty()) {
@@ -167,11 +179,11 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(Modifier.height(8.dp))
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        Spacer(Modifier.height(8.dp))
-
-        Section(stringResource(R.string.settings_section_permissions)) {
+        // -- Permissions section --
+        SettingsCard(
+            headerIcon = Icons.Default.Security,
+            headerTitle = stringResource(R.string.settings_section_permissions),
+        ) {
             SettingsRow(
                 title = stringResource(R.string.settings_permissions_title),
                 subtitle = stringResource(R.string.settings_permissions_subtitle),
@@ -179,43 +191,27 @@ fun SettingsScreen(
             )
         }
 
-        Spacer(Modifier.height(8.dp))
-        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-        Spacer(Modifier.height(8.dp))
-
-        Section(stringResource(R.string.settings_section_about)) {
-            ListItem(
-                headlineContent = {
-                    Text(
-                        text = stringResource(
-                            R.string.about_version_value,
-                            BuildConfig.VERSION_NAME,
-                        )
-                    )
-                },
-                supportingContent = {
-                    Text(
-                        text = stringResource(R.string.about_blurb),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                }
+        // -- About section --
+        SettingsCard(
+            headerIcon = Icons.Default.Info,
+            headerTitle = stringResource(R.string.settings_section_about),
+        ) {
+            AboutRow(
+                label = stringResource(R.string.about_version_value, BuildConfig.VERSION_NAME),
             )
-            ListItem(
-                headlineContent = {
-                    Text(stringResource(R.string.about_android_version_label))
-                },
-                supportingContent = {
-                    Text(
-                        text = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                },
+            CardDivider()
+            AboutRow(
+                label = stringResource(R.string.about_android_version_label),
+                value = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+            )
+            CardDivider()
+            AboutRow(
+                label = stringResource(R.string.about_blurb),
+                isSubtitle = true,
             )
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
     }
 
     if (showRetentionDialog) {
@@ -258,23 +254,73 @@ fun SettingsScreen(
     }
 }
 
+// ---------------------------------------------------------------------------
+// Card-based section wrapper
+// ---------------------------------------------------------------------------
+
+/**
+ * A rounded card with an icon + title header, wrapping child rows.
+ * Uses [CardDefaults.cardColors] for automatic light/dark surface handling.
+ */
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = title,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        content()
+private fun SettingsCard(
+    headerIcon: ImageVector,
+    headerTitle: String,
+    content: @Composable () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+    ) {
+        Column(modifier = Modifier.padding(vertical = 4.dp)) {
+            // Section header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = headerIcon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = headerTitle,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            content()
+        }
     }
 }
 
+// ---------------------------------------------------------------------------
+// Inner dividers (no outer margins - live inside the card)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun CardDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 20.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+    )
+}
+
+// ---------------------------------------------------------------------------
+// Row variants
+// ---------------------------------------------------------------------------
+
 /**
- * Variant of [SettingsRow] with a trailing [Switch]. The whole row is
- * tappable so the user doesn't have to fish for the small switch hit-target,
- * matching Android Settings' standard pattern.
+ * A row with a trailing [Switch]. The whole row is tappable.
  */
 @Composable
 private fun SwitchRow(
@@ -283,38 +329,37 @@ private fun SwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    ListItem(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) },
-        headlineContent = { Text(text = title) },
-        supportingContent = {
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+            )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.outline,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
-        },
-        trailingContent = {
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange,
-            )
-        },
-    )
-    HorizontalDivider()
+        }
+        Spacer(Modifier.width(16.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+        )
+    }
 }
 
 /**
- * Generic `ListItem`-based settings row.
- *
- * `value` (a coloured primary line) is shown when present, e.g. the current
- * state ("5 s"). `subtitle` is the explanatory grey line. `destructive`
- * turns title red and swaps the trailing chevron for a trash icon - used by
- * "Delete all readings". `enabled = false` greys the row out and disables
- * taps (e.g., when there's nothing to delete).
+ * Generic tappable settings row with optional value and trailing icon.
  */
 @Composable
 private fun SettingsRow(
@@ -325,58 +370,97 @@ private fun SettingsRow(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    ListItem(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick),
-        headlineContent = {
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
+                style = MaterialTheme.typography.bodyLarge,
                 color = when {
                     destructive -> MaterialTheme.colorScheme.error
-                    !enabled -> MaterialTheme.colorScheme.outline
+                    !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                     else -> MaterialTheme.colorScheme.onSurface
                 }
             )
-        },
-        supportingContent = {
-            Column {
-                if (value != null) {
-                    Text(
-                        text = value,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.outline,
-                    )
-                }
-            }
-        },
-        trailingContent = {
-            if (destructive) {
-                Icon(
-                    imageVector = Icons.Default.DeleteOutline,
-                    contentDescription = null,
-                    tint = if (enabled) MaterialTheme.colorScheme.error
-                           else MaterialTheme.colorScheme.outline,
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.outline,
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
                 )
             }
-        },
-    )
-    HorizontalDivider()
+            if (value != null) {
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
+        }
+        Spacer(Modifier.width(12.dp))
+        if (destructive) {
+            Icon(
+                imageVector = Icons.Default.DeleteForever,
+                contentDescription = null,
+                tint = if (enabled) MaterialTheme.colorScheme.error
+                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                modifier = Modifier.size(20.dp),
+            )
+        } else {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
 }
 
+/**
+ * Read-only info row for the About section.
+ */
+@Composable
+private fun AboutRow(
+    label: String,
+    value: String? = null,
+    isSubtitle: Boolean = false,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = if (isSubtitle) 8.dp else 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = if (isSubtitle) MaterialTheme.typography.bodySmall
+                    else MaterialTheme.typography.bodyLarge,
+            color = if (isSubtitle) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface,
+        )
+        if (value != null) {
+            Spacer(Modifier.weight(1f))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Label helpers
+// ---------------------------------------------------------------------------
 
 @Composable
 private fun themeLabelFor(mode: ThemeMode): String = when (mode) {
@@ -395,10 +479,10 @@ private fun retentionLabelFor(days: Int): String = when (days) {
     else -> stringResource(R.string.time_days, days)
 }
 
-/**
- * Dedicated permissions sub-page with a back button in the top app bar.
- * Reached by tapping the "Permissions" drill-out row in [SettingsScreen].
- */
+// ---------------------------------------------------------------------------
+// Permissions sub-page
+// ---------------------------------------------------------------------------
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PermissionsPage(onBack: () -> Unit) {
