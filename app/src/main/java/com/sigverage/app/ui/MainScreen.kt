@@ -30,7 +30,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,7 +44,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.sigverage.app.R
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.service.SamplingService
-import kotlinx.coroutines.launch
 
 private enum class Tab { Map, List, Settings }
 
@@ -53,7 +51,6 @@ private enum class Tab { Map, List, Settings }
 @Composable
 fun MainScreen(viewModel: MainViewModel) {
     val ctx = LocalContext.current
-    val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val ui by viewModel.ui.collectAsState()
     val readings by viewModel.readings.collectAsState()
@@ -108,13 +105,7 @@ fun MainScreen(viewModel: MainViewModel) {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    IconButton(onClick = {
-                        viewModel.captureNow()
-                        scope.launch {
-                            val n = viewModel.count.value + 1
-                            snackbar.showSnackbar(ctx.getString(R.string.capture_snackbar, n))
-                        }
-                    }) {
+                    IconButton(onClick = { viewModel.captureNow() }) {
                         Icon(
                             imageVector = Icons.Default.AddLocation,
                             contentDescription = stringResource(R.string.capture_at_location)

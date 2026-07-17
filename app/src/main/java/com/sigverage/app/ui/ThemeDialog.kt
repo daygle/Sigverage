@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -15,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.R
 import com.sigverage.app.model.ThemeMode
@@ -40,17 +43,23 @@ fun ThemeDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.settings_theme_title)) },
         text = {
-            Column {
+            Column(Modifier.selectableGroup()) {
                 OPTIONS.forEach { (mode, label) ->
+                    val selected = mode == current
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp),
+                            .selectable(
+                                selected = selected,
+                                onClick = { onPick(mode) },
+                                role = Role.RadioButton,
+                            )
+                            .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(
-                            selected = mode == current,
-                            onClick = { onPick(mode) },
+                            selected = selected,
+                            onClick = null,
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(label))

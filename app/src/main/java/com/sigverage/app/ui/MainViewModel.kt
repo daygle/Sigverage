@@ -173,7 +173,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun captureNow() {
         viewModelScope.launch(Dispatchers.IO) {
-            val fix = location.lastKnown() ?: return@launch
+            val app = getApplication<Application>()
+            val fix = location.lastKnown()
+            if (fix == null) {
+                // No fix available: tell the user instead of silently doing
+                // nothing while the UI implies a reading was captured.
+                _events.trySend(app.getString(R.string.capture_no_location))
+                return@launch
+            }
             val reading = cellular.snapshot(
                 provider = fix.provider,
                 latitude = fix.latitude,
@@ -182,6 +189,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             )
             repo.add(reading)
             _ui.value = _ui.value.copy(lastFix = fix, latestReading = reading)
+            _events.trySend(app.getString(R.string.capture_snackbar, count.value + 1))
         }
     }
 

@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
@@ -15,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.R
 
@@ -33,17 +36,23 @@ fun RetentionDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.retention_dialog_title)) },
         text = {
-            Column {
+            Column(Modifier.selectableGroup()) {
                 OPTIONS.forEach { option ->
+                    val selected = option.days == currentDays
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 2.dp),
+                            .selectable(
+                                selected = selected,
+                                onClick = { onPick(option.days) },
+                                role = Role.RadioButton,
+                            )
+                            .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         RadioButton(
-                            selected = option.days == currentDays,
-                            onClick = { onPick(option.days) },
+                            selected = selected,
+                            onClick = null,
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(stringResource(option.labelRes))

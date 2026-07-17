@@ -15,6 +15,7 @@
     <!-- Map / top-bar capture icon -->
     <string name="capture_at_location">Capture reading here</string>
     <string name="capture_snackbar">Captured reading (#%1$d)</string>
+    <string name="capture_no_location">No location fix yet — move to an open area and try again.</string>
     <string name="my_location_cd">Centre map on my location</string>
     <string name="empty_map_hint">Tap the capture icon in the top bar to record your first signal reading.</string>
     <string name="legend_title">Marker colour</string>
