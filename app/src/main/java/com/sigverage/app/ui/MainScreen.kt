@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -19,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -59,6 +61,11 @@ fun MainScreen(viewModel: MainViewModel) {
 
     var tab by rememberSaveable { mutableStateOf(Tab.Map) }
     var sheetReading by remember { mutableStateOf<SignalReading?>(null) }
+    // Which Settings drill-out (if any) is open. When set, the Settings screen
+    // renders that sub-page full-screen, so we hide the app bar and bottom
+    // navigation and let the sub-page's own Scaffold own the system insets.
+    var settingsSubPage by remember { mutableStateOf(SettingsSubPage.None) }
+    val settingsSubPageActive = tab == Tab.Settings && settingsSubPage != SettingsSubPage.None
 
     val jumpToReading: (SignalReading) -> Unit = remember(viewModel) {
         { reading: SignalReading ->
@@ -118,51 +125,62 @@ fun MainScreen(viewModel: MainViewModel) {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-                actions = {
-                    IconButton(onClick = { viewModel.captureNow() }) {
-                        Icon(
-                            imageVector = Icons.Default.AddLocation,
-                            contentDescription = stringResource(R.string.capture_at_location)
-                        )
-                    }
-                    if (ui.isSampling) {
-                        IconButton(onClick = {
-                            viewModel.setSampling(false)
-                            SamplingService.stop(ctx)
-                        }) {
+            if (!settingsSubPageActive) {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.app_name)) },
+                    actions = {
+                        IconButton(onClick = { viewModel.captureNow() }) {
                             Icon(
-                                imageVector = Icons.Default.PauseCircle,
-                                contentDescription = stringResource(R.string.stop_sampling),
-                                tint = MaterialTheme.colorScheme.error
+                                imageVector = Icons.Default.AddLocation,
+                                contentDescription = stringResource(R.string.capture_at_location)
                             )
                         }
+                        if (ui.isSampling) {
+                            IconButton(onClick = {
+                                viewModel.setSampling(false)
+                                SamplingService.stop(ctx)
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.PauseCircle,
+                                    contentDescription = stringResource(R.string.stop_sampling),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                     }
-                }
-            )
-        },
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = tab == Tab.Map,
-                    onClick = { tab = Tab.Map },
-                    icon = { Icon(Icons.Default.Map, contentDescription = null) },
-                    label = { Text(stringResource(R.string.tab_map)) }
-                )
-                NavigationBarItem(
-                    selected = tab == Tab.List,
-                    onClick = { tab = Tab.List },
-                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                    label = { Text(stringResource(R.string.tab_list)) }
-                )
-                NavigationBarItem(
-                    selected = tab == Tab.Settings,
-                    onClick = { tab = Tab.Settings },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                    label = { Text(stringResource(R.string.tab_settings)) }
                 )
             }
+        },
+        bottomBar = {
+            if (!settingsSubPageActive) {
+                NavigationBar {
+                    NavigationBarItem(
+                        selected = tab == Tab.Map,
+                        onClick = { tab = Tab.Map },
+                        icon = { Icon(Icons.Default.Map, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_map)) }
+                    )
+                    NavigationBarItem(
+                        selected = tab == Tab.List,
+                        onClick = { tab = Tab.List },
+                        icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_list)) }
+                    )
+                    NavigationBarItem(
+                        selected = tab == Tab.Settings,
+                        onClick = { tab = Tab.Settings },
+                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_settings)) }
+                    )
+                }
+            }
+        },
+        // While a Settings sub-page owns the screen, hand all system-bar insets
+        // to its own Scaffold so nothing double-pads around its top app bar.
+        contentWindowInsets = if (settingsSubPageActive) {
+            WindowInsets(0, 0, 0, 0)
+        } else {
+            ScaffoldDefaults.contentWindowInsets
         },
     ) { padding ->
         Box(
@@ -186,7 +204,11 @@ fun MainScreen(viewModel: MainViewModel) {
                     onDelete = viewModel::deleteReading,
                     onFocusMap = jumpToReading,
                 )
-                Tab.Settings -> SettingsScreen(viewModel = viewModel)
+                Tab.Settings -> SettingsScreen(
+                    viewModel = viewModel,
+                    subPage = settingsSubPage,
+                    onSubPageChange = { settingsSubPage = it },
+                )
             }
         }
     }
