@@ -38,15 +38,15 @@ import com.sigverage.app.model.ThemeMode
  * Top-level Settings screen, reachable via the bottom NavigationBar tab.
  *
  * Sections:
- *  - **Recording** — sample interval + auto-record-on-launch toggle (moved from AppBar)
- *  - **Appearance** — theme + dynamic colour
- *  - **Data** — auto-expire retention + delete everything (moved from AppBar)
- *  - **Permissions** — runtime permission status, grant / open-settings actions
- *  - **About** — version + Android version + privacy blurb
+ *  - **Recording** - sample interval + auto-record-on-launch toggle (moved from AppBar)
+ *  - **Appearance** - theme + dynamic colour
+ *  - **Data** - auto-expire retention + delete everything (moved from AppBar)
+ *  - **Permissions** - runtime permission status, grant / open-settings actions
+ *  - **About** - version + Android version + privacy blurb
  *
  * Note: coverage cell size used to live here as a slider, but it has been
  * hard-coded to a fixed value (see `CoverageGridOverlay.DEFAULT_STORAGE_ZOOM`)
- * — there is no longer any per-row granularity knob.
+ * - there is no longer any per-row granularity knob.
  *
  * Each row opens an AlertDialog that owns its own commit-callback. The
  * Scaffold's SnackbarHost (in MainScreen) still receives VM events, so
@@ -282,7 +282,7 @@ private fun SwitchRow(
  *
  * `value` (a coloured primary line) is shown when present, e.g. the current
  * state ("5 s"). `subtitle` is the explanatory grey line. `destructive`
- * turns title red and swaps the trailing chevron for a trash icon — used by
+ * turns title red and swaps the trailing chevron for a trash icon - used by
  * "Delete all readings". `enabled = false` greys the row out and disables
  * taps (e.g., when there's nothing to delete).
  */

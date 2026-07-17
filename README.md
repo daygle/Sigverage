@@ -33,13 +33,13 @@
 
 Sigverage runs on your phone, records a `SignalReading` (network type, signal dBm, GPS fix, timestamp, MCC/MNC/cell ID where available) at a configurable interval, and aggregates your readings into a coverage overlay on top of OpenStreetMap. **Everything stays on the device.** There is no account, no backend, no telemetry, no remote sync. You can export to CSV at any time and the retention policy is configurable from *Settings → Data → Auto-expire*.
 
-The map paints a small filled **box per Mercator tile** at a fixed storage zoom of Z=20 (~38 m tiles at the equator; ~50 m at mid-latitudes — labelled as "50 m cells" in the UI). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips at the top of the map hide / reveal each network family.
+The map paints a small filled **box per Mercator tile** at a fixed storage zoom of Z=20 (~38 m tiles at the equator; ~50 m at mid-latitudes - labelled as "50 m cells" in the UI). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips at the top of the map hide / reveal each network family.
 
 ---
 
 ## Screenshots
 
-Drop real device captures into `./docs/screenshots/` and uncomment the lines below — GitHub will render them on the repo page.
+Drop real device captures into `./docs/screenshots/` and uncomment the lines below - GitHub will render them on the repo page.
 
 ```text
 docs/screenshots/
@@ -63,21 +63,21 @@ Markdown placeholders (leave them commented until you push images):
 ## Features
 
 ### 📡 Recording
-- **Foreground sampling service** (`SamplingService`) with `foregroundServiceType = location` — promoted on the *first line* of `onStartCommand` so Android 14's 5-second rule is always satisfied.
+- **Foreground sampling service** (`SamplingService`) with `foregroundServiceType = location` - promoted on the *first line* of `onStartCommand` so Android 14's 5-second rule is always satisfied.
 - **Configurable interval**: 3 s / 5 s / 15 s / 60 s, live in *Settings → Recording*.
-- **Auto-record on launch** (opt-in, *Settings → Recording*): when enabled, `MainScreen` starts the foreground service automatically the moment you open the app — no need to tap the Play icon. If location permissions are missing, the LaunchedEffect surfaces a one-shot snackbar explaining how to fix it instead of crashing the FGS promotion on Android 14.
+- **Auto-record on launch** (opt-in, *Settings → Recording*): when enabled, `MainScreen` starts the foreground service automatically the moment you open the app - no need to tap the Play icon. If location permissions are missing, the LaunchedEffect surfaces a one-shot snackbar explaining how to fix it instead of crashing the FGS promotion on Android 14.
 - **"Record here" snapshot** for one-off readings without starting the service.
 - **CellularScanner** picks the strongest registered cell and classifies it:
   - 5G NSA detection via `TelephonyDisplayInfo.overrideNetworkType` (API 30+); we don't trust `dataNetworkType` alone because NSA anchors to an LTE control plane.
   - EDGE vs GSM via `dataNetworkType`. `CellInfoTdscdma` is gated on API 29.
-- **Location via `callbackFlow`** on `LocationManager` — no Google Play Services dependency.
+- **Location via `callbackFlow`** on `LocationManager` - no Google Play Services dependency.
 
 ### 🗺️ Coverage map
 - **HSL-hybrid encoding**: hue = dominant network, alpha = mean dBm bucket (Strong / OK / Weak).
 - **2×4 corner slot grid**: a fixed-layout indicator grid in the bottom-right of every tile, with one slot per `NetworkType` (5G, NR_NSA, LTE, HSPA, GSM, EDGE, CDMA, Other). Filled = network present; alpha = its bucket strength. Filter-aware: disabled chips remove their slot everywhere. Slot positions are fixed so the legend is stable across the whole map.
 - **Web-Mercator slippy-tile aggregation** at zoom 12 (≈9.6 km) … zoom 20 (≈38 m). The storage zoom is **fixed at 20** (~50 m cells at mid-latitudes); there is no slider.
-- **Decoupled zoom axes**: visible map zoom (pinch gestures) is independent of the fixed coverage storage zoom — you can pinch to street level while the coverage grid keeps building at 50 m cells.
-- **Filter bottom sheet** (Material 3 `BottomSheetScaffold`): drag-up handle at the bottom of the map with a 1-line summary like `Filters: 5G, LTE (3 of 8 active)`. Expanded state shows the eight `FilterChip`s wrapping onto multiple rows via `FlowRow` — no horizontal scroll. Live preview keeps working because the sheet is non-modal and the map stays visible above it.
+- **Decoupled zoom axes**: visible map zoom (pinch gestures) is independent of the fixed coverage storage zoom - you can pinch to street level while the coverage grid keeps building at 50 m cells.
+- **Filter bottom sheet** (Material 3 `BottomSheetScaffold`): drag-up handle at the bottom of the map with a 1-line summary like `Filters: 5G, LTE (3 of 8 active)`. Expanded state shows the eight `FilterChip`s wrapping onto multiple rows via `FlowRow` - no horizontal scroll. Live preview keeps working because the sheet is non-modal and the map stays visible above it.
 - **Themed palette**: marker / box colours come from `rememberNetworkColors(MaterialTheme.colorScheme)`, so the legend stays consistent across Light / Dark / Material You.
 - **Allocation-free rendering**: pre-allocated `Paint`, `Rect`, `GeoPoint`s, `Point`s; viewport culling + screen-rect culling in `CoverageGridOverlay.draw()`.
 
@@ -85,7 +85,7 @@ Markdown placeholders (leave them commented until you push images):
 - **Room 2.6.1** with a single `signal_readings` table + KSP-generated DAO.
 - **TTL retention** in *Settings → Data → Auto-expire*: Forever / 30 days / 90 days / 6 months / 1 year. Persisted in `SharedPreferences`, swept on app start (silent) and immediately on manual change (with Snackbar).
 - **Delete all** with confirmation dialog in the same Data section.
-- **CSV export** via the Storage Access Framework — write directly to Drive, email, or any provider.
+- **CSV export** via the Storage Access Framework - write directly to Drive, email, or any provider.
 
 ### 🎨 Theme & accessibility
 - **Theme picker**: *Follow system* / *Light* / *Dark* (in *Settings → Appearance*).
@@ -96,7 +96,7 @@ Markdown placeholders (leave them commented until you push images):
 ### 🧭 UI scaffold
 - **Bottom navigation** between Map and List views.
 - **Single AppBar action group**: play / pause (start/stop sampling) + export. Every other control moved under the **Settings** tab to keep the AppBar calm.
-- **Compose `SnackbarHost`** in the outer `Scaffold` — survives configuration changes via a one-shot `Channel<String>` from the ViewModel.
+- **Compose `SnackbarHost`** in the outer `Scaffold` - survives configuration changes via a one-shot `Channel<String>` from the ViewModel.
 - **List tab** with per-row `NetworkBadge` and tap → detail bottom sheet (RSRP / RSRQ / SNR for LTE, MCC / MNC / cell ID, operator, accuracy, time, lat/lng).
 
 ### 🔐 Privacy posture
@@ -153,7 +153,7 @@ SamplingService (foregroundServiceType=location)   ── ServiceCompat.startFor
 
 Two deliberate separation-of-concerns choices worth noting:
 
-- **Storage zoom ≠ visible map zoom.** Coverage readings are binned at a fixed storage zoom of Z=20 (~50 m cells at mid-latitudes). `MapController.setZoom()` is whatever the user pinches to. They are fully decoupled — zoom out to a city view and keep door-step granularity, or zoom in to building level and keep the same fine nationwide coverage.
+- **Storage zoom ≠ visible map zoom.** Coverage readings are binned at a fixed storage zoom of Z=20 (~50 m cells at mid-latitudes). `MapController.setZoom()` is whatever the user pinches to. They are fully decoupled - zoom out to a city view and keep door-step granularity, or zoom in to building level and keep the same fine nationwide coverage.
 - **Map palette is live, not static.** `rememberNetworkColors(MaterialTheme.colorScheme)` recomputes on every theme / dynamic-colour change and a `LaunchedEffect(networkColors)` injects it into `CoverageGridOverlay.setPalette(...)`. The legend is meaningful across both Material You and the static slate/sky fallback.
 
 ---
@@ -216,13 +216,13 @@ You have two categorical × continuous dimensions to show: **which network** (ca
 
 | Dimension  | Visual channel                                    | Why                                                                             |
 | ---------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Network    | Box **fill colour hue**                           | Pre-attentive grouping — the eye chunks colour regions faster than shape or text. |
+| Network    | Box **fill colour hue**                           | Pre-attentive grouping - the eye chunks colour regions faster than shape or text. |
 | Strength   | Box **fill alpha** (0.95 Strong → 0.34 Weak)      | Alpha survives being shrunk down; the hue identity stays usable everywhere.    |
 | Secondary networks present | 2×4 **corner slot grid** in the bottom-right corner | Slot positions are fixed: row 0 has the modern nets, row 1 has fallbacks.       |
 
-Each tile aggregates its readings into `CellStats.perNetwork: Map<NetworkType, NetworkAggregate>`. A single dominant network is then picked via `pickDominant()` (highest count; tiebreakers: more recent → stronger mean dBm). The corner grid still exposes the *non-dominant* networks that were present in the same tile — so you can read *"mostly LTE, with patches of 5G"* at a glance.
+Each tile aggregates its readings into `CellStats.perNetwork: Map<NetworkType, NetworkAggregate>`. A single dominant network is then picked via `pickDominant()` (highest count; tiebreakers: more recent → stronger mean dBm). The corner grid still exposes the *non-dominant* networks that were present in the same tile - so you can read *"mostly LTE, with patches of 5G"* at a glance.
 
-A tile below ~22 dp either dimension suppresses the corner grid (rare at the default zoom 20 — kept as a safety net for when the user pans the map far enough).
+A tile below ~22 dp either dimension suppresses the corner grid (rare at the default zoom 20 - kept as a safety net for when the user pans the map far enough).
 
 Filter chips above the map hide/reveal **both** encodings: turning 5G off removes 5G from the dominant pick *and* greys out its slot across every tile.
 
@@ -235,7 +235,7 @@ Filter chips above the map hide/reveal **both** encodings: turning 5G off remove
 - **JDK 17** (`brew install --formulae openjdk@17`, `sdkman install java 17.0.10-tem`, or your distro package).
 - **Android Studio Hedgehog (2023.1.1) or newer.** Older Studio releases don't bundle AGP 8.5.
 - **Android Platform 34** installed via SDK Manager (`compileSdk = 34`).
-- **A real Android device** (USB debugging enabled) or an emulator running API 26+. *osmdroid tiles need an internet connection at runtime* — there's no offline mode yet.
+- **A real Android device** (USB debugging enabled) or an emulator running API 26+. *osmdroid tiles need an internet connection at runtime* - there's no offline mode yet.
 
 ### Steps
 
@@ -244,7 +244,7 @@ Filter chips above the map hide/reveal **both** encodings: turning 5G off remove
 3. **First launch flow**:
    - Grant `Precise location` and `Coarse location` (one prompt).
    - Grant `Notifications` (Android 13+) so the foreground service can post its sticky notification.
-   - Optionally grant `Background location` to keep sampling while the screen is off — Android bounces you to system settings for this one.
+   - Optionally grant `Background location` to keep sampling while the screen is off - Android bounces you to system settings for this one.
 
 ### Command-line
 
@@ -303,7 +303,7 @@ Every permission is justified by a concrete feature, and the manifest comments n
 | ---------- | ------------ | ------------- | ------- |
 | `ACCESS_FINE_LOCATION` | GPS pin for every reading (lat/lng). | All API levels | Requested on first launch via `RequestMultiplePermissions`. |
 | `ACCESS_COARSE_LOCATION` | Fallback when fine isn't granted (network-based fixes). | All API levels | Same prompt as fine. |
-| `ACCESS_BACKGROUND_LOCATION` | Sampling keeps accumulating while the screen is off. | API 30+: Android routes this to system Settings — it can't be granted from an in-app prompt. | User must explicitly choose "Allow all the time". |
+| `ACCESS_BACKGROUND_LOCATION` | Sampling keeps accumulating while the screen is off. | API 30+: Android routes this to system Settings - it can't be granted from an in-app prompt. | User must explicitly choose "Allow all the time". |
 | `POST_NOTIFICATIONS` | Sticky low-priority notification for `SamplingService`. | API 33+ only. | Asked on first launch alongside location. |
 | `INTERNET` / `ACCESS_NETWORK_STATE` | osmdroid tile downloads. | All API levels. | Granted at install (normal permission). |
 | `FOREGROUND_SERVICE` | The sampling service itself. | All API levels. | Granted at install. |
@@ -311,7 +311,7 @@ Every permission is justified by a concrete feature, and the manifest comments n
 | `WAKE_LOCK` | Keep the CPU alive during short sampling windows. | All API levels. | Granted at install. |
 | `READ_PHONE_STATE` (`maxSdkVersion=27`) | `allCellInfo` on API 24–27. Capped at 27 in the manifest because APIs 28+ no longer require it for cell info. | API ≤ 27 only. | Granted at install on those devices. |
 
-**Permission flow**: `MainScreen.toggleSampling` triggers `RequestMultiplePermissions` when anything is missing. Background location is automatically routed to system Settings by Android — we surface a status banner in *Settings → Permissions* if it's still missing, with an **Open settings** action deep-linking to `ACTION_APPLICATION_DETAILS_SETTINGS`.
+**Permission flow**: `MainScreen.toggleSampling` triggers `RequestMultiplePermissions` when anything is missing. Background location is automatically routed to system Settings by Android - we surface a status banner in *Settings → Permissions* if it's still missing, with an **Open settings** action deep-linking to `ACTION_APPLICATION_DETAILS_SETTINGS`.
 
 **Single source of truth**: `app/src/main/java/com/sigverage/app/permissions/PermissionsInventory.kt`. UI rows in *Settings → Permissions* are generated from this list, so adding a new permission is one entry.
 
@@ -329,7 +329,7 @@ The bottom navigation has three tabs. The first two (Map / List) show your data;
 | Section | Row | What it does |
 | ------- | --- | ------------ |
 | **Recording** | Sample interval | 3 s / 5 s / 15 s / 60 s. |
-| **Recording** | Auto-record on launch | Switch. When on, sampling begins automatically the moment the app opens (after onboarding). Service keeps running with a sticky notification until you tap Pause. Default **off** — opt-in to avoid surprise battery drain. |
+| **Recording** | Auto-record on launch | Switch. When on, sampling begins automatically the moment the app opens (after onboarding). Service keeps running with a sticky notification until you tap Pause. Default **off** - opt-in to avoid surprise battery drain. |
 | **Data** | Auto-expire readings | Forever / 30 d / 90 d / 6 mo / 1 y. Persisted in SharedPreferences. Silent sweep on app start. Snackbar feedback on manual change. |
 | **Data** | Delete all readings | Confirmation dialog → hard delete of the whole `signal_readings` table. |
 | **Permissions** | Precise location, Coarse, Background, Notifications, Phone state | Live grant status, **Grant** / **Open settings** actions, refreshes on `ON_RESUME`. |
@@ -339,8 +339,8 @@ The bottom navigation has three tabs. The first two (Map / List) show your data;
 
 ### AppBar (Map & List)
 Two icons only:
-- ▶︎ / ⏸ — start or stop sampling.
-- ⤴ — Export readings as CSV via the Storage Access Framework.
+- ▶︎ / ⏸ - start or stop sampling.
+- ⤴ - Export readings as CSV via the Storage Access Framework.
 
 ---
 
@@ -348,8 +348,8 @@ Two icons only:
 
 osmdroid fetches tiles from the OpenStreetMap public servers (or any tile source you wire in). Their [tile usage policy](https://operations.osmfoundation.org/policies/tiles/) asks apps to:
 
-1. **Set a real `User-Agent`** that identifies the app and includes a contact channel. Configured in `SigverageApp.onCreate()` — change it to something like `Sigverage/1.0 (+https://your-website.example)`.
-2. **Don't be a heavy site** — don't precompute large regions for offline use. Sigverage only zooms on demand, so this should be fine.
+1. **Set a real `User-Agent`** that identifies the app and includes a contact channel. Configured in `SigverageApp.onCreate()` - change it to something like `Sigverage/1.0 (+https://your-website.example)`.
+2. **Don't be a heavy site** - don't precompute large regions for offline use. Sigverage only zooms on demand, so this should be fine.
 3. **Bulk downloads require your own tile server** or a paid provider (e.g. Mapbox / Stadia / Thunderforest). If you want true offline, bake tiles into the APK using [MOBAC](https://mobac.sourceforge.io/) + osmdroid's `MAPBOX`/`ZIP` archives.
 
 If you change the tile source, do it in `MapPanel.MapView`'s `setTileSource(TileSourceFactory.MAPNIK)` call. Other `TileSourceFactory` options exist for OpenTopoMap, USGS, etc., and paid providers expose their own factories.
@@ -374,7 +374,7 @@ Next up:
 
 - Heatmap / cluster overlay for hundreds of cells per region (current overlay scales to ~thousands; thousands-of-thousands needs quad-tree culling).
 - Wi-Fi scanning alongside cellular (Android 9+ throttles `WifiManager.startScan`; needs workarounds).
-- GPX / KML export alongside CSV — the geometry is already there, just a serializer.
+- GPX / KML export alongside CSV - the geometry is already there, just a serializer.
 - Route replay: draw a polyline through every reading in an animated tour.
 - Live signal-vs-speed chart while the user is moving.
 - Migration framework for Room v2+ (you're safe to add columns today; this just smooths upgrades).

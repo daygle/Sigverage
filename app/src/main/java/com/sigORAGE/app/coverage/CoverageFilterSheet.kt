@@ -43,13 +43,13 @@ import org.osmdroid.views.MapView
  * map and forced horizontal scrolling on phones with narrower viewports
  * (and even then the rightmost chips felt like second-class UI). A
  * non-modal bottom sheet keeps the chips one tap away (drag up) without
- * ever obscuring the map — and because the sheet is **not modal**, live
+ * ever obscuring the map - and because the sheet is **not modal**, live
  * preview of the coverage grid continues to work while the user toggles
  * networks on/off inside the sheet.
  *
  * **Initial state.** Always `PartiallyExpanded` (collapsed) on first
  * composition so the user opens to a full-screen map. `skipHiddenState =
- * true` so the sheet can't be dragged fully off-screen — the collapsed
+ * true` so the sheet can't be dragged fully off-screen - the collapsed
  * peek with the summary line is the at-a-glance indicator of which
  * filters are active. Sheet state is automatically saveable across
  * recompositions by [rememberStandardBottomSheetState].
@@ -123,7 +123,7 @@ fun CoverageFilterSheet(
 /**
  * The visible contents of the bottom sheet: drag handle, summary line,
  * and the wrap-friendly chip strip. Kept private to this file because
- * it's purely the sheet-body layout — there's no reason for `MapPanel`
+ * it's purely the sheet-body layout - there's no reason for `MapPanel`
  * (or anyone else) to compose it directly.
  */
 @Composable
@@ -132,7 +132,7 @@ private fun SheetContents(
     onToggle: (NetworkType) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Drag handle — Material 3 convention: a 32 x 4 dp pill, ~40%
+        // Drag handle - Material 3 convention: a 32 x 4 dp pill, ~40%
         // alpha, centred at the top of the sheet. Doubles as a tap target
         // for expand/collapse because the entire sheet body is also
         // draggable; this just makes the affordance visually obvious.
@@ -153,7 +153,7 @@ private fun SheetContents(
                 .padding(horizontal = 16.dp)
                 .fillMaxWidth(),
             // `titleSmall` + `onSurfaceVariant` keeps the 1-line summary
-            // reading as a secondary status line — it shouldn't compete
+            // reading as a secondary status line - it shouldn't compete
             // visually with the FilterChip labels themselves when the
             // sheet is expanded. `onSurfaceVariant` is the Material 3
             // token for "less prominent than primary content".
@@ -174,14 +174,14 @@ private fun SheetContents(
 /**
  * Compose the 1-line summary shown on the collapsed sheet handle.
  *
- *  - **0 selected** → "No filters active (0 of 8)" — the map will be
+ *  - **0 selected** → "No filters active (0 of 8)" - the map will be
  *    blank, this is the only hint the user gets while the sheet is
  *    collapsed.
- *  - **8 selected** → "All networks active (8 of 8)" — avoids the
+ *  - **8 selected** → "All networks active (8 of 8)" - avoids the
  *    noise of listing eight short labels including the duplicate "5G"
  *    shared by `FiveG` and `NR_NSA`.
  *  - **1..7 selected** → "Filters: 5G, LTE (3 of 8 active)" with the
- *    label list built from **distinct** short labels — both `FiveG` and
+ *    label list built from **distinct** short labels - both `FiveG` and
  *    `NR_NSA` collapse to "5G" so we dedup to keep the line short. The
  *    parenthetical count uses `selected.size` (not the distinct count)
  *    because the user actually enabled that many `NetworkType` values;
@@ -209,7 +209,7 @@ private fun filterSummaryText(selected: Set<NetworkType>): String {
 }
 
 /**
- * Peek height for the collapsed sheet — 72 dp is the smallest height
+ * Peek height for the collapsed sheet - 72 dp is the smallest height
  * that comfortably fits a Material 3 drag handle (32 x 4 dp with 12 dp
  * top margin + 12 dp bottom margin = 28 dp) plus a single line of
  * `titleMedium` text (≈ 28 dp tall at default density) with breathing

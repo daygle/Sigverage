@@ -16,11 +16,11 @@ import org.osmdroid.views.overlay.Overlay
  *
  * Each tile draws two visual layers:
  *
- *  1. **Dominant box** — the dominant network's full HSL-hybrid fill
+ *  1. **Dominant box** - the dominant network's full HSL-hybrid fill
  *     (hue = network colour, alpha = mean dBm bucket). This is the
  *     "first impression" channel; the user reads territory by hue.
  *
- *  2. **Corner slot grid** — a 2×4 fixed-layout grid in the bottom-right
+ *  2. **Corner slot grid** - a 2×4 fixed-layout grid in the bottom-right
  *     of each tile, with one slot per [NetworkType]. Each slot is empty
  *     unless that network has at least one reading in the tile *and* the
  *     user has the corresponding chip enabled. Slot positions are fixed so
@@ -152,7 +152,7 @@ class CoverageGridOverlay(
      *     hue, alpha-modulated by mean dBm bucket.
      *
      * Skipped entirely when the tile is below [MIN_TILE_DP_FOR_GRID] in
-     * either dimension — there is no room to render the grid cleanly.
+     * either dimension - there is no room to render the grid cleanly.
      */
     private fun drawSlotGrid(
         canvas: Canvas,
@@ -182,10 +182,10 @@ class CoverageGridOverlay(
     }
 
     companion object {
-        /** Fixed storage zoom — the single source of truth for coverage
+        /** Fixed storage zoom - the single source of truth for coverage
          *  cell size. Z=20 in Web-Mercator gives ~38 m tiles at the equator
          *  and ~27 m east-west at 45° latitude. The user-facing label is
-         *  "50 m cells" — a rounded mid-latitude figure that matches what
+         *  "50 m cells" - a rounded mid-latitude figure that matches what
          *  users actually see in the field. **Exact** 50 m would require
          *  a fractional-zoom refactor (the `aggregate()` function and the
          *  `TileId` data class in [com.sigorage.app.coverage.CoverageModel]
@@ -209,7 +209,7 @@ class CoverageGridOverlay(
 
         // ---- Slot grid geometry (private to companion) ----
 
-        /** Skip corner grid below this tile size — it simply doesn't fit. */
+        /** Skip corner grid below this tile size - it simply doesn't fit. */
         private const val MIN_TILE_DP_FOR_GRID = 22f
 
         private const val SLOT_COLS = 4

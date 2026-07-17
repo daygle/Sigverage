@@ -50,7 +50,7 @@ fun MainScreen(viewModel: MainViewModel) {
     // delete-all confirm) have been moved into SettingsScreen because the
     // user prefers them reachable from the Settings tab.
 
-    // Shared "jump to a specific reading on the map" handler — invoked from
+    // Shared "jump to a specific reading on the map" handler - invoked from
     // both the ListPanel row icon and the DetailsSheet action button.
     // Closes any open details sheet, switches to the Map tab, and pushes the
     // coordinate onto the focusEvents channel that MapPanel is collecting.
@@ -76,7 +76,7 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 
     // Auto-record-on-launch. Re-keys on (autoRecordEnabled,
-    // onboardingCompleted) so it fires exactly when those bits flip —
+    // onboardingCompleted) so it fires exactly when those bits flip -
     // either on the very first composition after onboarding finishes, or
     // immediately after the user toggles the Settings switch. `start(...)`
     // is itself idempotent (early return in `onStartCommand` when the
@@ -89,7 +89,7 @@ fun MainScreen(viewModel: MainViewModel) {
     //
     // We also avoid showing the "Sampling started." snackbar when the
     // service is already running (e.g. the user toggled auto-record ON
-    // mid-session after a manual Pause+Play) — in that case nothing new
+    // mid-session after a manual Pause+Play) - in that case nothing new
     // was started and the message would be misleading.
     LaunchedEffect(ui.autoRecordEnabled, ui.onboardingCompleted) {
         if (!ui.autoRecordEnabled || !ui.onboardingCompleted) return@LaunchedEffect
@@ -105,7 +105,7 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 
     // Auto-record re-arm hook. The LaunchedEffect above fires only when
-    // (autoRecordEnabled, onboardingCompleted) change — but the user might
+    // (autoRecordEnabled, onboardingCompleted) change - but the user might
     // toggle auto-record ON while permissions are still missing, see the
     // "permissions missing" snackbar, then grant them from
     // Settings → Permissions (which lives in the same Activity and
@@ -115,7 +115,7 @@ fun MainScreen(viewModel: MainViewModel) {
     // ON_RESUME also covers the case of returning from system Settings
     // (after granting *Background location* via the "Allow all the time"
     // deep-link Android forces). Silent catch-up: no snackbar here, since
-    // the user didn't initiate the restart — surfacing a message every
+    // the user didn't initiate the restart - surfacing a message every
     // time they come back from the system Settings would be alarming.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {

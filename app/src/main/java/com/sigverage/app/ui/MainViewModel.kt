@@ -37,7 +37,7 @@ data class HomeUiState(
     val samplingIntervalMs: Long = 5_000L,
     /** Networks currently displayed by the coverage grid. Defaults to all. */
     val coverageFilter: Set<NetworkType> = NetworkType.values().toSet(),
-    /** Retention in days; `0` means "forever" (the default — opt-in expiry). */
+    /** Retention in days; `0` means "forever" (the default - opt-in expiry). */
     val retentionDays: Int = PreferencesStore.DEFAULT_RETENTION_DAYS,
     /** Light/dark theme override (default: follow OS via [ThemeMode.System]). */
     val themeMode: ThemeMode = ThemeMode.Default,
@@ -99,7 +99,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * One-shot "centre the map on this coordinate" requests, fired when the
      * user taps a row's "Show on map" affordance on the list page or
      * details sheet. Modeled as a Channel (not a StateFlow) so identical
-     * consecutive locations — e.g. tapping the same row twice — still trigger
+     * consecutive locations - e.g. tapping the same row twice - still trigger
      * a fresh `animateTo`. Buffered so a request fired before the Map tab is
      * composed (the user is on List at the time) gets picked up the moment
      * MapPanel enters composition.
@@ -134,7 +134,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (initialRetention > 0) applyRetention(initialRetention, announce = false)
 
         // Load the persisted theme + dynamic-colour preference so the very
-        // first frame is already drawn in the right palette — no flash of
+        // first frame is already drawn in the right palette - no flash of
         // light → dark, material-you → static.
         _ui.value = _ui.value.copy(
             themeMode = prefs.themeMode,
@@ -155,7 +155,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Capture a single reading at the device's current fix.
-     * Returns silently if location is unavailable — UI shows a snackbar from
+     * Returns silently if location is unavailable - UI shows a snackbar from
      * the call site.
      */
     fun captureNow() {
@@ -216,8 +216,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Toggle the Material You (Android 12+) dynamic palette. On devices
-     * older than Android 12 this preference has no effect — the static
-     * slate/sky palette is always used — but the flag is still read so a
+     * older than Android 12 this preference has no effect - the static
+     * slate/sky palette is always used - but the flag is still read so a
      * future upgrade "just works".
      */
     fun setDynamicColorEnabled(enabled: Boolean) {
@@ -244,7 +244,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * simply opened the app with the preference already enabled.
      *
      * Toggling the switch off does NOT stop an in-progress foreground
-     * sampling session — "auto-record" only governs what happens on the
+     * sampling session - "auto-record" only governs what happens on the
      * next app launch. Manual pause stays the explicit way to stop a
      * running session, matching the AppBar Play/Pause button as the
      * single source of truth.
@@ -294,7 +294,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      * Write every reading to a CSV file at [destination] (a Uri supplied by
      * the Storage Access Framework `ACTION_CREATE_DOCUMENT` flow). Returns the
      * number of rows written or `-1` on failure. Designed to be `await`ed from
-     * a coroutine — internally hops to [Dispatchers.IO].
+     * a coroutine - internally hops to [Dispatchers.IO].
      */
     suspend fun exportCsv(destination: Uri): Int = withContext(Dispatchers.IO) {
         runCatching {

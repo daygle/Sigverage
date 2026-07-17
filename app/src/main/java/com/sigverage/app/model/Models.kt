@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 /**
  * Cellular technology classification surfaced to the UI.
- * NR_NSA is "5G Non-Standalone" — LTE master + NR secondary, reported as LTE by
+ * NR_NSA is "5G Non-Standalone" - LTE master + NR secondary, reported as LTE by
  * the radio unless we read TelephonyDisplayInfo's override.
  */
 enum class NetworkType(val label: String, val shortLabel: String) {

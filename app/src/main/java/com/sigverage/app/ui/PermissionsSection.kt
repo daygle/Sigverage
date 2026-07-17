@@ -46,11 +46,11 @@ import com.sigverage.app.permissions.PermissionItem
 
 /**
  * Snapshot of permission grant state at a moment in time, recomputed by
- * [takeSnapshot]. Implementation detail of [PermissionsSection] — kept
+ * [takeSnapshot]. Implementation detail of [PermissionsSection] - kept
  * top-level so it's easy to test.
  *
  * `permanentlyDenied` covers both "first request never made" and
- * "user ticked don't ask again" — Android's API can't distinguish them
+ * "user ticked don't ask again" - Android's API can't distinguish them
  * without a remembered per-permission flag, and we lean on the safe side
  * by routing both to app settings.
  */

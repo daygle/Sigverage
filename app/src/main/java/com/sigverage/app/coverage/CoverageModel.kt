@@ -161,7 +161,7 @@ fun bucketFor(meanDbm: Int): SignalBucket = when {
 
 /**
  * Final colour for a tile: network hue from [palette], alpha from the
- * signal strength bucket. This is the **HSL hybrid** encoding — single
+ * signal strength bucket. This is the **HSL hybrid** encoding - single
  * visual channel, two dimensions.
  *
  * [palette] defaults to the static [NetworkColors] fallback so non-Compose

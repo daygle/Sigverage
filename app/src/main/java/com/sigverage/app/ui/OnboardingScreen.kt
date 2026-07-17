@@ -45,12 +45,12 @@ import com.sigorage.app.R
  * Renders a four-step carousel that walks the user through granting the
  * runtime permissions the app actually needs to record readings:
  *
- *   1. **Welcome** — explains the value of the app and what data it captures.
- *   2. **Location** — `ACCESS_FINE_LOCATION` + `ACCESS_COARSE_LOCATION`
+ *   1. **Welcome** - explains the value of the app and what data it captures.
+ *   2. **Location** - `ACCESS_FINE_LOCATION` + `ACCESS_COARSE_LOCATION`
  *      requested together (one system dialog).
- *   3. **Notifications** — `POST_NOTIFICATIONS`, only on Android 13+;
+ *   3. **Notifications** - `POST_NOTIFICATIONS`, only on Android 13+;
  *      skipped on older devices.
- *   4. **Done** — confirmation screen with a button to enter the main app.
+ *   4. **Done** - confirmation screen with a button to enter the main app.
  *      When the user has denied any of the previous steps the Done body is
  *      swapped for a "you can finish from Settings → Permissions" nudge so
  *      they aren't quietly left without recording capability.
@@ -85,7 +85,7 @@ fun OnboardingScreen(viewModel: MainViewModel) {
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
         // `grants` is a Map<String, Boolean> with one entry per requested
-        // permission. Flag any denial but always advance — the user can
+        // permission. Flag any denial but always advance - the user can
         // re-grant from Settings → Permissions.
         anyDenied = anyDenied || grants.values.any { !it }
         step = step.next()

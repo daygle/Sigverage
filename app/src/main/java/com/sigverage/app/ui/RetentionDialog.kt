@@ -20,7 +20,7 @@ import com.sigverage.app.R
 
 /**
  * Modal dialog for picking reading retention policy. Five discrete options,
- * no freeform input — keeps the UX simple and predictable. `0` (forever) is
+ * no freeform input - keeps the UX simple and predictable. `0` (forever) is
  * an explicit choice so it's never an accidental default.
  */
 @Composable

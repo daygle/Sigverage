@@ -22,9 +22,9 @@ import com.sigverage.app.model.ThemeMode
 /**
  * Modal dialog for picking the app's theme override.
  *
- *  - [ThemeMode.System] — follow the OS setting (`isSystemInDarkTheme()`).
- *  - [ThemeMode.Light]  — always light.
- *  - [ThemeMode.Dark]   — always dark.
+ *  - [ThemeMode.System] - follow the OS setting (`isSystemInDarkTheme()`).
+ *  - [ThemeMode.Light]  - always light.
+ *  - [ThemeMode.Dark]   - always dark.
  *
  * Choice is propagated through [MainViewModel.setThemeMode], which writes
  * to SharedPreferences and updates the observed [HomeUiState] so the

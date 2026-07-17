@@ -112,7 +112,7 @@ fun MapPanel(
     // a request fired while MapPanel isn't composed (user on List tab) gets
     // picked up the moment MapPanel enters composition. We deliberately do
     // NOT setZoom() before animateTo, to mirror the GPS-fix centering path
-    // above — the user keeps whatever zoom they last pinched to.
+    // above - the user keeps whatever zoom they last pinched to.
     LaunchedEffect(Unit) {
         focusEvents.collect { (latitude, longitude) ->
             mapView.controller.animateTo(GeoPoint(latitude, longitude))

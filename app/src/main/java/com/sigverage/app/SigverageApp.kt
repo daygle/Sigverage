@@ -13,13 +13,13 @@ import org.osmdroid.config.Configuration
  *
  *  Two things must be initialised here:
  *
- *  1. **osmdroid** — its global `Configuration` must be loaded with a
+ *  1. **osmdroid** - its global `Configuration` must be loaded with a
  *     SharedPreferences and a real `userAgentValue` BEFORE the first MapView is
  *     created, or OpenStreetMap will reject tile requests for using a generic
  *     "Mozilla/5.0" UA. We set a UA that includes the package and the version
  *     so the OSM tile server can reach us if needed.
  *
- *  2. **Notification channel** — `SamplingService` posts to a low-importance
+ *  2. **Notification channel** - `SamplingService` posts to a low-importance
  *     persistent channel on Android 8+; the channel must exist before the
  *     notification is posted.
  */

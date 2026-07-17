@@ -21,8 +21,8 @@ class PreferencesStore(context: Context) {
 
     /**
      * Retention period in days.
-     *   `0` — keep every reading forever (the safest default; opt-in expiry).
-     *   `> 0` — readings older than this many days are auto-purged.
+     *   `0` - keep every reading forever (the safest default; opt-in expiry).
+     *   `> 0` - readings older than this many days are auto-purged.
      */
     var retentionDays: Int
         get() = prefs.getInt(KEY_RETENTION_DAYS, DEFAULT_RETENTION_DAYS)
@@ -106,7 +106,7 @@ class PreferencesStore(context: Context) {
         /** First launch defaults to showing the onboarding screen. */
         const val DEFAULT_ONBOARDING_COMPLETED = false
 
-        /** Auto-record is opt-in — power users only. */
+        /** Auto-record is opt-in - power users only. */
         const val DEFAULT_AUTO_RECORD_ENABLED = false
     }
 }

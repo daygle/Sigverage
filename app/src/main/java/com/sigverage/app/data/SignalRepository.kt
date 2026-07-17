@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
  * Room from the rest of the codebase.
  *
  * The `get(context)` factory keeps the database instance singleton across
- * the app — including from inside the foreground service.
+ * the app - including from inside the foreground service.
  */
 class SignalRepository(private val dao: SignalReadingDao) {
 
@@ -24,7 +24,7 @@ class SignalRepository(private val dao: SignalReadingDao) {
 
     /**
      * Hard-delete every reading whose timestamp precedes [thresholdMillis].
-     * Returns the count deleted — primarily used so the UI can show feedback
+     * Returns the count deleted - primarily used so the UI can show feedback
      * like "Removed 23 old readings" when the user changes retention.
      */
     suspend fun deleteOlderThan(thresholdMillis: Long): Int =

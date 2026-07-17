@@ -62,10 +62,10 @@ val NetworkColors: Map<NetworkType, Color> = mapOf(
  * Each `NetworkType` is bound to a fixed slot in the scheme (primary,
  * primaryContainer, tertiary, …). When the user changes theme or
  * dynamic-colour toggle, the underlying scheme rebuilds and so do these
- * colours — but the *identity* of "5G is the primary slot" stays put, so
+ * colours - but the *identity* of "5G is the primary slot" stays put, so
  * the legend is meaningful regardless of the active palette.
  *
- * Identity mapping (stable across themes — same as the static fallback):
+ * Identity mapping (stable across themes - same as the static fallback):
  *   5G    → scheme.primary
  *   NR_NSA→ scheme.primaryContainer
  *   LTE   → scheme.tertiary
