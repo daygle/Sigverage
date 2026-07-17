@@ -3,16 +3,36 @@ package com.sigverage.app.ui
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -40,18 +60,7 @@ fun MainScreen(viewModel: MainViewModel) {
 
     var tab by rememberSaveable { mutableStateOf(Tab.Map) }
     var sheetReading by remember { mutableStateOf<SignalReading?>(null) }
-    // Dialogs that USED to live here (granularity, retention,
-    // delete-all confirm) have been moved into SettingsScreen because the
-    // user prefers them reachable from the Settings tab.
 
-    // Shared "jump to a specific reading on the map" handler - invoked from
-    // both the ListPanel row icon and the DetailsSheet action button.
-    // Closes any open details sheet, switches to the Map tab, and pushes the
-    // coordinate onto the focusEvents channel that MapPanel is collecting.
-    // Kept as a single closure so the next tweak (snackbar, animation,
-    // map-zoom policy) lands everywhere at once. Wrapped in `remember` keyed
-    // on the (stable) ViewModel so the lambda ref stays stable across
-    // recompositions and ListPanel / DetailsSheet memoization can skip work.
     val jumpToReading: (SignalReading) -> Unit = remember(viewModel) {
         { reading: SignalReading ->
             sheetReading = null
@@ -60,33 +69,12 @@ fun MainScreen(viewModel: MainViewModel) {
         }
     }
 
-    // Pump one-shot UI events (purge counts after a retention change,
-    // future export-failed notifications, etc.) into the snackbar host.
-    // `LaunchedEffect` keeps the collector in the Composable scope and
-    // cancels it automatically when the composable leaves composition,
-    // avoiding leaks across configuration changes.
     LaunchedEffect(Unit) {
         viewModel.events.collect { message ->
             snackbar.showSnackbar(message)
         }
     }
 
-    // Auto-record-on-launch. Re-keys on (autoRecordEnabled,
-    // onboardingCompleted) so it fires exactly when those bits flip -
-    // either on the very first composition after onboarding finishes, or
-    // immediately after the user toggles the Settings switch. `start(...)`
-    // is itself idempotent (early return in `onStartCommand` when the
-    // stream job is already active) so re-firing the effect is safe.
-    //
-    // Permission gate: typed foreground services for location on Android
-    // 14+ raise `SecurityException` if FINE/COARSE/POST_NOTIFICATIONS
-    // aren't held, so we route the missing-permissions case to a Snackbar
-    // instead of attempting to start the service.
-    //
-    // We also avoid showing the "Sampling started." snackbar when the
-    // service is already running (e.g. the user toggled auto-record ON
-    // mid-session after a manual Pause+Play) - in that case nothing new
-    // was started and the message would be misleading.
     LaunchedEffect(ui.autoRecordEnabled, ui.onboardingCompleted) {
         if (!ui.autoRecordEnabled || !ui.onboardingCompleted) return@LaunchedEffect
         val missing = missingPermissions(ctx)
@@ -94,25 +82,12 @@ fun MainScreen(viewModel: MainViewModel) {
             snackbar.showSnackbar(ctx.getString(R.string.auto_record_no_permissions))
             return@LaunchedEffect
         }
-        if (ui.isSampling) return@LaunchedEffect // already running; nothing to do
+        if (ui.isSampling) return@LaunchedEffect
         viewModel.setSampling(true)
         SamplingService.start(ctx)
         snackbar.showSnackbar(ctx.getString(R.string.auto_record_started))
     }
 
-    // Auto-record re-arm hook. The LaunchedEffect above fires only when
-    // (autoRecordEnabled, onboardingCompleted) change - but the user might
-    // toggle auto-record ON while permissions are still missing, see the
-    // "permissions missing" snackbar, then grant them from
-    // Settings → Permissions (which lives in the same Activity and
-    // doesn't change either key). Without this hook they'd have to toggle
-    // auto-record off+on or restart the app to actually start sampling.
-    //
-    // ON_RESUME also covers the case of returning from system Settings
-    // (after granting *Background location* via the "Allow all the time"
-    // deep-link Android forces). Silent catch-up: no snackbar here, since
-    // the user didn't initiate the restart - surfacing a message every
-    // time they come back from the system Settings would be alarming.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -206,6 +181,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 )
                 Tab.Settings -> SettingsScreen(viewModel = viewModel)
             }
+        }
     }
 
     sheetReading?.let { reading ->
@@ -221,7 +197,6 @@ fun MainScreen(viewModel: MainViewModel) {
     }
 }
 
-/** Returns permissions that are required to background-sample, but currently missing. */
 private fun missingPermissions(ctx: android.content.Context): List<String> {
     val missing = mutableListOf<String>()
     val fine = Manifest.permission.ACCESS_FINE_LOCATION
