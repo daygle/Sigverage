@@ -176,14 +176,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Capture a single reading at the device's current fix.
-     * Returns silently if location is unavailable - UI shows a snackbar from
-     * the call site.
+     * Capture a single reading at the device's current location.
+     *
+     * Requests a fresh single fix (not the possibly-stale last-known cache) so
+     * the reading reflects where the user is now, then reports the outcome via
+     * [events]. The radio is powered only for the one fix.
      */
     fun captureNow() {
         viewModelScope.launch(Dispatchers.IO) {
             val app = getApplication<Application>()
-            val fix = location.lastKnown()
+            val fix = location.currentFix()
             if (fix == null) {
                 // No fix available: tell the user instead of silently doing
                 // nothing while the UI implies a reading was captured.

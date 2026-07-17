@@ -13,10 +13,13 @@ import androidx.core.content.ContextCompat
 import androidx.core.location.LocationListenerCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.core.location.LocationRequestCompat
+import androidx.core.os.CancellationSignal
 import com.sigverage.app.model.SamplingMode
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 /** A single GPS/network fix in a domain-friendly shape. */
 data class FixSample(
@@ -81,6 +84,32 @@ class LocationTracker(private val context: Context) {
             .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
             .maxByOrNull { it.time }
             ?.let { it.toFix() }
+    }
+
+    /**
+     * Request a single **fresh** fix, powering the chosen provider briefly and
+     * returning as soon as one location arrives (or null on
+     * permission/timeout/failure). Use this for one-shot manual capture: unlike
+     * [lastKnown] it never returns a stale cached location, and unlike [stream]
+     * it stops the radio immediately after the single fix - so it stays
+     * battery-cheap while guaranteeing the reading reflects where the user
+     * actually is now.
+     */
+    suspend fun currentFix(): FixSample? {
+        if (!hasFineLocation()) return null
+        val provider = bestProvider() ?: return null
+        return suspendCancellableCoroutine { cont ->
+            val signal = CancellationSignal()
+            cont.invokeOnCancellation { signal.cancel() }
+            runCatching {
+                LocationManagerCompat.getCurrentLocation(
+                    manager,
+                    provider,
+                    signal,
+                    ContextCompat.getMainExecutor(context),
+                ) { location -> cont.resume(location?.toFix()) }
+            }.onFailure { cont.resume(null) }
+        }
     }
 
     /**
