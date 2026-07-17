@@ -6,7 +6,8 @@ plugins {
 
 android {
     namespace = "com.sigverage.app"
-    compileSdk = 36
+    // core 1.19 / lifecycle 2.11 require compiling against API 37+.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.sigverage.app"
