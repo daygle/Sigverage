@@ -5,11 +5,12 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
-import android.location.LocationListener
 import android.location.LocationManager
-import android.os.Bundle
-import android.os.Looper
+import android.os.Build
 import androidx.core.content.ContextCompat
+import androidx.core.location.LocationListenerCompat
+import androidx.core.location.LocationManagerCompat
+import androidx.core.location.LocationRequestCompat
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -30,6 +31,12 @@ data class FixSample(
  *
  * `stream(intervalMs)` produces a hot Flow of fixes. `lastKnown()` returns
  * the freshest cached fix synchronously, useful for one-shot capture.
+ *
+ * Battery: fixes are the app's dominant power cost, so `stream()` registers a
+ * **single** provider - fused on API 31+, else GPS, else network - rather than
+ * every enabled provider at once, tags the request as balanced-power, and adds
+ * a minimum-distance filter so a stationary device stops waking the radio.
+ * `lastKnown()` reads only cached fixes and never powers the radio.
  */
 @SuppressLint("MissingPermission")
 class LocationTracker(private val context: Context) {
@@ -54,45 +61,59 @@ class LocationTracker(private val context: Context) {
     }
 
     /**
-     * Cold-ish stream that listens to all enabled providers and emits a
-     * [FixSample] whenever a new location is available.
+     * Cold-ish stream that listens to a single, battery-efficient provider and
+     * emits a [FixSample] whenever a new location is available.
+     *
+     * [intervalMs] is the desired (fastest) update period. The request is
+     * tagged [LocationRequestCompat.QUALITY_BALANCED_POWER_ACCURACY] and
+     * carries a [MIN_UPDATE_DISTANCE_M] filter so a still device stops
+     * generating redundant fixes even if the caller keeps the stream open.
      */
     fun stream(intervalMs: Long = 2_500L): Flow<FixSample> = callbackFlow {
         if (!hasFineLocation()) {
             close()
             return@callbackFlow
         }
-        val providers = runCatching { manager.getProviders(true) }.getOrDefault(emptyList())
-        if (providers.isEmpty()) {
+        val provider = bestProvider()
+        if (provider == null) {
             close()
             return@callbackFlow
         }
-        val listener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
-                trySend(location.toFix())
-            }
-
-            override fun onProviderEnabled(provider: String) = Unit
-            override fun onProviderDisabled(provider: String) = Unit
-
-            @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+        val request = LocationRequestCompat.Builder(intervalMs)
+            .setQuality(LocationRequestCompat.QUALITY_BALANCED_POWER_ACCURACY)
+            .setMinUpdateIntervalMillis(intervalMs)
+            .setMinUpdateDistanceMeters(MIN_UPDATE_DISTANCE_M)
+            .build()
+        val listener = LocationListenerCompat { location -> trySend(location.toFix()) }
+        runCatching {
+            LocationManagerCompat.requestLocationUpdates(
+                manager,
+                provider,
+                request,
+                ContextCompat.getMainExecutor(context),
+                listener,
+            )
         }
-        providers.forEach { provider ->
-            // GPS gives more accurate updates; network is a fallback that we
-            // poll less aggressively to save battery.
-            val period = if (provider == LocationManager.GPS_PROVIDER) intervalMs else intervalMs * 4
-            runCatching {
-                manager.requestLocationUpdates(
-                    provider,
-                    period,
-                    /* minDistance = */ 0f,
-                    listener,
-                    Looper.getMainLooper()
-                )
-            }
+        awaitClose { LocationManagerCompat.removeUpdates(manager, listener) }
+    }
+
+    /**
+     * The single most battery-efficient enabled provider: fused (API 31+) →
+     * GPS → network. The fused provider blends GPS, Wi-Fi and sensors at the
+     * lowest power cost; GPS is the accurate fallback needed to bin readings
+     * into ~38 m coverage tiles; network is the last resort. Registering one
+     * provider instead of all of them avoids powering several positioning
+     * subsystems simultaneously.
+     */
+    private fun bestProvider(): String? {
+        val enabled = runCatching { manager.getProviders(true) }.getOrDefault(emptyList())
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                LocationManager.FUSED_PROVIDER in enabled -> LocationManager.FUSED_PROVIDER
+            LocationManager.GPS_PROVIDER in enabled -> LocationManager.GPS_PROVIDER
+            LocationManager.NETWORK_PROVIDER in enabled -> LocationManager.NETWORK_PROVIDER
+            else -> enabled.firstOrNull()
         }
-        awaitClose { manager.removeUpdates(listener) }
     }
 
     private fun Location.toFix(): FixSample = FixSample(
@@ -102,4 +123,14 @@ class LocationTracker(private val context: Context) {
         provider = provider ?: "unknown",
         timestamp = time
     )
+
+    private companion object {
+        /**
+         * Minimum distance between successive fixes. A stationary device
+         * produces no updates below this threshold, so the radio idles instead
+         * of re-reporting the same spot. Kept well under the ~38 m coverage
+         * tile size so tile crossings are never missed while moving.
+         */
+        const val MIN_UPDATE_DISTANCE_M = 10f
+    }
 }

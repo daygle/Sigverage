@@ -53,6 +53,7 @@ class SamplingService : Service() {
     private lateinit var cellular: CellularScanner
     private lateinit var repo: SignalRepository
     private var locationJob: Job? = null
+    private var transitionsRegistered = false
 
     private val transitionPendingIntent: PendingIntent by lazy {
         val intent = TransitionReceiver.buildIntent(this)
@@ -129,6 +130,9 @@ class SamplingService : Service() {
     }
 
     private fun registerTransitions() {
+        // onStartCommand runs on every movement transition; only arm the
+        // Activity Recognition request once to avoid needless re-registration.
+        if (transitionsRegistered) return
         val activities = listOf(
             DetectedActivity.STILL,
             DetectedActivity.WALKING,
@@ -152,6 +156,7 @@ class SamplingService : Service() {
             ActivityRecognition.getClient(this).requestActivityTransitionUpdates(
                 request, transitionPendingIntent
             )
+            transitionsRegistered = true
         } catch (_: SecurityException) {
             // ACTIVITY_RECOGNITION not granted - degrade gracefully.
         }
@@ -165,6 +170,7 @@ class SamplingService : Service() {
         } catch (_: Exception) {
             // Best-effort cleanup.
         }
+        transitionsRegistered = false
     }
 
     private fun promoteToForeground() {
