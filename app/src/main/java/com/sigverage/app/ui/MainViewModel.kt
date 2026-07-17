@@ -38,6 +38,8 @@ data class HomeUiState(
     val latestReading: SignalReading? = null,
     /** Networks currently displayed by the coverage grid. Defaults to all. */
     val coverageFilter: Set<NetworkType> = NetworkType.values().toSet(),
+    /** Operators currently displayed by the coverage grid. Empty = show all. */
+    val operatorFilter: Set<String> = emptySet(),
     /** Retention in days; `0` means "forever" (the default - opt-in expiry). */
     val retentionDays: Int = PreferencesStore.DEFAULT_RETENTION_DAYS,
     /** Light/dark theme override (default: follow OS via [ThemeMode.System]). */
@@ -208,6 +210,21 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val next = current.coverageFilter.toMutableSet()
             if (!next.add(type)) next.remove(type)
             current.copy(coverageFilter = next)
+        }
+    }
+
+    /**
+     * Toggle inclusion of [operator] in the visible coverage grid.
+     *
+     * An empty operator filter set shows all operators. When operators
+     * are selected, only tiles with readings from those operators are
+     * shown on the map.
+     */
+    fun toggleOperatorFilter(operator: String) {
+        _ui.value = _ui.value.let { current ->
+            val next = current.operatorFilter.toMutableSet()
+            if (!next.add(operator)) next.remove(operator)
+            current.copy(operatorFilter = next)
         }
     }
 

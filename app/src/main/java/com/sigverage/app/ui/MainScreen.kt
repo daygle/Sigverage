@@ -194,6 +194,8 @@ fun MainScreen(viewModel: MainViewModel) {
                     lastFix = ui.lastFix,
                     coverageFilter = ui.coverageFilter,
                     onToggleFilter = viewModel::toggleCoverageFilter,
+                    operatorFilter = ui.operatorFilter,
+                    onToggleOperatorFilter = viewModel::toggleOperatorFilter,
                     focusEvents = viewModel.focusEvents,
                 )
                 Tab.List -> ListPanel(

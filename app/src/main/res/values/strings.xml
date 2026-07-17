@@ -95,6 +95,7 @@
     <!-- Coverage grid overlay -->
     <string name="coverage_empty_hint">No readings yet. Tap the capture icon in the top bar to record one, or enable auto-record in Settings and move around to build a coverage map.</string>
     <string name="coverage_filter_label">Coverage</string>
+    <string name="filter_operator_label">Operators</string>
 
     <!-- Filter bottom sheet (Material 3 BottomSheetScaffold) -->
     <string name="filter_sheet_summary_all">All networks active (8 of 8)</string>

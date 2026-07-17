@@ -53,6 +53,8 @@ fun MapPanel(
     lastFix: FixSample?,
     coverageFilter: Set<NetworkType>,
     onToggleFilter: (NetworkType) -> Unit,
+    operatorFilter: Set<String> = emptySet(),
+    onToggleOperatorFilter: (String) -> Unit = {},
     focusEvents: Flow<Pair<Double, Double>> = emptyFlow(),
 ) {
     val context = LocalContext.current
@@ -152,6 +154,11 @@ fun MapPanel(
         mapView.invalidate()
     }
 
+    LaunchedEffect(operatorFilter) {
+        coverageOverlay.setAllowedOperators(operatorFilter)
+        mapView.invalidate()
+    }
+
     // The BottomSheetScaffold (and its embedded FilterChips) lives in
     // [CoverageFilterSheet] - it consumes the same `mapView` we just
     // configured, mounts it inside the `content` slot, and shows the
@@ -161,5 +168,7 @@ fun MapPanel(
         readings = readings,
         coverageFilter = coverageFilter,
         onToggleFilter = onToggleFilter,
+        operatorFilter = operatorFilter,
+        onToggleOperatorFilter = onToggleOperatorFilter,
     )
 }

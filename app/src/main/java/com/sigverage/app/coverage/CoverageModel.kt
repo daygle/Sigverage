@@ -35,6 +35,8 @@ data class NetworkAggregate(
 /** Aggregation for one tile, subdivided by network. */
 data class CellStats(
     val perNetwork: Map<NetworkType, NetworkAggregate>,
+    /** All operators observed in this tile. Used for operator filtering. */
+    val operators: Set<String> = emptySet(),
 ) {
     companion object {
         val EMPTY = CellStats(emptyMap())
@@ -91,20 +93,21 @@ fun tileBounds(tile: TileId): TileBounds {
  * modern hardware).
  */
 fun aggregate(readings: List<SignalReading>, storageZoom: Int): Map<TileId, CellStats> {
-    val tmp = HashMap<Long, HashMap<NetworkType, MutableAgg>>()
+    val tmp = HashMap<Long, TileAccumulator>()
     for (r in readings) {
         val tile = latLngToTile(r.latitude, r.longitude, storageZoom)
         val key = packKey(tile.x, tile.y)
-        val perNet = tmp.getOrPut(key) { HashMap() }
-        val agg = perNet.getOrPut(r.networkType) { MutableAgg() }
+        val acc = tmp.getOrPut(key) { TileAccumulator() }
+        val agg = acc.perNet.getOrPut(r.networkType) { MutableAgg() }
         agg.add(r)
+        r.operatorName?.let { acc.operators.add(it) }
     }
     val out = HashMap<TileId, CellStats>(tmp.size)
-    for ((key, perNet) in tmp) {
+    for ((key, acc) in tmp) {
         val (x, y) = unpackKey(key)
-        val stats = HashMap<NetworkType, NetworkAggregate>(perNet.size)
-        for ((net, agg) in perNet) stats[net] = agg.build()
-        out[TileId(x, y, storageZoom)] = CellStats(stats)
+        val stats = HashMap<NetworkType, NetworkAggregate>(acc.perNet.size)
+        for ((net, agg) in acc.perNet) stats[net] = agg.build()
+        out[TileId(x, y, storageZoom)] = CellStats(stats, acc.operators.toSet())
     }
     return out
 }
@@ -177,6 +180,12 @@ fun colorFor(
 ): Color {
     val base = palette[network] ?: Color.Gray
     return base.copy(alpha = bucket.alpha)
+}
+
+/** Per-tile accumulator used by [aggregate]. */
+private class TileAccumulator {
+    val perNet = HashMap<NetworkType, MutableAgg>()
+    val operators = HashSet<String>()
 }
 
 /** Internal accumulator used by `aggregate` while binning readings. */

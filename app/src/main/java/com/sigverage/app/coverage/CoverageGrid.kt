@@ -48,6 +48,7 @@ class CoverageGridOverlay(
 
     private var stats: Map<TileId, CellStats> = emptyMap()
     private var allowed: Set<NetworkType> = NetworkType.values().toSet()
+    private var allowedOperators: Set<String> = emptySet() // empty = show all
 
     /**
      * Network → colour map. Defaults to the static [com.sigverage.app.ui.theme.NetworkColors]
@@ -80,6 +81,10 @@ class CoverageGridOverlay(
         allowed = newAllowed
     }
 
+    fun setAllowedOperators(newAllowed: Set<String>) {
+        allowedOperators = newAllowed
+    }
+
     /** Inject the live palette produced by `rememberNetworkColors()`. */
     fun setPalette(newPalette: Map<NetworkType, androidx.compose.ui.graphics.Color>) {
         palette = newPalette
@@ -88,10 +93,12 @@ class CoverageGridOverlay(
     fun update(
         newStats: Map<TileId, CellStats>,
         newAllowed: Set<NetworkType>,
+        newAllowedOperators: Set<String> = emptySet(),
         newPalette: Map<NetworkType, androidx.compose.ui.graphics.Color> = palette,
     ) {
         stats = newStats
         allowed = newAllowed
+        allowedOperators = newAllowedOperators
         palette = newPalette
     }
 
@@ -108,6 +115,9 @@ class CoverageGridOverlay(
 
         for ((tile, cellStats) in stats) {
             if (tile.zoom != storageZoom) continue
+
+            // Skip tiles that have no readings from allowed operators.
+            if (allowedOperators.isNotEmpty() && cellStats.operators.none { it in allowedOperators }) continue
 
             val pick = pickDominant(cellStats, allowed) ?: continue
             val bucket = bucketFor(pick.second.meanDbm)

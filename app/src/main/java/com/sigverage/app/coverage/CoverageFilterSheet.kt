@@ -2,7 +2,10 @@ package com.sigverage.app.coverage
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +15,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
@@ -29,6 +34,7 @@ import com.sigverage.app.R
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
 import org.osmdroid.views.MapView
+import java.util.Locale
 
 /**
  * Map + filter-chip sheet, hosted in a Material 3 [BottomSheetScaffold].
@@ -61,6 +67,8 @@ fun CoverageFilterSheet(
     readings: List<SignalReading>,
     coverageFilter: Set<NetworkType>,
     onToggleFilter: (NetworkType) -> Unit,
+    operatorFilter: Set<String>,
+    onToggleOperatorFilter: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberStandardBottomSheetState(
@@ -87,6 +95,9 @@ fun CoverageFilterSheet(
             SheetContents(
                 selected = coverageFilter,
                 onToggle = onToggleFilter,
+                selectedOperators = operatorFilter,
+                onToggleOperator = onToggleOperatorFilter,
+                allOperators = readings.mapNotNull { it.operatorName }.filter { it.isNotBlank() }.distinct().sorted(),
             )
         },
         modifier = modifier,
@@ -126,16 +137,17 @@ fun CoverageFilterSheet(
  * it's purely the sheet-body layout - there's no reason for `MapPanel`
  * (or anyone else) to compose it directly.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SheetContents(
     selected: Set<NetworkType>,
     onToggle: (NetworkType) -> Unit,
+    selectedOperators: Set<String>,
+    onToggleOperator: (String) -> Unit,
+    allOperators: List<String>,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Drag handle - Material 3 convention: a 32 x 4 dp pill, ~40%
-        // alpha, centred at the top of the sheet. Doubles as a tap target
-        // for expand/collapse because the entire sheet body is also
-        // draggable; this just makes the affordance visually obvious.
+        // Drag handle
         Box(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
@@ -148,15 +160,10 @@ private fun SheetContents(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = filterSummaryText(selected),
+            text = filterSummaryText(selected, selectedOperators, allOperators.size),
             modifier = Modifier
                 .padding(horizontal = 16.dp)
                 .fillMaxWidth(),
-            // `titleSmall` + `onSurfaceVariant` keeps the 1-line summary
-            // reading as a secondary status line - it shouldn't compete
-            // visually with the FilterChip labels themselves when the
-            // sheet is expanded. `onSurfaceVariant` is the Material 3
-            // token for "less prominent than primary content".
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -167,6 +174,43 @@ private fun SheetContents(
             selected = selected,
             onToggle = onToggle,
         )
+
+        // Operator filter chips
+        if (allOperators.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.filter_operator_label),
+                modifier = Modifier.padding(horizontal = 16.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                allOperators.forEach { operator ->
+                    val isSelected = operator in selectedOperators
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { onToggleOperator(operator) },
+                        label = {
+                            Text(operator.replaceFirstChar { 
+                                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() 
+                            })
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
+                            selectedLabelColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                    )
+                }
+            }
+        }
+
         Spacer(Modifier.height(12.dp))
     }
 }
@@ -194,10 +238,10 @@ private fun SheetContents(
  * of `maxLines` / `overflow` behaviour.
  */
 @Composable
-private fun filterSummaryText(selected: Set<NetworkType>): String {
+private fun filterSummaryText(selected: Set<NetworkType>, selectedOperators: Set<String>, operatorCount: Int): String {
     val total = NetworkType.values().size
     val distinctLabels = selected.map { it.shortLabel }.distinct()
-    return when (selected.size) {
+    val networkPart = when (selected.size) {
         0 -> stringResource(R.string.filter_sheet_summary_none)
         total -> stringResource(R.string.filter_sheet_summary_all)
         else -> stringResource(
@@ -205,6 +249,11 @@ private fun filterSummaryText(selected: Set<NetworkType>): String {
             distinctLabels.joinToString(),
             selected.size,
         )
+    }
+    return if (selectedOperators.isNotEmpty() && operatorCount > 0) {
+        "$networkPart · ${selectedOperators.size}/$operatorCount operators"
+    } else {
+        networkPart
     }
 }
 
