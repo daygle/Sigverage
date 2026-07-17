@@ -370,8 +370,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val count = repo.deleteOlderThan(cutoff)
             if (announce && count > 0) {
                 _events.trySend(
-                    getApplication<Application>()
-                        .getString(R.string.retention_purge_count, count)
+                    getApplication<Application>().resources
+                        .getQuantityString(R.plurals.retention_purge_count, count, count)
                 )
             }
         }

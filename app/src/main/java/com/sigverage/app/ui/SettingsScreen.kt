@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -104,7 +105,7 @@ fun SettingsScreen(
         scope.launch {
             val n = viewModel.exportCsv(uri)
             val msg = when {
-                n > 0 -> context.getString(R.string.export_done, n)
+                n > 0 -> context.resources.getQuantityString(R.plurals.export_done, n, n)
                 n == 0 -> context.getString(R.string.export_nothing)
                 else -> context.getString(R.string.export_failed, "I/O error")
             }
@@ -177,7 +178,7 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_schedules_title),
                 subtitle = stringResource(R.string.settings_schedules_subtitle),
                 value = if (schedules.isEmpty()) null
-                        else stringResource(R.string.schedule_count, schedules.size),
+                        else pluralStringResource(R.plurals.schedule_count, schedules.size, schedules.size),
                 onClick = { showSchedulesPage = true },
             )
         }
@@ -250,7 +251,7 @@ fun SettingsScreen(
                 subtitle = if (readings.isEmpty()) {
                     stringResource(R.string.export_nothing)
                 } else {
-                    stringResource(R.string.settings_export_count, readings.size)
+                    pluralStringResource(R.plurals.settings_export_count, readings.size, readings.size)
                 },
                 enabled = readings.isNotEmpty(),
                 onClick = { csvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
@@ -261,7 +262,7 @@ fun SettingsScreen(
                 subtitle = if (readings.isEmpty()) {
                     stringResource(R.string.settings_delete_all_empty)
                 } else {
-                    stringResource(R.string.settings_delete_all_count, readings.size)
+                    pluralStringResource(R.plurals.settings_delete_all_count, readings.size, readings.size)
                 },
                 destructive = true,
                 enabled = readings.isNotEmpty(),
