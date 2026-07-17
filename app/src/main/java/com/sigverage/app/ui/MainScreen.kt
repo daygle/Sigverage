@@ -2,14 +2,10 @@ package com.sigverage.app.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddLocation
-import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PauseCircle
@@ -133,21 +129,6 @@ fun MainScreen(viewModel: MainViewModel) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val createCsvLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri: Uri? ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val n = viewModel.exportCsv(uri)
-            val msg = when {
-                n > 0 -> ctx.getString(R.string.export_done, n)
-                n == 0 -> ctx.getString(R.string.export_nothing)
-                else -> ctx.getString(R.string.export_failed, "I/O error")
-            }
-            snackbar.showSnackbar(msg)
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -176,15 +157,6 @@ fun MainScreen(viewModel: MainViewModel) {
                                 tint = MaterialTheme.colorScheme.error
                             )
                         }
-                    }
-                    IconButton(
-                        onClick = { createCsvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
-                        enabled = readings.isNotEmpty()
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.IosShare,
-                            contentDescription = stringResource(R.string.export_csv)
-                        )
                     }
                 }
             )

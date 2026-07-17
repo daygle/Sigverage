@@ -116,6 +116,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _focusEvents.trySend(latitude to longitude)
     }
 
+    /**
+     * Emit a one-shot UI event (e.g. snackbar message) from any screen.
+     * The event is consumed by MainScreen's [LaunchedEffect] collector.
+     */
+    fun emitEvent(message: String) {
+        _events.trySend(message)
+    }
+
     val readings: StateFlow<List<SignalReading>> = repo.observeReadings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

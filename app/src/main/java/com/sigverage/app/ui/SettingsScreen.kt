@@ -1,6 +1,9 @@
 package com.sigverage.app.ui
 
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -33,11 +36,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.BuildConfig
 import com.sigverage.app.R
 import com.sigverage.app.model.ThemeMode
+import kotlinx.coroutines.launch
 
 /**
  * Top-level Settings screen, reachable via the bottom NavigationBar tab.
@@ -71,6 +76,22 @@ fun SettingsScreen(
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showPermissionsPage by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val csvLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val n = viewModel.exportCsv(uri)
+            val msg = when {
+                n > 0 -> context.getString(R.string.export_done, n)
+                n == 0 -> context.getString(R.string.export_nothing)
+                else -> context.getString(R.string.export_failed, "I/O error")
+            }
+            viewModel.emitEvent(msg)
+        }
+    }
 
     // Dedicated permissions sub-page
     if (showPermissionsPage) {
@@ -129,6 +150,16 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_retention_subtitle),
                 value = retentionLabelFor(ui.retentionDays),
                 onClick = { showRetentionDialog = true },
+            )
+            SettingsRow(
+                title = stringResource(R.string.export_csv),
+                subtitle = if (readings.isEmpty()) {
+                    stringResource(R.string.export_nothing)
+                } else {
+                    stringResource(R.string.settings_export_count, readings.size)
+                },
+                enabled = readings.isNotEmpty(),
+                onClick = { csvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
             )
             SettingsRow(
                 title = stringResource(R.string.settings_delete_all_title),

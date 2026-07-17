@@ -91,6 +91,7 @@
     <string name="recording_failed">Could not record: %1$s</string>
     <string name="export_started">Exporting %1$d readings…</string>
     <string name="export_nothing">No readings to export</string>
+    <string name="settings_export_count">Export %1$d readings to CSV</string>
     <string name="export_done">Exported %1$d readings</string>
     <string name="export_failed">Export failed: %1$s</string>
     <string name="confirm_delete_all_title">Delete Every Reading?</string>
