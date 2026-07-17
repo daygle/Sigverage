@@ -90,12 +90,18 @@ private fun ReadingRow(
                 text = r.networkType.label,
                 style = MaterialTheme.typography.titleMedium
             )
+            r.operatorName?.let { operator ->
+                Text(
+                    text = operator,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
             Text(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.outline,
                 text = buildString {
                     r.signalDbm?.let { append("$it dBm · ") }
-                    r.operatorName?.let { append("$it · ") }
                     append(fmt.format(Date(r.timestamp)))
                 }
             )
@@ -176,6 +182,9 @@ fun DetailsSheet(
                 )
             }
             HorizontalDivider()
+            reading.operatorName?.let {
+                DetailRow(stringResource(R.string.detail_operator), it)
+            }
             DetailRow(
                 stringResource(R.string.detail_recorded),
                 fmt.format(Date(reading.timestamp))
@@ -214,9 +223,6 @@ fun DetailsSheet(
                     stringResource(R.string.detail_lte_snr),
                     stringResource(R.string.detail_db_value, it)
                 )
-            }
-            reading.operatorName?.let {
-                DetailRow(stringResource(R.string.detail_operator), it)
             }
             reading.mcc?.let { mcc ->
                 reading.mnc?.let { mnc ->
