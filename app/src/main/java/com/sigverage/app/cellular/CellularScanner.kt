@@ -50,12 +50,10 @@ class CellularScanner(private val context: Context) {
             .filter { it.isRegistered }
             .maxByOrNull { signalDbmOf(it) ?: Int.MIN_VALUE }
 
-        val voiceType: Int = runCatching { telephonyManager.voiceNetworkType }
-            .getOrDefault(TelephonyManager.NETWORK_TYPE_UNKNOWN)
         val dataType: Int = runCatching { telephonyManager.dataNetworkType }
             .getOrDefault(TelephonyManager.NETWORK_TYPE_UNKNOWN)
 
-        val networkType = classify(primary, voiceType, dataType)
+        val networkType = classify(primary, dataType)
         val operator = runCatching {
             telephonyManager.networkOperatorName.takeIf { it.isNotBlank() }
         }.getOrNull()
@@ -95,7 +93,7 @@ class CellularScanner(private val context: Context) {
      * exists from API 29, so we gate accordingly to keep the class verifier
      * happy on lower API levels.
      */
-    private fun classify(primary: CellInfo?, voiceType: Int, dataType: Int): NetworkType {
+    private fun classify(primary: CellInfo?, dataType: Int): NetworkType {
         if (primary == null) return NetworkType.Unknown
         return when (primary) {
             is android.telephony.CellInfoLte ->
@@ -106,11 +104,9 @@ class CellularScanner(private val context: Context) {
                 }
             is android.telephony.CellInfoNr -> NetworkType.FiveG
             is android.telephony.CellInfoWcdma -> NetworkType.HSPA
-            is android.telephony.CellInfoGsm -> when (dataType) {
-                TelephonyManager.NETWORK_TYPE_EDGE -> NetworkType.EDGE
-                TelephonyManager.NETWORK_TYPE_GPRS -> NetworkType.GSM
-                else -> NetworkType.GSM
-            }
+            is android.telephony.CellInfoGsm ->
+                if (dataType == TelephonyManager.NETWORK_TYPE_EDGE) NetworkType.EDGE
+                else NetworkType.GSM
             is android.telephony.CellInfoCdma -> NetworkType.CDMA
             else -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&

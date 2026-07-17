@@ -47,7 +47,7 @@ class CoverageGridOverlay(
         }
 
     private var stats: Map<TileId, CellStats> = emptyMap()
-    private var allowed: Set<NetworkType> = NetworkType.values().toSet()
+    private var allowed: Set<NetworkType> = NetworkType.entries.toSet()
     private var allowedOperators: Set<String> = emptySet() // empty = show all
 
     /**
