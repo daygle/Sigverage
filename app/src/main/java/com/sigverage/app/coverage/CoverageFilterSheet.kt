@@ -13,12 +13,18 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.BottomSheetScaffold
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
@@ -69,6 +75,9 @@ fun CoverageFilterSheet(
     onToggleFilter: (NetworkType) -> Unit,
     operatorFilter: Set<String>,
     onToggleOperatorFilter: (String) -> Unit,
+    onZoomIn: () -> Unit = {},
+    onZoomOut: () -> Unit = {},
+    onRecenter: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val sheetState = rememberStandardBottomSheetState(
@@ -111,6 +120,14 @@ fun CoverageFilterSheet(
                 factory = { mapView },
                 modifier = Modifier.fillMaxSize()
             )
+            MapControls(
+                onZoomIn = onZoomIn,
+                onZoomOut = onZoomOut,
+                onRecenter = onRecenter,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+            )
             if (readings.isEmpty()) {
                 Surface(
                     modifier = Modifier
@@ -127,6 +144,50 @@ fun CoverageFilterSheet(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * A vertical stack of the standard interactive map controls - recenter,
+ * zoom-in, zoom-out - rendered as Material 3 [SmallFloatingActionButton]s
+ * overlaid on the map's bottom-right corner (the platform-conventional
+ * spot). These replace osmdroid's dated built-in zoom buttons with
+ * touch-target-sized, theme-aware FABs that match the rest of the app.
+ */
+@Composable
+private fun MapControls(
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    onRecenter: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        SmallFloatingActionButton(
+            onClick = onRecenter,
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        ) {
+            Icon(
+                imageVector = Icons.Default.MyLocation,
+                contentDescription = stringResource(R.string.map_recenter),
+            )
+        }
+        SmallFloatingActionButton(onClick = onZoomIn) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = stringResource(R.string.map_zoom_in),
+            )
+        }
+        SmallFloatingActionButton(onClick = onZoomOut) {
+            Icon(
+                imageVector = Icons.Default.Remove,
+                contentDescription = stringResource(R.string.map_zoom_out),
+            )
         }
     }
 }

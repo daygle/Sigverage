@@ -1,5 +1,6 @@
 package com.sigverage.app.ui
 
+import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -19,6 +20,9 @@ import kotlinx.coroutines.flow.emptyFlow
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.ScaleBarOverlay
+import org.osmdroid.views.overlay.compass.CompassOverlay
+import org.osmdroid.views.overlay.compass.InternalCompassOrientationProvider
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
@@ -98,6 +102,22 @@ fun MapPanel(
     }
     val coverageOverlay = remember { CoverageGridOverlay() }
 
+    // Scale bar: a modern-map staple that lets the user gauge the real-world
+    // size of each coverage tile at the current zoom. Nautical/imperial off;
+    // metric matches the tile-size docs on CoverageGridOverlay.
+    val scaleBarOverlay = remember {
+        ScaleBarOverlay(mapView).apply {
+            setAlignBottom(true)
+            setScaleBarOffset(24, 24)
+        }
+    }
+    // Compass overlay: shows map orientation and, on tap, resets north-up.
+    val compassOverlay = remember {
+        CompassOverlay(context, InternalCompassOrientationProvider(context), mapView).apply {
+            enableCompass()
+        }
+    }
+
     // Marker palette tied to the live ColorScheme. Recomputes whenever the
     // user toggles light/dark or dynamic-colour, and we push it into the
     // osmdroid Overlay so the next paint uses the new colours.
@@ -108,9 +128,14 @@ fun MapPanel(
         // "you-are-here" dot sits clearly on top.
         mapView.overlays.add(coverageOverlay)
         mapView.overlays.add(locationOverlay)
+        mapView.overlays.add(scaleBarOverlay)
+        mapView.overlays.add(compassOverlay)
         mapView.onResume()
 
         onDispose {
+            compassOverlay.disableCompass()
+            mapView.overlays.remove(compassOverlay)
+            mapView.overlays.remove(scaleBarOverlay)
             mapView.overlays.remove(locationOverlay)
             mapView.overlays.remove(coverageOverlay)
             locationOverlay.disableMyLocation()
@@ -178,6 +203,24 @@ fun MapPanel(
         onToggleFilter = onToggleFilter,
         operatorFilter = operatorFilter,
         onToggleOperatorFilter = onToggleOperatorFilter,
+        onZoomIn = { mapView.controller.zoomIn() },
+        onZoomOut = { mapView.controller.zoomOut() },
+        onRecenter = {
+            // Prefer the live blue-dot fix from the location overlay; fall
+            // back to the last recorded fix so the button still works before
+            // the overlay's provider has produced its first update.
+            val target = locationOverlay.myLocation
+                ?: lastFix?.let { GeoPoint(it.latitude, it.longitude) }
+            if (target != null) {
+                mapView.controller.animateTo(target)
+            } else {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.map_recenter_no_fix),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            }
+        },
     )
 }
 

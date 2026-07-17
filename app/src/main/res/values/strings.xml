@@ -10,6 +10,12 @@
     <string name="tab_map">Map</string>
     <string name="tab_list">List</string>
 
+    <!-- Map controls -->
+    <string name="map_zoom_in">Zoom in</string>
+    <string name="map_zoom_out">Zoom out</string>
+    <string name="map_recenter">Center on my location</string>
+    <string name="map_recenter_no_fix">No location fix yet - move to an open area and try again.</string>
+
     <!-- Map / top-bar capture icon -->
     <string name="capture_at_location">Capture reading here</string>
     <string name="capture_snackbar">Captured reading (#%1$d)</string>
