@@ -163,7 +163,7 @@
     <string name="tab_settings">Settings</string>
     <string name="settings_section_permissions">Permissions</string>
     <string name="settings_permissions_title">Permissions</string>
-    <string name="settings_permissions_subtitle">Grant or revoke the permissions Sigorage needs.</string>
+    <string name="settings_permissions_subtitle">Grant or revoke the permissions Sigverage needs.</string>
     <string name="settings_permissions_back">Back to settings</string>
     <string name="settings_section_about">About</string>
     <string name="about_version_value">Sigverage v%1$s</string>
@@ -192,19 +192,19 @@
 
     <!-- Onboarding (first-launch permission walkthrough) -->
     <string name="onboarding_skip">Skip</string>
-    <string name="onboarding_welcome_title">Welcome to Sigorage</string>
-    <string name="onboarding_welcome_body">Sigorage records the cellular signal strength at your current location so you can build a coverage map of places you frequent. Before we get started, we need a couple of permissions. You can change these any time from Settings.</string>
+    <string name="onboarding_welcome_title">Welcome to Sigverage</string>
+    <string name="onboarding_welcome_body">Sigverage records the cellular signal strength at your current location so you can build a coverage map of places you frequent. Before we get started, we need a couple of permissions. You can change these any time from Settings.</string>
     <string name="onboarding_get_started">Get started</string>
     <string name="onboarding_location_title">Location Access</string>
-    <string name="onboarding_location_body">"Sigorage pins every reading to the GPS coordinate where it was recorded. Without location access we can\'t record where you were. Your location is stored only on this device - it never leaves it."</string>
+    <string name="onboarding_location_body">"Sigverage pins every reading to the GPS coordinate where it was recorded. Without location access we can\'t record where you were. Your location is stored only on this device - it never leaves it."</string>
     <string name="onboarding_location_grant">Allow location</string>
     <string name="onboarding_notifications_title">Notifications</string>
-    <string name="onboarding_notifications_body">Sigorage posts a small persistent notification while sampling so Android keeps the service running in the background. You can silence it later from Settings.</string>
+    <string name="onboarding_notifications_body">Sigverage posts a small persistent notification while sampling so Android keeps the service running in the background. You can silence it later from Settings.</string>
     <string name="onboarding_notifications_grant">Allow notifications</string>
     <string name="onboarding_done_title">All set</string>
-    <string name="onboarding_done_body">Sigorage is ready. Tap below to open the map. You can update these permissions any time from Settings → Permissions.</string>
-    <string name="onboarding_done_body_partial">Some permissions weren\'t granted yet - Sigorage can\'t fully record without location, and Android won\'t keep sampling alive without notifications. Tap below to open the app and finish granting permissions from Settings → Permissions.</string>
-    <string name="onboarding_open_app">Open Sigorage</string>
+    <string name="onboarding_done_body">Sigverage is ready. Tap below to open the map. You can update these permissions any time from Settings → Permissions.</string>
+    <string name="onboarding_done_body_partial">Some permissions weren\'t granted yet - Sigverage can\'t fully record without location, and Android won\'t keep sampling alive without notifications. Tap below to open the app and finish granting permissions from Settings → Permissions.</string>
+    <string name="onboarding_open_app">Open Sigverage</string>
 
     <!-- Schedules -->
     <string name="settings_schedules_title">Schedules</string>
