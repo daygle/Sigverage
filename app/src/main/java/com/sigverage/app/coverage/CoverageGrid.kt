@@ -188,7 +188,7 @@ class CoverageGridOverlay(
          *  "50 m cells" - a rounded mid-latitude figure that matches what
          *  users actually see in the field. **Exact** 50 m would require
          *  a fractional-zoom refactor (the `aggregate()` function and the
-         *  `TileId` data class in [com.sigorage.app.coverage.CoverageModel]
+         *  `TileId` data class in [com.sigverage.app.coverage.CoverageModel]
          *  currently use `Int` zooms); this constant sits at the integer
          *  zoom whose cells are slightly finer than 50 m at typical
          *  mid-latitudes, which is the closest integer Mercator step ≤ 50 m.
