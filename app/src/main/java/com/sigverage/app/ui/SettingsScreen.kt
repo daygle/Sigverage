@@ -21,7 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.rememberCoroutineScope
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -52,6 +52,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -112,29 +113,12 @@ fun SettingsScreen(
         }
     }
 
-    // Background-reliability status (battery-optimisation exemption + exact
-    // alarms). Owned by the OS, not our prefs, so re-read it whenever we
-    // return to the app - e.g. after the user changes it in system settings.
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var reliability by remember { mutableStateOf(readReliabilityStatus(context)) }
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                reliability = readReliabilityStatus(context)
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
-
-    // Dedicated permissions sub-page
+    // Top-level page selection: if/else-if/else so the dialog checks at the
+    // bottom of this composable ALWAYS get evaluated, even when a sub-page is
+    // on screen.
     if (showPermissionsPage) {
-        PermissionsPage(onBack = { showPermissionsPage = false })
-        return
-    }
-
-    // Dedicated schedules sub-page
-    if (showSchedulesPage) {
+        PermissionsAccessPage(onBack = { showPermissionsPage = false })
+    } else if (showSchedulesPage) {
         SchedulesPage(
             schedules = schedules,
             onBack = { showSchedulesPage = false },
@@ -143,165 +127,133 @@ fun SettingsScreen(
             onDelete = { viewModel.deleteSchedule(it) },
             onToggleEnabled = { viewModel.toggleScheduleEnabled(it) },
         )
-        return
-    }
-
-    val scroll = rememberScrollState()
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scroll)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // -- Recording section --
-        SettingsCard(
-            headerIcon = Icons.Default.Schedule,
-            headerTitle = stringResource(R.string.settings_section_recording),
+    } else {
+        val scroll = rememberScrollState()
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .verticalScroll(scroll)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SwitchRow(
-                title = stringResource(R.string.settings_auto_record_title),
-                subtitle = stringResource(R.string.settings_auto_record_subtitle),
-                checked = ui.autoRecordEnabled,
-                onCheckedChange = viewModel::setAutoRecordEnabled,
-            )
-            CardDivider()
-            SettingsRow(
-                title = stringResource(R.string.settings_sampling_mode_title),
-                subtitle = stringResource(R.string.settings_sampling_mode_subtitle),
-                value = samplingModeLabelFor(ui.samplingMode),
-                onClick = { showSamplingModeDialog = true },
-            )
-            CardDivider()
-            SettingsRow(
-                title = stringResource(R.string.settings_schedules_title),
-                subtitle = stringResource(R.string.settings_schedules_subtitle),
-                value = if (schedules.isEmpty()) null
-                        else pluralStringResource(R.plurals.schedule_count, schedules.size, schedules.size),
-                onClick = { showSchedulesPage = true },
-            )
-        }
-
-        // -- Reliability section --
-        // These control whether Android lets the app keep sampling in the
-        // background and fire schedule alarms on time. Both are OS-level
-        // toggles we can only deep-link to, not set directly.
-        SettingsCard(
-            headerIcon = Icons.Default.Bolt,
-            headerTitle = stringResource(R.string.settings_section_reliability),
-        ) {
-            SettingsRow(
-                title = stringResource(R.string.settings_battery_opt_title),
-                subtitle = stringResource(R.string.settings_battery_opt_subtitle),
-                value = stringResource(
-                    if (reliability.batteryUnrestricted) R.string.settings_battery_opt_on
-                    else R.string.settings_battery_opt_off
-                ),
-                onClick = { openBatteryOptimizationSettings(context) },
-            )
-            if (reliability.exactAlarmRelevant) {
+            // -- Recording section --
+            SettingsCard(
+                headerIcon = Icons.Default.Schedule,
+                headerTitle = stringResource(R.string.settings_section_recording),
+            ) {
+                SwitchRow(
+                    title = stringResource(R.string.settings_auto_record_title),
+                    subtitle = stringResource(R.string.settings_auto_record_subtitle),
+                    checked = ui.autoRecordEnabled,
+                    onCheckedChange = viewModel::setAutoRecordEnabled,
+                )
                 CardDivider()
                 SettingsRow(
-                    title = stringResource(R.string.settings_exact_alarm_title),
-                    subtitle = stringResource(R.string.settings_exact_alarm_subtitle),
-                    value = stringResource(
-                        if (reliability.exactAlarmAllowed) R.string.settings_exact_alarm_on
-                        else R.string.settings_exact_alarm_off
-                    ),
-                    onClick = { openExactAlarmSettings(context) },
+                    title = stringResource(R.string.settings_sampling_mode_title),
+                    subtitle = stringResource(R.string.settings_sampling_mode_subtitle),
+                    value = samplingModeLabelFor(ui.samplingMode),
+                    onClick = { showSamplingModeDialog = true },
+                )
+                CardDivider()
+                SettingsRow(
+                    title = stringResource(R.string.settings_schedules_title),
+                    subtitle = stringResource(R.string.settings_schedules_subtitle),
+                    value = if (schedules.isEmpty()) null
+                    else pluralStringResource(R.plurals.schedule_count, schedules.size, schedules.size),
+                    onClick = { showSchedulesPage = true },
                 )
             }
-        }
 
-        // -- Appearance section --
-        SettingsCard(
-            headerIcon = Icons.Default.Palette,
-            headerTitle = stringResource(R.string.settings_section_appearance),
-        ) {
-            SettingsRow(
-                title = stringResource(R.string.settings_theme_title),
-                subtitle = stringResource(R.string.settings_theme_subtitle),
-                value = themeLabelFor(ui.themeMode),
-                onClick = { showThemeDialog = true },
-            )
-            CardDivider()
-            SwitchRow(
-                title = stringResource(R.string.settings_dynamic_color_title),
-                subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
-                checked = ui.dynamicColorEnabled,
-                onCheckedChange = viewModel::setDynamicColorEnabled,
-            )
-        }
+            // -- Appearance section --
+            SettingsCard(
+                headerIcon = Icons.Default.Palette,
+                headerTitle = stringResource(R.string.settings_section_appearance),
+            ) {
+                SettingsRow(
+                    title = stringResource(R.string.settings_theme_title),
+                    subtitle = stringResource(R.string.settings_theme_subtitle),
+                    value = themeLabelFor(ui.themeMode),
+                    onClick = { showThemeDialog = true },
+                )
+                CardDivider()
+                SwitchRow(
+                    title = stringResource(R.string.settings_dynamic_color_title),
+                    subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
+                    checked = ui.dynamicColorEnabled,
+                    onCheckedChange = viewModel::setDynamicColorEnabled,
+                )
+            }
 
-        // -- Data section --
-        SettingsCard(
-            headerIcon = Icons.Default.CloudDownload,
-            headerTitle = stringResource(R.string.settings_section_data),
-        ) {
-            SettingsRow(
-                title = stringResource(R.string.settings_retention_title),
-                subtitle = stringResource(R.string.settings_retention_subtitle),
-                value = retentionLabelFor(ui.retentionDays),
-                onClick = { showRetentionDialog = true },
-            )
-            CardDivider()
-            SettingsRow(
-                title = stringResource(R.string.export_csv),
-                subtitle = if (readings.isEmpty()) {
-                    stringResource(R.string.export_nothing)
-                } else {
-                    pluralStringResource(R.plurals.settings_export_count, readings.size, readings.size)
-                },
-                enabled = readings.isNotEmpty(),
-                onClick = { csvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
-            )
-            CardDivider()
-            SettingsRow(
-                title = stringResource(R.string.settings_delete_all_title),
-                subtitle = if (readings.isEmpty()) {
-                    stringResource(R.string.settings_delete_all_empty)
-                } else {
-                    pluralStringResource(R.plurals.settings_delete_all_count, readings.size, readings.size)
-                },
-                destructive = true,
-                enabled = readings.isNotEmpty(),
-                onClick = { confirmDeleteAll = true },
-            )
-        }
+            // -- Data section --
+            SettingsCard(
+                headerIcon = Icons.Default.CloudDownload,
+                headerTitle = stringResource(R.string.settings_section_data),
+            ) {
+                SettingsRow(
+                    title = stringResource(R.string.settings_retention_title),
+                    subtitle = stringResource(R.string.settings_retention_subtitle),
+                    value = retentionLabelFor(ui.retentionDays),
+                    onClick = { showRetentionDialog = true },
+                )
+                CardDivider()
+                SettingsRow(
+                    title = stringResource(R.string.export_csv),
+                    subtitle = if (readings.isEmpty()) {
+                        stringResource(R.string.export_nothing)
+                    } else {
+                        pluralStringResource(R.plurals.settings_export_count, readings.size, readings.size)
+                    },
+                    enabled = readings.isNotEmpty(),
+                    onClick = { csvLauncher.launch("sigorage_${System.currentTimeMillis()}.csv") },
+                )
+                CardDivider()
+                SettingsRow(
+                    title = stringResource(R.string.settings_delete_all_title),
+                    subtitle = if (readings.isEmpty()) {
+                        stringResource(R.string.settings_delete_all_empty)
+                    } else {
+                        pluralStringResource(R.plurals.settings_delete_all_count, readings.size, readings.size)
+                    },
+                    destructive = true,
+                    enabled = readings.isNotEmpty(),
+                    onClick = { confirmDeleteAll = true },
+                )
+            }
 
-        // -- Permissions section --
-        SettingsCard(
-            headerIcon = Icons.Default.Security,
-            headerTitle = stringResource(R.string.settings_section_permissions),
-        ) {
-            SettingsRow(
-                title = stringResource(R.string.settings_permissions_title),
-                subtitle = stringResource(R.string.settings_permissions_subtitle),
-                onClick = { showPermissionsPage = true },
-            )
-        }
+            // -- Permissions & Access drill-out --
+            SettingsCard(
+                headerIcon = Icons.Default.Security,
+                headerTitle = stringResource(R.string.settings_section_permissions),
+            ) {
+                SettingsRow(
+                    title = stringResource(R.string.settings_permissions_title),
+                    subtitle = stringResource(R.string.settings_permissions_subtitle),
+                    onClick = { showPermissionsPage = true },
+                )
+            }
 
-        // -- About section --
-        SettingsCard(
-            headerIcon = Icons.Default.Info,
-            headerTitle = stringResource(R.string.settings_section_about),
-        ) {
-            AboutRow(
-                label = stringResource(R.string.about_version_value, BuildConfig.VERSION_NAME),
-            )
-            CardDivider()
-            AboutRow(
-                label = stringResource(R.string.about_android_version_label),
-                value = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
-            )
-            CardDivider()
-            AboutRow(
-                label = stringResource(R.string.about_blurb),
-                isSubtitle = true,
-            )
-        }
+            // -- About section --
+            SettingsCard(
+                headerIcon = Icons.Default.Info,
+                headerTitle = stringResource(R.string.settings_section_about),
+            ) {
+                AboutRow(
+                    label = stringResource(R.string.about_version_value, BuildConfig.VERSION_NAME),
+                )
+                CardDivider()
+                AboutRow(
+                    label = stringResource(R.string.about_android_version_label),
+                    value = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                )
+                CardDivider()
+                AboutRow(
+                    label = stringResource(R.string.about_blurb),
+                    isSubtitle = true,
+                )
+            }
 
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
+        }
     }
 
     if (showRetentionDialog) {
@@ -369,10 +321,6 @@ fun SettingsScreen(
 // Card-based section wrapper
 // ---------------------------------------------------------------------------
 
-/**
- * A rounded card with an icon + title header, wrapping child rows.
- * Uses [CardDefaults.cardColors] for automatic light/dark surface handling.
- */
 @Composable
 private fun SettingsCard(
     headerIcon: ImageVector,
@@ -388,7 +336,6 @@ private fun SettingsCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Column(modifier = Modifier.padding(vertical = 4.dp)) {
-            // Section header
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -414,10 +361,6 @@ private fun SettingsCard(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Inner dividers (no outer margins - live inside the card)
-// ---------------------------------------------------------------------------
-
 @Composable
 private fun CardDivider() {
     HorizontalDivider(
@@ -426,13 +369,6 @@ private fun CardDivider() {
     )
 }
 
-// ---------------------------------------------------------------------------
-// Row variants
-// ---------------------------------------------------------------------------
-
-/**
- * A row with a trailing [Switch]. The whole row is tappable.
- */
 @Composable
 private fun SwitchRow(
     title: String,
@@ -469,9 +405,6 @@ private fun SwitchRow(
     }
 }
 
-/**
- * Generic tappable settings row with optional value and trailing icon.
- */
 @Composable
 private fun SettingsRow(
     title: String,
@@ -522,7 +455,7 @@ private fun SettingsRow(
                 imageVector = Icons.Default.DeleteForever,
                 contentDescription = null,
                 tint = if (enabled) MaterialTheme.colorScheme.error
-                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
+                else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f),
                 modifier = Modifier.size(20.dp),
             )
         } else {
@@ -536,9 +469,6 @@ private fun SettingsRow(
     }
 }
 
-/**
- * Read-only info row for the About section.
- */
 @Composable
 private fun AboutRow(
     label: String,
@@ -554,9 +484,9 @@ private fun AboutRow(
         Text(
             text = label,
             style = if (isSubtitle) MaterialTheme.typography.bodySmall
-                    else MaterialTheme.typography.bodyLarge,
+            else MaterialTheme.typography.bodyLarge,
             color = if (isSubtitle) MaterialTheme.colorScheme.onSurfaceVariant
-                    else MaterialTheme.colorScheme.onSurface,
+            else MaterialTheme.colorScheme.onSurface,
         )
         if (value != null) {
             Spacer(Modifier.weight(1f))
@@ -569,10 +499,6 @@ private fun AboutRow(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Label helpers
-// ---------------------------------------------------------------------------
-
 @Composable
 private fun themeLabelFor(mode: ThemeMode): String = when (mode) {
     ThemeMode.System -> stringResource(R.string.theme_system)
@@ -580,15 +506,6 @@ private fun themeLabelFor(mode: ThemeMode): String = when (mode) {
     ThemeMode.Dark -> stringResource(R.string.theme_dark)
 }
 
-// ---------------------------------------------------------------------------
-// Background-reliability status + system deep-links
-// ---------------------------------------------------------------------------
-
-/**
- * Live OS-level reliability state for the Settings rows. [exactAlarmRelevant]
- * is false below Android 12, where exact alarms are always permitted and the
- * row is hidden.
- */
 private data class ReliabilityStatus(
     val batteryUnrestricted: Boolean,
     val exactAlarmRelevant: Boolean,
@@ -597,13 +514,10 @@ private data class ReliabilityStatus(
 
 private fun readReliabilityStatus(context: Context): ReliabilityStatus {
     val pm = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
-    // If the service is missing (shouldn't happen), assume unrestricted so we
-    // don't nag the user about something they can't change.
     val batteryUnrestricted =
         pm?.isIgnoringBatteryOptimizations(context.packageName) ?: true
 
     val exactAlarmRelevant = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-    // Inline the SDK guard (not via the local above) so lint's API check sees it.
     val exactAlarmAllowed = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         val am = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
         am?.canScheduleExactAlarms() ?: false
@@ -613,21 +527,12 @@ private fun readReliabilityStatus(context: Context): ReliabilityStatus {
     return ReliabilityStatus(batteryUnrestricted, exactAlarmRelevant, exactAlarmAllowed)
 }
 
-/**
- * Open the system battery-optimisation list so the user can mark Sigverage
- * "unrestricted". Uses the settings-list action, which needs no extra
- * permission (unlike the direct-request dialog).
- */
 private fun openBatteryOptimizationSettings(context: Context) {
     val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { context.startActivity(intent) }
 }
 
-/**
- * Open the per-app "Alarms & reminders" screen (Android 12+) so the user can
- * allow exact alarms, which schedules rely on to start/stop on time.
- */
 private fun openExactAlarmSettings(context: Context) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
     val perApp = Intent(
@@ -635,8 +540,6 @@ private fun openExactAlarmSettings(context: Context) {
         Uri.fromParts("package", context.packageName, null),
     ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     runCatching { context.startActivity(perApp) }.onFailure {
-        // Some OEMs don't honour the per-app data URI; fall back to the
-        // generic action.
         runCatching {
             context.startActivity(
                 Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
@@ -664,13 +567,23 @@ private fun retentionLabelFor(days: Int): String = when (days) {
     else -> stringResource(R.string.time_days, days)
 }
 
-// ---------------------------------------------------------------------------
-// Permissions sub-page
-// ---------------------------------------------------------------------------
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PermissionsPage(onBack: () -> Unit) {
+private fun PermissionsAccessPage(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    var reliability by remember { mutableStateOf(readReliabilityStatus(context)) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                reliability = readReliabilityStatus(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -686,6 +599,47 @@ private fun PermissionsPage(onBack: () -> Unit) {
             )
         }
     ) { padding ->
-        PermissionsSection(modifier = Modifier.padding(padding))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            SettingsCard(
+                headerIcon = Icons.Default.Security,
+                headerTitle = stringResource(R.string.settings_permissions_app_subheader),
+            ) {
+                PermissionsSection(modifier = Modifier.fillMaxWidth())
+            }
+
+            SettingsCard(
+                headerIcon = Icons.Default.Bolt,
+                headerTitle = stringResource(R.string.settings_permissions_bg_subheader),
+            ) {
+                SettingsRow(
+                    title = stringResource(R.string.settings_battery_opt_title),
+                    subtitle = stringResource(R.string.settings_battery_opt_subtitle),
+                    value = stringResource(
+                        if (reliability.batteryUnrestricted) R.string.settings_battery_opt_on
+                        else R.string.settings_battery_opt_off
+                    ),
+                    onClick = { openBatteryOptimizationSettings(context) },
+                )
+                if (reliability.exactAlarmRelevant) {
+                    CardDivider()
+                    SettingsRow(
+                        title = stringResource(R.string.settings_exact_alarm_title),
+                        subtitle = stringResource(R.string.settings_exact_alarm_subtitle),
+                        value = stringResource(
+                            if (reliability.exactAlarmAllowed) R.string.settings_exact_alarm_on
+                            else R.string.settings_exact_alarm_off
+                        ),
+                        onClick = { openExactAlarmSettings(context) },
+                    )
+                }
+            }
+        }
     }
 }

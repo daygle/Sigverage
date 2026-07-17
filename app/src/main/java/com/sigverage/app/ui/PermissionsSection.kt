@@ -1,4 +1,4 @@
-package com.sigorage.app.ui
+package com.sigverage.app.ui
 
 import android.app.Activity
 import android.content.Context
@@ -52,9 +52,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.sigorage.app.R
-import com.sigorage.app.permissions.PERMISSIONS_INVENTORY
-import com.sigorage.app.permissions.PermissionItem
+import com.sigverage.app.R
+import com.sigverage.app.permissions.PERMISSIONS_INVENTORY
+import com.sigverage.app.permissions.PermissionItem
 
 /**
  * Snapshot of permission grant state at a moment in time, recomputed by

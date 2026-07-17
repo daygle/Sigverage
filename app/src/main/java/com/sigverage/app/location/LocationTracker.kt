@@ -117,23 +117,12 @@ class LocationTracker(private val context: Context) {
             // suspendCancellableCoroutine and crash the caller. Recover to
             // null exactly like the old code did.
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    // API 30+: use the non-deprecated platform method
-                    manager.getCurrentLocation(
-                        provider,
-                        signal,
-                        ContextCompat.getMainExecutor(context),
-                    ) { location -> resumeOnce(location?.toFix()) }
-                } else {
-                    // API 26-29: use compat fallback
-                    @Suppress("DEPRECATION")
-                    LocationManagerCompat.getCurrentLocation(
-                        manager,
-                        provider,
-                        null,
-                        ContextCompat.getMainExecutor(context),
-                    ) { location -> resumeOnce(location?.toFix()) }
-                }
+                LocationManagerCompat.getCurrentLocation(
+                    manager,
+                    provider,
+                    signal,
+                    ContextCompat.getMainExecutor(context),
+                ) { location -> resumeOnce(location?.toFix()) }
             } catch (t: Throwable) {
                 resumeOnce(null)
             }
