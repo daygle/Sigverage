@@ -59,7 +59,7 @@ import java.util.Locale
 fun ListPanel(
     readings: List<SignalReading>,
     onClick: (SignalReading) -> Unit,
-    onDelete: (Long) -> Unit,
+    onDelete: (SignalReading) -> Unit,
     onFocusMap: (SignalReading) -> Unit,
 ) {
     if (readings.isEmpty()) {
@@ -96,7 +96,7 @@ fun ListPanel(
                 r = r,
                 fmt = fmt,
                 onClick = { onClick(r) },
-                onDelete = { onDelete(r.id) },
+                onDelete = { onDelete(r) },
                 onFocusMap = { onFocusMap(r) },
             )
         }
@@ -159,7 +159,7 @@ private fun ReadingCard(
                             color = signalStrengthColor(dbm).copy(alpha = 0.15f)
                         ) {
                             Text(
-                                text = "$dbm dBm",
+                                text = stringResource(R.string.detail_dbm_value, dbm),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
@@ -189,16 +189,16 @@ private fun ReadingCard(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
                     contentColor = MaterialTheme.colorScheme.primary
                 ),
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.MyLocation,
                     contentDescription = stringResource(R.string.show_on_map_cd),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(8.dp))
 
             IconButton(
                 onClick = onDelete,
@@ -206,12 +206,12 @@ private fun ReadingCard(
                     containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
                     contentColor = MaterialTheme.colorScheme.error
                 ),
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = stringResource(R.string.delete_reading),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }

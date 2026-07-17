@@ -25,6 +25,8 @@
     <!-- List -->
     <string name="empty_list_hint">No readings yet. Switch to Map and tap Capture.</string>
     <string name="delete_reading">Delete</string>
+    <string name="reading_deleted">Reading deleted</string>
+    <string name="undo">Undo</string>
     <string name="show_on_map_cd">Show this reading on the map</string>
     <string name="show_on_map_action">Show on map</string>
 

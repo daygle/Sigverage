@@ -19,8 +19,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -69,6 +71,20 @@ fun MainScreen(viewModel: MainViewModel) {
     LaunchedEffect(Unit) {
         viewModel.events.collect { message ->
             snackbar.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.undoDeleteEvents.collect { reading ->
+            val result = snackbar.showSnackbar(
+                message = ctx.getString(R.string.reading_deleted),
+                actionLabel = ctx.getString(R.string.undo),
+                withDismissAction = true,
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.restoreReading(reading)
+            }
         }
     }
 
@@ -167,7 +183,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 Tab.List -> ListPanel(
                     readings = readings,
                     onClick = { sheetReading = it },
-                    onDelete = viewModel::delete,
+                    onDelete = viewModel::deleteReading,
                     onFocusMap = jumpToReading,
                 )
                 Tab.Settings -> SettingsScreen(viewModel = viewModel)
@@ -180,7 +196,7 @@ fun MainScreen(viewModel: MainViewModel) {
             reading = reading,
             onDismiss = { sheetReading = null },
             onDelete = {
-                viewModel.delete(reading.id)
+                viewModel.deleteReading(reading)
                 sheetReading = null
             },
             onShowOnMap = { jumpToReading(reading) },

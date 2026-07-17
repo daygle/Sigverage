@@ -210,8 +210,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * One-shot "reading deleted" events carrying the removed row so the UI can
+     * offer an Undo. Kept separate from [events] because these need a richer
+     * payload (the full reading) and an action-bearing snackbar, not a plain
+     * message. Buffered and consumed exactly once, like [events].
+     */
+    private val _undoDeleteEvents = Channel<SignalReading>(Channel.BUFFERED)
+    val undoDeleteEvents: Flow<SignalReading> = _undoDeleteEvents.receiveAsFlow()
+
     fun delete(id: Long) {
         viewModelScope.launch(Dispatchers.IO) { repo.delete(id) }
+    }
+
+    /**
+     * Delete [reading] and surface an undoable event. The full row is carried
+     * on [undoDeleteEvents] so [restoreReading] can re-insert it verbatim -
+     * including its original id, which is free again once the row is removed.
+     */
+    fun deleteReading(reading: SignalReading) {
+        viewModelScope.launch(Dispatchers.IO) { repo.delete(reading.id) }
+        _undoDeleteEvents.trySend(reading)
+    }
+
+    /** Re-insert a previously deleted [reading] (Undo of [deleteReading]). */
+    fun restoreReading(reading: SignalReading) {
+        viewModelScope.launch(Dispatchers.IO) { repo.add(reading) }
     }
 
     fun deleteAll() {
