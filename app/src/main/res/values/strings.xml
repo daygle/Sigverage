@@ -12,10 +12,11 @@
     <string name="tab_map">Map</string>
     <string name="tab_list">List</string>
 
-    <!-- Map / FAB -->
-    <string name="record_at_location">Record here</string>
+    <!-- Map / top-bar capture icon -->
+    <string name="capture_at_location">Capture reading here</string>
+    <string name="capture_snackbar">Captured reading (#%1$d)</string>
     <string name="my_location_cd">Centre map on my location</string>
-    <string name="empty_map_hint">Tap the button to record your first signal reading.</string>
+    <string name="empty_map_hint">Tap the capture icon in the top bar to record your first signal reading.</string>
     <string name="legend_title">Marker colour</string>
     <string name="legend_5g">5G NR / NSA</string>
     <string name="legend_lte">LTE (4G)</string>
@@ -53,7 +54,7 @@
     <string name="interval_option_glacial">60 s</string>
 
     <!-- List -->
-    <string name="empty_list_hint">No readings yet. Switch to Map and tap Record.</string>
+    <string name="empty_list_hint">No readings yet. Switch to Map and tap Capture.</string>
     <string name="delete_reading">Delete</string>
     <string name="show_on_map_cd">Show this reading on the map</string>
     <string name="show_on_map_action">Show on map</string>
@@ -98,7 +99,7 @@
     <string name="confirm_no">Cancel</string>
 
     <!-- Coverage grid overlay -->
-    <string name="coverage_empty_hint">No readings yet. Tap the button to record one, or enable sampling and move around to build a coverage map.</string>
+    <string name="coverage_empty_hint">No readings yet. Tap the capture icon in the top bar to record one, or enable auto-record in Settings and move around to build a coverage map.</string>
     <string name="coverage_filter_label">Coverage</string>
 
     <!-- Filter bottom sheet (Material 3 BottomSheetScaffold) -->

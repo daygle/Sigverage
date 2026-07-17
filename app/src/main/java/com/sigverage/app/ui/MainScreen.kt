@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.IosShare
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -134,10 +133,6 @@ fun MainScreen(viewModel: MainViewModel) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* result is reflected by the next permission check on action */ }
-
     val createCsvLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri: Uri? ->
@@ -153,39 +148,34 @@ fun MainScreen(viewModel: MainViewModel) {
         }
     }
 
-    fun toggleSampling() {
-        if (ui.isSampling) {
-            viewModel.setSampling(false)
-            SamplingService.stop(ctx)
-            return
-        }
-        val missing = missingPermissions(ctx)
-        if (missing.isEmpty()) {
-            viewModel.setSampling(true)
-            SamplingService.start(ctx, ui.samplingIntervalMs)
-        } else {
-            permissionLauncher.launch(missing.toTypedArray())
-            // Optimistically mark sampling on; the service will silently wait for
-            // the grant event. If the user denies, the FAB→Stop toggle is the
-            // obvious escape.
-            viewModel.setSampling(true)
-            SamplingService.start(ctx, ui.samplingIntervalMs)
-        }
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.app_name)) },
                 actions = {
-                    IconButton(onClick = { toggleSampling() }) {
+                    IconButton(onClick = {
+                        viewModel.captureNow()
+                        scope.launch {
+                            val n = viewModel.count.value + 1
+                            snackbar.showSnackbar(ctx.getString(R.string.capture_snackbar, n))
+                        }
+                    }) {
                         Icon(
-                            imageVector = if (ui.isSampling) Icons.Default.PauseCircle else Icons.Default.PlayCircle,
-                            contentDescription = stringResource(
-                                if (ui.isSampling) R.string.stop_sampling else R.string.start_sampling
-                            ),
-                            tint = if (ui.isSampling) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                            imageVector = Icons.Default.AddLocation,
+                            contentDescription = stringResource(R.string.capture_at_location)
                         )
+                    }
+                    if (ui.isSampling) {
+                        IconButton(onClick = {
+                            viewModel.setSampling(false)
+                            SamplingService.stop(ctx)
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.PauseCircle,
+                                contentDescription = stringResource(R.string.stop_sampling),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
                     }
                     IconButton(
                         onClick = { createCsvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
@@ -221,21 +211,6 @@ fun MainScreen(viewModel: MainViewModel) {
                 )
             }
         },
-        floatingActionButton = {
-            if (tab == Tab.Map) {
-                ExtendedFloatingActionButton(
-                    onClick = {
-                        viewModel.captureNow()
-                        scope.launch {
-                            val n = viewModel.count.value + 1
-                            snackbar.showSnackbar("Recording… (#$n)")
-                        }
-                    },
-                    icon = { Icon(Icons.Default.AddLocation, contentDescription = null) },
-                    text = { Text(stringResource(R.string.record_at_location)) }
-                )
-            }
-        }
     ) { padding ->
         Box(
             modifier = Modifier
