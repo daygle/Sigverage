@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -18,8 +19,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScaffoldDefaults
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -56,6 +60,11 @@ fun MainScreen(viewModel: MainViewModel) {
 
     var tab by rememberSaveable { mutableStateOf(Tab.Map) }
     var sheetReading by remember { mutableStateOf<SignalReading?>(null) }
+    // Which Settings drill-out (if any) is open. When set, the Settings screen
+    // renders that sub-page full-screen, so we hide the app bar and bottom
+    // navigation and let the sub-page's own Scaffold own the system insets.
+    var settingsSubPage by remember { mutableStateOf(SettingsSubPage.None) }
+    val settingsSubPageActive = tab == Tab.Settings && settingsSubPage != SettingsSubPage.None
 
     val jumpToReading: (SignalReading) -> Unit = remember(viewModel) {
         { reading: SignalReading ->
@@ -68,6 +77,20 @@ fun MainScreen(viewModel: MainViewModel) {
     LaunchedEffect(Unit) {
         viewModel.events.collect { message ->
             snackbar.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.undoDeleteEvents.collect { reading ->
+            val result = snackbar.showSnackbar(
+                message = ctx.getString(R.string.reading_deleted),
+                actionLabel = ctx.getString(R.string.undo),
+                withDismissAction = true,
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.restoreReading(reading)
+            }
         }
     }
 
@@ -108,9 +131,11 @@ fun MainScreen(viewModel: MainViewModel) {
         topBar = {
             // The Map tab is immersive: the map runs edge-to-edge and its
             // controls (capture, pause, filters, zoom) float on the map
-            // itself, so no app bar is drawn there. List/Settings keep the
-            // title bar, with the pause action available while sampling.
-            if (tab != Tab.Map) {
+            // itself, so no app bar is drawn there. A Settings drill-out owns
+            // the whole screen via its own Scaffold, so no app bar there
+            // either. Otherwise the title bar shows, with the pause action
+            // available while sampling.
+            if (tab != Tab.Map && !settingsSubPageActive) {
                 TopAppBar(
                     title = { Text(stringResource(R.string.app_name)) },
                     actions = {
@@ -128,26 +153,35 @@ fun MainScreen(viewModel: MainViewModel) {
             }
         },
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    selected = tab == Tab.Map,
-                    onClick = { tab = Tab.Map },
-                    icon = { Icon(Icons.Default.Map, contentDescription = null) },
-                    label = { Text(stringResource(R.string.tab_map)) }
-                )
-                NavigationBarItem(
-                    selected = tab == Tab.List,
-                    onClick = { tab = Tab.List },
-                    icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                    label = { Text(stringResource(R.string.tab_list)) }
-                )
-                NavigationBarItem(
-                    selected = tab == Tab.Settings,
-                    onClick = { tab = Tab.Settings },
-                    icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                    label = { Text(stringResource(R.string.tab_settings)) }
-                )
+            if (!settingsSubPageActive) {
+                NavigationBar {
+                    NavigationBarItem(
+                        selected = tab == Tab.Map,
+                        onClick = { tab = Tab.Map },
+                        icon = { Icon(Icons.Default.Map, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_map)) }
+                    )
+                    NavigationBarItem(
+                        selected = tab == Tab.List,
+                        onClick = { tab = Tab.List },
+                        icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_list)) }
+                    )
+                    NavigationBarItem(
+                        selected = tab == Tab.Settings,
+                        onClick = { tab = Tab.Settings },
+                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                        label = { Text(stringResource(R.string.tab_settings)) }
+                    )
+                }
             }
+        },
+        // While a Settings sub-page owns the screen, hand all system-bar insets
+        // to its own Scaffold so nothing double-pads around its top app bar.
+        contentWindowInsets = if (settingsSubPageActive) {
+            WindowInsets(0, 0, 0, 0)
+        } else {
+            ScaffoldDefaults.contentWindowInsets
         },
     ) { padding ->
         Box(
@@ -171,10 +205,14 @@ fun MainScreen(viewModel: MainViewModel) {
                 Tab.List -> ListPanel(
                     readings = readings,
                     onClick = { sheetReading = it },
-                    onDelete = viewModel::delete,
+                    onDelete = viewModel::deleteReading,
                     onFocusMap = jumpToReading,
                 )
-                Tab.Settings -> SettingsScreen(viewModel = viewModel)
+                Tab.Settings -> SettingsScreen(
+                    viewModel = viewModel,
+                    subPage = settingsSubPage,
+                    onSubPageChange = { settingsSubPage = it },
+                )
             }
         }
     }
@@ -184,7 +222,7 @@ fun MainScreen(viewModel: MainViewModel) {
             reading = reading,
             onDismiss = { sheetReading = null },
             onDelete = {
-                viewModel.delete(reading.id)
+                viewModel.deleteReading(reading)
                 sheetReading = null
             },
             onShowOnMap = { jumpToReading(reading) },

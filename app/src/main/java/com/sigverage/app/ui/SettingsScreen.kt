@@ -7,6 +7,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -73,6 +74,13 @@ import androidx.lifecycle.LifecycleEventObserver
 import kotlinx.coroutines.launch
 
 /**
+ * Full-screen drill-out destinations reachable from the Settings root. Hoisted
+ * to [MainScreen] so it can hide the app bar and bottom navigation while a
+ * sub-page is on screen, letting the sub-page own the whole screen.
+ */
+enum class SettingsSubPage { None, Permissions, Schedules }
+
+/**
  * Modern card-based Settings screen, reachable via the bottom NavigationBar tab.
  *
  * Each section is wrapped in a rounded [Card] with subtle elevation,
@@ -82,6 +90,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     viewModel: MainViewModel,
+    subPage: SettingsSubPage,
+    onSubPageChange: (SettingsSubPage) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val ui by viewModel.ui.collectAsState()
@@ -92,8 +102,6 @@ fun SettingsScreen(
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showSamplingModeDialog by remember { mutableStateOf(false) }
-    var showPermissionsPage by remember { mutableStateOf(false) }
-    var showSchedulesPage by remember { mutableStateOf(false) }
     var showScheduleDialog by remember { mutableStateOf(false) }
     var editingSchedule by remember { mutableStateOf<RecordingSchedule?>(null) }
     val context = LocalContext.current
@@ -116,12 +124,14 @@ fun SettingsScreen(
     // Top-level page selection: if/else-if/else so the dialog checks at the
     // bottom of this composable ALWAYS get evaluated, even when a sub-page is
     // on screen.
-    if (showPermissionsPage) {
-        PermissionsAccessPage(onBack = { showPermissionsPage = false })
-    } else if (showSchedulesPage) {
+    if (subPage == SettingsSubPage.Permissions) {
+        BackHandler { onSubPageChange(SettingsSubPage.None) }
+        PermissionsAccessPage(onBack = { onSubPageChange(SettingsSubPage.None) })
+    } else if (subPage == SettingsSubPage.Schedules) {
+        BackHandler { onSubPageChange(SettingsSubPage.None) }
         SchedulesPage(
             schedules = schedules,
-            onBack = { showSchedulesPage = false },
+            onBack = { onSubPageChange(SettingsSubPage.None) },
             onAdd = { editingSchedule = null; showScheduleDialog = true },
             onEdit = { sched -> editingSchedule = sched; showScheduleDialog = true },
             onDelete = { viewModel.deleteSchedule(it) },
@@ -160,7 +170,7 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_schedules_subtitle),
                     value = if (schedules.isEmpty()) null
                     else pluralStringResource(R.plurals.schedule_count, schedules.size, schedules.size),
-                    onClick = { showSchedulesPage = true },
+                    onClick = { onSubPageChange(SettingsSubPage.Schedules) },
                 )
             }
 
@@ -228,7 +238,7 @@ fun SettingsScreen(
                 SettingsRow(
                     title = stringResource(R.string.settings_permissions_title),
                     subtitle = stringResource(R.string.settings_permissions_subtitle),
-                    onClick = { showPermissionsPage = true },
+                    onClick = { onSubPageChange(SettingsSubPage.Permissions) },
                 )
             }
 

@@ -26,6 +26,8 @@
     <!-- List -->
     <string name="empty_list_hint">No readings yet. Switch to Map and tap Capture.</string>
     <string name="delete_reading">Delete</string>
+    <string name="reading_deleted">Reading deleted</string>
+    <string name="undo">Undo</string>
     <string name="show_on_map_cd">Show this reading on the map</string>
     <string name="show_on_map_action">Show on map</string>
 
@@ -220,6 +222,18 @@
     <string name="schedule_day_sun">Sun</string>
     <string name="schedule_save">Save</string>
     <string name="schedule_cancel">Cancel</string>
+    <string name="schedule_days_title">Days of Week</string>
+    <string name="schedule_active_time_label">Active Time Range</string>
+    <string name="schedule_starts_at">Starts At</string>
+    <string name="schedule_ends_at">Ends At</string>
+    <string name="schedule_select_start_time">Select Start Time</string>
+    <string name="schedule_select_end_time">Select End Time</string>
+    <string name="schedule_error_time_identical">Start and end times cannot be identical.</string>
+    <string name="schedule_every_day">Every Day</string>
+    <string name="schedule_weekdays">Weekdays</string>
+    <string name="schedule_weekends">Weekends</string>
+    <string name="schedule_overnight_note">Overnight · ends next day</string>
+    <string name="action_ok">OK</string>
     <string name="schedule_delete_confirm_title">Delete Schedule?</string>
     <string name="schedule_delete_confirm_msg">This schedule will be removed.</string>
     <string name="schedule_saved">Schedule saved</string>

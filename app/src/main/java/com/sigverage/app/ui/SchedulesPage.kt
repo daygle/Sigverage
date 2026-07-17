@@ -50,8 +50,6 @@ import androidx.compose.ui.unit.dp
 import com.sigverage.app.R
 import com.sigverage.app.model.RecordingSchedule
 
-private val DAY_NAMES = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-
 /**
  * Dedicated schedules sub-page with a back button in the top app bar.
  * Reached by tapping the "Schedules" drill-out row in [SettingsScreen].
@@ -225,6 +223,15 @@ private fun ScheduleCard(
                         fontWeight = FontWeight.Medium
                     )
                 }
+
+                if (isOvernight(schedule.startHour, schedule.startMinute, schedule.endHour, schedule.endMinute)) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(R.string.schedule_overnight_note),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
             
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -250,13 +257,26 @@ private fun Modifier.scale(scale: Float): Modifier = this.then(
     Modifier.graphicsLayer(scaleX = scale, scaleY = scale)
 )
 
+@Composable
 private fun formatDays(days: Set<Int>): String {
-    if (days.size == 7) return "Every Day"
-    if (days == setOf(1, 2, 3, 4, 5)) return "Weekdays"
-    if (days == setOf(6, 7)) return "Weekends"
-    return days.sorted().map { DAY_NAMES[it - 1] }.joinToString(", ")
+    if (days.size == 7) return stringResource(R.string.schedule_every_day)
+    if (days == setOf(1, 2, 3, 4, 5)) return stringResource(R.string.schedule_weekdays)
+    if (days == setOf(6, 7)) return stringResource(R.string.schedule_weekends)
+    val dayNames = listOf(
+        stringResource(R.string.schedule_day_mon),
+        stringResource(R.string.schedule_day_tue),
+        stringResource(R.string.schedule_day_wed),
+        stringResource(R.string.schedule_day_thu),
+        stringResource(R.string.schedule_day_fri),
+        stringResource(R.string.schedule_day_sat),
+        stringResource(R.string.schedule_day_sun),
+    )
+    return days.sorted().joinToString(", ") { dayNames[it - 1] }
 }
 
 private fun formatTimeRange(startH: Int, startM: Int, endH: Int, endM: Int): String {
     return "%02d:%02d - %02d:%02d".format(startH, startM, endH, endM)
 }
+
+private fun isOvernight(startH: Int, startM: Int, endH: Int, endM: Int): Boolean =
+    (endH * 60 + endM) < (startH * 60 + startM)
