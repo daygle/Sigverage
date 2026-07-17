@@ -16,6 +16,7 @@ import com.sigverage.app.SigverageApp
 import com.sigverage.app.cellular.CellularScanner
 import com.sigverage.app.data.SignalRepository
 import com.sigverage.app.location.LocationTracker
+import com.sigverage.app.coverage.CoverageGridOverlay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -60,6 +61,16 @@ class SamplingService : Service() {
 
         job = scope.launch {
             location.stream(intervalMs).collectLatest { fix ->
+                // Smart sampling: skip if a reading already exists in
+                // the current coverage tile (~50 m cell at zoom 20).
+                // This avoids redundant recordings when the user is
+                // stationary, saving battery and database space.
+                val alreadyCovered = repo.hasReadingInTile(
+                    fix.latitude, fix.longitude,
+                    CoverageGridOverlay.DEFAULT_STORAGE_ZOOM
+                )
+                if (alreadyCovered) return@collectLatest
+
                 val reading = cellular.snapshot(
                     provider = fix.provider,
                     latitude = fix.latitude,
