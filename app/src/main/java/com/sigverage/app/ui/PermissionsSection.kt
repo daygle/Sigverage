@@ -1,4 +1,4 @@
-package com.sigverage.app.ui
+package com.sigorage.app.ui
 
 import android.app.Activity
 import android.content.Context
@@ -17,9 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Error
@@ -54,9 +52,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.sigverage.app.R
-import com.sigverage.app.permissions.PERMISSIONS_INVENTORY
-import com.sigverage.app.permissions.PermissionItem
+import com.sigorage.app.R
+import com.sigorage.app.permissions.PERMISSIONS_INVENTORY
+import com.sigorage.app.permissions.PermissionItem
 
 /**
  * Snapshot of permission grant state at a moment in time, recomputed by
@@ -87,8 +85,11 @@ private fun takeSnapshot(context: Context, activity: Activity?): PermissionsSnap
 }
 
 /**
- * Modern card-based permissions page. Shows a status banner, then each
- * permission as a card with icon, description, grant status, and action button.
+ * Modern card-based permissions section. Renders the permission list without
+ * its own scroll container - the caller (currently the consolidated
+ * Permissions & Access page) is expected to wrap this composable in a single
+ * scrollable Column so it shares one scroll with sibling sections. Nesting
+ * `verticalScroll` here would be a Compose runtime error.
  */
 @Composable
 fun PermissionsSection(modifier: Modifier = Modifier) {
@@ -116,11 +117,9 @@ fun PermissionsSection(modifier: Modifier = Modifier) {
         snapshot = takeSnapshot(context, activity)
     }
 
-    val scroll = rememberScrollState()
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(scroll)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
