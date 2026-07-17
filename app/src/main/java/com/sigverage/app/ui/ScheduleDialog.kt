@@ -103,7 +103,7 @@ fun ScheduleDialog(
                         name = it
                         nameError = false
                     },
-                    label = { Text("Schedule Name") },
+                    label = { Text(stringResource(R.string.schedule_name_label)) },
                     placeholder = { Text(stringResource(R.string.schedule_name_hint)) },
                     isError = nameError,
                     supportingText = if (nameError) {
@@ -122,7 +122,7 @@ fun ScheduleDialog(
                 // Day-of-week circular picker
                 Column {
                     Text(
-                        text = "Days of Week",
+                        text = stringResource(R.string.schedule_days_title),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -166,34 +166,44 @@ fun ScheduleDialog(
                 // Time selection rows
                 Column {
                     Text(
-                        text = "Active Time Range",
+                        text = stringResource(R.string.schedule_active_time_label),
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.height(8.dp))
-                    
+
                     TimeRow(
-                        label = "Starts At",
+                        label = stringResource(R.string.schedule_starts_at),
                         hour = startHour,
                         minute = startMinute,
                         onClick = { pickingStartTime = true }
                     )
-                    
+
                     Spacer(Modifier.height(8.dp))
-                    
+
                     TimeRow(
-                        label = "Ends At",
+                        label = stringResource(R.string.schedule_ends_at),
                         hour = endHour,
                         minute = endMinute,
                         onClick = { pickingEndTime = true }
                     )
-                    
-                    if (startHour == endHour && startMinute == endMinute) {
+
+                    val identical = startHour == endHour && startMinute == endMinute
+                    val overnight = !identical &&
+                        (endHour * 60 + endMinute) < (startHour * 60 + startMinute)
+                    if (identical) {
                         Text(
-                            text = "Start and end times cannot be identical",
+                            text = stringResource(R.string.schedule_error_time_identical),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    } else if (overnight) {
+                        Text(
+                            text = stringResource(R.string.schedule_overnight_note),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 8.dp),
                         )
                     }
@@ -222,12 +232,12 @@ fun ScheduleDialog(
                     }
                 }
             ) {
-                Text("Save", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.schedule_save), fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.schedule_cancel))
             }
         },
     )
@@ -236,17 +246,19 @@ fun ScheduleDialog(
     if (pickingStartTime) {
         val state = rememberTimePickerState(startHour, startMinute, is24Hour = true)
         TimePickerDialog(
-            title = "Select Start Time",
+            title = stringResource(R.string.schedule_select_start_time),
             onDismissRequest = { pickingStartTime = false },
             confirmButton = {
                 TextButton(onClick = {
                     startHour = state.hour
                     startMinute = state.minute
                     pickingStartTime = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { pickingStartTime = false }) { Text("Cancel") }
+                TextButton(onClick = { pickingStartTime = false }) {
+                    Text(stringResource(R.string.schedule_cancel))
+                }
             }
         ) {
             TimePicker(state = state)
@@ -256,17 +268,19 @@ fun ScheduleDialog(
     if (pickingEndTime) {
         val state = rememberTimePickerState(endHour, endMinute, is24Hour = true)
         TimePickerDialog(
-            title = "Select End Time",
+            title = stringResource(R.string.schedule_select_end_time),
             onDismissRequest = { pickingEndTime = false },
             confirmButton = {
                 TextButton(onClick = {
                     endHour = state.hour
                     endMinute = state.minute
                     pickingEndTime = false
-                }) { Text("OK") }
+                }) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
-                TextButton(onClick = { pickingEndTime = false }) { Text("Cancel") }
+                TextButton(onClick = { pickingEndTime = false }) {
+                    Text(stringResource(R.string.schedule_cancel))
+                }
             }
         ) {
             TimePicker(state = state)
