@@ -34,7 +34,6 @@ data class HomeUiState(
     val isSampling: Boolean = false,
     val lastFix: FixSample? = null,
     val latestReading: SignalReading? = null,
-    val samplingIntervalMs: Long = 5_000L,
     /** Networks currently displayed by the coverage grid. Defaults to all. */
     val coverageFilter: Set<NetworkType> = NetworkType.values().toSet(),
     /** Retention in days; `0` means "forever" (the default - opt-in expiry). */
@@ -190,10 +189,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setSampling(active: Boolean) {
         _ui.value = _ui.value.copy(isSampling = active)
-    }
-
-    fun setInterval(ms: Long) {
-        _ui.value = _ui.value.copy(samplingIntervalMs = ms)
     }
 
     /**

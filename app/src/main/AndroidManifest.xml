@@ -28,6 +28,9 @@
     <!-- Keep CPU alive for short sampling windows -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- Activity Recognition: detect still/moving transitions for battery-efficient sampling -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+
     <uses-feature
         android:name="android.hardware.location"
         android:required="false" />
@@ -68,6 +71,10 @@
             android:name=".service.SamplingService"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <receiver
+            android:name=".service.TransitionReceiver"
+            android:exported="false" />
 
     </application>
 </manifest>

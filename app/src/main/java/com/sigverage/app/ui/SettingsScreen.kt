@@ -71,7 +71,6 @@ fun SettingsScreen(
     val ui by viewModel.ui.collectAsState()
     val readings by viewModel.readings.collectAsState()
 
-    var showIntervalDialog by remember { mutableStateOf(false) }
     var showRetentionDialog by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
@@ -107,12 +106,6 @@ fun SettingsScreen(
             .padding(vertical = 12.dp)
     ) {
         Section(stringResource(R.string.settings_section_recording)) {
-            SettingsRow(
-                title = stringResource(R.string.settings_sample_interval_title),
-                subtitle = stringResource(R.string.settings_sample_interval_subtitle),
-                value = intervalLabelFor(ui.samplingIntervalMs),
-                onClick = { showIntervalDialog = true },
-            )
             SwitchRow(
                 title = stringResource(R.string.settings_auto_record_title),
                 subtitle = stringResource(R.string.settings_auto_record_subtitle),
@@ -225,16 +218,6 @@ fun SettingsScreen(
         Spacer(Modifier.height(24.dp))
     }
 
-    if (showIntervalDialog) {
-        IntervalDialog(
-            current = ui.samplingIntervalMs,
-            onDismiss = { showIntervalDialog = false },
-            onPicked = { ms ->
-                viewModel.setInterval(ms)
-                showIntervalDialog = false
-            },
-        )
-    }
     if (showRetentionDialog) {
         RetentionDialog(
             currentDays = ui.retentionDays,
@@ -394,15 +377,6 @@ private fun SettingsRow(
     HorizontalDivider()
 }
 
-
-@Composable
-private fun intervalLabelFor(ms: Long): String = when (ms) {
-    3_000L -> stringResource(R.string.interval_option_fast)
-    5_000L -> stringResource(R.string.interval_option_normal)
-    15_000L -> stringResource(R.string.interval_option_slow)
-    60_000L -> stringResource(R.string.interval_option_glacial)
-    else -> stringResource(R.string.time_seconds, (ms / 1_000L).toInt())
-}
 
 @Composable
 private fun themeLabelFor(mode: ThemeMode): String = when (mode) {

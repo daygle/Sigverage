@@ -46,13 +46,6 @@
     <string name="perms_open_settings">Open settings</string>
     <string name="perms_cancel">Not now</string>
 
-    <!-- Sampling interval -->
-    <string name="interval_title">Sampling Interval</string>
-    <string name="interval_option_fast">3 s</string>
-    <string name="interval_option_normal">5 s</string>
-    <string name="interval_option_slow">15 s</string>
-    <string name="interval_option_glacial">60 s</string>
-
     <!-- List -->
     <string name="empty_list_hint">No readings yet. Switch to Map and tap Capture.</string>
     <string name="delete_reading">Delete</string>
@@ -125,7 +118,7 @@
     <string name="settings_section_appearance">Appearance</string>
     <string name="settings_section_data">Data</string>
     <string name="settings_sample_interval_title">Sample Interval</string>
-    <string name="settings_sample_interval_subtitle">How often to record when sampling is on.</string>
+    <string name="settings_sample_interval_subtitle">Readings are captured automatically when movement is detected. No manual interval needed.</string>
     <string name="settings_retention_title">Auto-Expire Readings</string>
     <string name="settings_retention_subtitle">Older readings are removed automatically.</string>
     <string name="settings_delete_all_title">Delete All Readings</string>
@@ -147,7 +140,7 @@
 
     <!-- Auto-record on launch toggle (Settings → Recording) -->
     <string name="settings_auto_record_title">Auto-record on launch</string>
-    <string name="settings_auto_record_subtitle">Begin sampling automatically when the app opens. The persistent notification stays on until you press Pause.</string>
+    <string name="settings_auto_record_subtitle">Begin sampling automatically when the app opens. Readings are captured only when you are moving - the service pauses when you are still.</string>
     <string name="auto_record_started">Auto-record on. Sampling started.</string>
     <string name="auto_record_no_permissions">Auto-record is on, but location permissions are missing. Grant them from Settings → Permissions to start sampling.</string>
 

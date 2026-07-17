@@ -10,13 +10,18 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import com.google.android.gms.location.ActivityRecognition
+import com.google.android.gms.location.ActivityRecognitionClient
+import com.google.android.gms.location.ActivityTransition
+import com.google.android.gms.location.ActivityTransitionRequest
+import com.google.android.gms.location.DetectedActivity
 import com.sigverage.app.MainActivity
 import com.sigverage.app.R
 import com.sigverage.app.SigverageApp
 import com.sigverage.app.cellular.CellularScanner
+import com.sigverage.app.coverage.CoverageGridOverlay
 import com.sigverage.app.data.SignalRepository
 import com.sigverage.app.location.LocationTracker
-import com.sigverage.app.coverage.CoverageGridOverlay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,15 +31,21 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 /**
- * Foreground service that periodically samples (location + cellular) and
- * writes each reading to Room.
+ * Foreground service that samples (location + cellular) only when the
+ * device detects movement via the Activity Recognition Transition API.
  *
- * On Android 14 (API 34) a typed foreground service must be promoted within
- * ~5 seconds of `startForegroundService(...)`, otherwise Android will kill the
- * process with a ForegroundServiceDidNotStartInTimeException. We promote on
- * the very first line of `onStartCommand` via `ServiceCompat.startForeground`
- * with `FOREGROUND_SERVICE_TYPE_LOCATION`, which handles back-compat
- * automatically (the type becomes a no-op below API 29).
+ * The service registers for STILL <-> MOVING transitions. When a
+ * [TransitionReceiver] detects movement, it sends an intent with
+ * [EXTRA_IS_MOVING] = true, and the service begins streaming location
+ * updates. When the device becomes still, the receiver sends false and
+ * the location stream is paused, saving battery.
+ *
+ * The smart-sampling tile check (skip if current cell already has a
+ * reading) is retained as a second layer of deduplication.
+ *
+ * On Android 14 (API 34) a typed foreground service must be promoted
+ * within ~5 seconds of `startForegroundService(...)`. We promote on
+ * the very first line of `onStartCommand`.
  */
 class SamplingService : Service() {
 
@@ -42,7 +53,17 @@ class SamplingService : Service() {
     private lateinit var location: LocationTracker
     private lateinit var cellular: CellularScanner
     private lateinit var repo: SignalRepository
-    private var job: Job? = null
+    private var locationJob: Job? = null
+
+    private val transitionPendingIntent: PendingIntent by lazy {
+        val intent = TransitionReceiver.buildIntent(this)
+        PendingIntent.getBroadcast(
+            this,
+            TRANSITION_REQUEST_CODE,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -54,17 +75,38 @@ class SamplingService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         // CRITICAL: call startForeground within 5 seconds of startForegroundService.
         promoteToForeground()
-        if (job?.isActive == true) return START_STICKY
 
-        val intervalMs = intent?.getLongExtra(EXTRA_INTERVAL_MS, DEFAULT_INTERVAL_MS)
-            ?: DEFAULT_INTERVAL_MS
+        // Register for activity transitions (STILL <-> MOVING).
+        registerTransitions()
 
-        job = scope.launch {
-            location.stream(intervalMs).collectLatest { fix ->
+        // Handle transition intent from TransitionReceiver.
+        val isMoving = intent?.getBooleanExtra(EXTRA_IS_MOVING, false) ?: false
+        if (isMoving) {
+            startSampling()
+        } else {
+            stopSampling()
+        }
+
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        unregisterTransitions()
+        stopSampling()
+        scope.cancel()
+        super.onDestroy()
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun startSampling() {
+        if (locationJob?.isActive == true) return
+
+        locationJob = scope.launch {
+            // Stream location updates at ~5 s intervals while moving.
+            location.stream(SAMPLE_INTERVAL_MS).collectLatest { fix ->
                 // Smart sampling: skip if a reading already exists in
                 // the current coverage tile (~50 m cell at zoom 20).
-                // This avoids redundant recordings when the user is
-                // stationary, saving battery and database space.
                 val alreadyCovered = repo.hasReadingInTile(
                     fix.latitude, fix.longitude,
                     CoverageGridOverlay.DEFAULT_STORAGE_ZOOM
@@ -80,22 +122,54 @@ class SamplingService : Service() {
                 repo.add(reading)
             }
         }
-        return START_STICKY
     }
 
-    override fun onDestroy() {
-        job?.cancel()
-        scope.cancel()
-        super.onDestroy()
+    private fun stopSampling() {
+        locationJob?.cancel()
+        locationJob = null
     }
 
-    override fun onBind(intent: Intent?): IBinder? = null
+    private fun registerTransitions() {
+        val activities = listOf(
+            DetectedActivity.STILL,
+            DetectedActivity.WALKING,
+            DetectedActivity.RUNNING,
+            DetectedActivity.ON_BICYCLE,
+            DetectedActivity.IN_VEHICLE,
+        )
+        val transitions = mutableListOf<ActivityTransition>()
+        for (activity in activities) {
+            transitions += ActivityTransition.Builder()
+                .setActivityType(activity)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+                .build()
+            transitions += ActivityTransition.Builder()
+                .setActivityType(activity)
+                .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT)
+                .build()
+        }
+        val request = ActivityTransitionRequest(transitions)
+        try {
+            ActivityRecognitionClient(this).requestActivityTransitionUpdates(
+                request, transitionPendingIntent
+            )
+        } catch (_: SecurityException) {
+            // ACTIVITY_RECOGNITION not granted - degrade gracefully.
+        }
+    }
+
+    private fun unregisterTransitions() {
+        try {
+            ActivityRecognitionClient(this).removeActivityTransitionUpdates(
+                transitionPendingIntent
+            )
+        } catch (_: Exception) {
+            // Best-effort cleanup.
+        }
+    }
 
     private fun promoteToForeground() {
         val notification = buildNotification()
-        // ServiceCompat.startForeground handles API differences:
-        //   - API 30+ passes the type to Service.startForeground(id, notif, type)
-        //   - API < 29 ignores the type bit and behaves like the old overload.
         ServiceCompat.startForeground(
             this,
             NOTIFICATION_ID,
@@ -130,12 +204,30 @@ class SamplingService : Service() {
 
     companion object {
         const val NOTIFICATION_ID = 7
-        const val EXTRA_INTERVAL_MS = "extra_interval_ms"
-        const val DEFAULT_INTERVAL_MS = 5_000L
+        const val EXTRA_IS_MOVING = "extra_is_moving"
+        const val TRANSITION_REQUEST_CODE = 42
 
-        fun start(context: Context, intervalMs: Long = DEFAULT_INTERVAL_MS) {
+        /** Interval for location updates while the device is in motion. */
+        private const val SAMPLE_INTERVAL_MS = 5_000L
+
+        /**
+         * Called by [TransitionReceiver] when the device transitions
+         * between STILL and MOVING states. Forwards the state to the
+         * running service via an intent extra.
+         */
+        fun onTransition(context: Context, isMoving: Boolean) {
             val i = Intent(context, SamplingService::class.java)
-                .putExtra(EXTRA_INTERVAL_MS, intervalMs)
+                .putExtra(EXTRA_IS_MOVING, isMoving)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(i)
+            } else {
+                context.startService(i)
+            }
+        }
+
+        fun start(context: Context) {
+            val i = Intent(context, SamplingService::class.java)
+                .putExtra(EXTRA_IS_MOVING, false)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(i)
             } else {

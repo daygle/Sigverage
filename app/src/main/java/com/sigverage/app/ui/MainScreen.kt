@@ -41,7 +41,7 @@ fun MainScreen(viewModel: MainViewModel) {
 
     var tab by rememberSaveable { mutableStateOf(Tab.Map) }
     var sheetReading by remember { mutableStateOf<SignalReading?>(null) }
-    // Dialogs that USED to live here (sample-interval, granularity, retention,
+    // Dialogs that USED to live here (granularity, retention,
     // delete-all confirm) have been moved into SettingsScreen because the
     // user prefers them reachable from the Settings tab.
 
@@ -97,7 +97,7 @@ fun MainScreen(viewModel: MainViewModel) {
         }
         if (ui.isSampling) return@LaunchedEffect // already running; nothing to do
         viewModel.setSampling(true)
-        SamplingService.start(ctx, ui.samplingIntervalMs)
+        SamplingService.start(ctx)
         snackbar.showSnackbar(ctx.getString(R.string.auto_record_started))
     }
 
@@ -123,7 +123,7 @@ fun MainScreen(viewModel: MainViewModel) {
             if (missingPermissions(ctx).isNotEmpty()) return@LifecycleEventObserver
             if (current.isSampling) return@LifecycleEventObserver
             viewModel.setSampling(true)
-            SamplingService.start(ctx, current.samplingIntervalMs)
+            SamplingService.start(ctx)
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -260,41 +260,6 @@ private fun StatusBanner(
             Text(text = text, style = MaterialTheme.typography.bodyMedium)
         }
     }
-}
-
-@Composable
-fun IntervalDialog(
-    current: Long,
-    onDismiss: () -> Unit,
-    onPicked: (Long) -> Unit
-) {
-    val options = listOf(
-        3_000L to R.string.interval_option_fast,
-        5_000L to R.string.interval_option_normal,
-        15_000L to R.string.interval_option_slow,
-        60_000L to R.string.interval_option_glacial
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.interval_title)) },
-        text = {
-            Column {
-                options.forEach { (ms, label) ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(selected = ms == current, onClick = { onPicked(ms) })
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(label))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.confirm_no)) }
-        }
-    )
 }
 
 /** Returns permissions that are required to background-sample, but currently missing. */
