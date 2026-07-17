@@ -11,7 +11,6 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import com.google.android.gms.location.ActivityRecognition
-import com.google.android.gms.location.ActivityRecognitionClient
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
 import com.google.android.gms.location.DetectedActivity
@@ -150,7 +149,7 @@ class SamplingService : Service() {
         }
         val request = ActivityTransitionRequest(transitions)
         try {
-            ActivityRecognitionClient(this).requestActivityTransitionUpdates(
+            ActivityRecognition.getClient(this).requestActivityTransitionUpdates(
                 request, transitionPendingIntent
             )
         } catch (_: SecurityException) {
@@ -160,7 +159,7 @@ class SamplingService : Service() {
 
     private fun unregisterTransitions() {
         try {
-            ActivityRecognitionClient(this).removeActivityTransitionUpdates(
+            ActivityRecognition.getClient(this).removeActivityTransitionUpdates(
                 transitionPendingIntent
             )
         } catch (_: Exception) {

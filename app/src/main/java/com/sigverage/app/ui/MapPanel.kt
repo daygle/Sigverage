@@ -4,8 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import android.graphics.BitmapFactory
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
+import com.sigverage.app.R
 import com.sigverage.app.coverage.CoverageFilterSheet
 import com.sigverage.app.coverage.CoverageGridOverlay
 import com.sigverage.app.coverage.aggregate
@@ -70,7 +72,17 @@ fun MapPanel(
     val locationOverlay = remember {
         MyLocationNewOverlay(GpsMyLocationProvider(context), mapView).apply {
             val indicator = ContextCompat.getDrawable(context, R.drawable.ic_my_location_indicator)
-            if (indicator != null) setPersonIcon(indicator)
+            if (indicator != null) {
+                val bitmap = android.graphics.Bitmap.createBitmap(
+                    indicator.intrinsicWidth.coerceAtLeast(1),
+                    indicator.intrinsicHeight.coerceAtLeast(1),
+                    android.graphics.Bitmap.Config.ARGB_8888
+                )
+                val canvas = android.graphics.Canvas(bitmap)
+                indicator.setBounds(0, 0, canvas.width, canvas.height)
+                indicator.draw(canvas)
+                setPersonIcon(bitmap)
+            }
             enableMyLocation()
         }
     }
