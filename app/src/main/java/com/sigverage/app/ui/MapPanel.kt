@@ -1,24 +1,11 @@
 package com.sigverage.app.ui
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import com.sigverage.app.R
-import com.sigverage.app.coverage.CoverageFilterChips
+import com.sigverage.app.coverage.CoverageFilterSheet
 import com.sigverage.app.coverage.CoverageGridOverlay
 import com.sigverage.app.coverage.aggregate
 import com.sigverage.app.location.FixSample
@@ -34,21 +21,28 @@ import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
 /**
- * Map view with the coverage grid overlay and filter chips.
+ * Map view with the coverage grid overlay.
  *
  * Storage zoom and visible map zoom are **fully decoupled**:
  *
- *  - `coverageZoom` (driven by the AppBar slider) chooses how finely
- *    readings are binned into Mercator tiles. The default is
- *    [CoverageGridOverlay.DEFAULT_STORAGE_ZOOM] = 19, ≈75 m per side.
+ *  - The coverage grid is binned at the fixed
+ *    [CoverageGridOverlay.DEFAULT_STORAGE_ZOOM] = 20 (~38 m tiles at the
+ *    equator, ~50 m at mid-latitudes).
  *  - The visible map's `controller.zoomLevel` is whatever the user
  *    pinches/pans to, independent of the storage zoom. When the user
- *    pans, the same tile stats re-render at new screen positions; we
- *    do NOT need a MapListener to mirror zoom changes.
+ *    pans, the same tile stats re-render at new screen positions; we do
+ *    NOT need a MapListener to mirror zoom changes.
  *
- *  Re-aggregation only fires when the *data* shape changes
- *  (`readings`-change or `coverageZoom`-change). Toggling a network chip
- *  just changes the in-memory `allowed` set; map zoom/pan stays cheap.
+ * Re-aggregation only fires when the *data* shape changes
+ * (`readings`-change). Filter toggles don't need re-aggregation; they
+ * just change the in-memory `allowed` set; map zoom/pan stays cheap.
+ *
+ * The network filter UI (the eight Material 3 `FilterChip`s) lives in
+ * [CoverageFilterSheet], a Material 3 `BottomSheetScaffold` we host at
+ * the bottom of the screen. Collapsed = thin handle + 1-line summary
+ * ("Filters: 5G, LTE (3 of 8 active)"); expanded = handle + summary +
+ * chip strip wrapping onto multiple rows. Live preview works because
+ * the sheet is non-modal and the map stays visible above it.
  */
 @Composable
 fun MapPanel(
@@ -66,7 +60,7 @@ fun MapPanel(
             setMultiTouchControls(true)
             isHorizontalMapRepetitionEnabled = false
             isVerticalMapRepetitionEnabled = false
-            // Start at the new default so the user opens to the granularity
+            // Start at the storage zoom so the user opens to the granularity
             // they want by default; they can pinch from there.
             controller.setZoom(CoverageGridOverlay.DEFAULT_STORAGE_ZOOM.toDouble())
             controller.setCenter(GeoPoint(37.7749, -122.4194))
@@ -77,7 +71,7 @@ fun MapPanel(
             enableMyLocation()
         }
     }
-    val coverageOverlay = remember { CoverageGridOverlay(initialStorageZoom = coverageZoom) }
+    val coverageOverlay = remember { CoverageGridOverlay() }
 
     // Marker palette tied to the live ColorScheme. Recomputes whenever the
     // user toggles light/dark or dynamic-colour, and we push it into the
@@ -119,14 +113,14 @@ fun MapPanel(
         }
     }
 
-    // Theme/dynamic toggle → swap palette into the overlay.
+    // Theme/dynamic toggle -> swap palette into the overlay.
     LaunchedEffect(networkColors) {
         coverageOverlay.setPalette(networkColors)
         mapView.invalidate()
     }
 
     // Re-aggregate ONLY when the readings list shape changes. The storage
-    // zoom is now a single fixed constant (CoverageGridOverlay.DEFAULT_STORAGE_ZOOM),
+    // zoom is a single fixed constant (CoverageGridOverlay.DEFAULT_STORAGE_ZOOM),
     // so it isn't a recomposition key. Pan/zoom of the visible map doesn't
     // need re-aggregation either; draw() re-projects the same stats at new
     // screen positions for free.
@@ -143,38 +137,14 @@ fun MapPanel(
         mapView.invalidate()
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
-
-        CoverageFilterChips(
-            selected = coverageFilter,
-            onToggle = onToggleFilter,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 8.dp),
-        )
-
-        if (readings.isEmpty()) {
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
-                tonalElevation = 4.dp,
-            ) {
-                Text(
-                    text = stringResource(R.string.coverage_empty_hint),
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-        }
-    }
-
-    // Suppress unused-parameter warning on the callback when the parent
-    // doesn't wire it through. (Future taps could open the same dialog
-    // from the corner of the map.)
-    @Suppress("UNUSED_EXPRESSION")
-    onCoverageZoomChange
+    // The BottomSheetScaffold (and its embedded FilterChips) lives in
+    // [CoverageFilterSheet] - it consumes the same `mapView` we just
+    // configured, mounts it inside the `content` slot, and shows the
+    // chip strip in the `sheetContent` slot with a 72 dp peek height.
+    CoverageFilterSheet(
+        mapView = mapView,
+        readings = readings,
+        coverageFilter = coverageFilter,
+        onToggleFilter = onToggleFilter,
+    )
 }

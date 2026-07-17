@@ -1,21 +1,19 @@
 package com.sigverage.app.coverage
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -23,28 +21,34 @@ import com.sigverage.app.model.NetworkType
 import com.sigverage.app.ui.theme.NetworkColors
 
 /**
- * Horizontally-scrollable strip of Material 3 `FilterChip`s, one per
- * [NetworkType], that toggles inclusion in the visible coverage grid.
+ * Material 3 [FilterChip] strip for the eight cellular network types.
  *
- * Unselected chips show the network colour at 30% alpha (so they're still
- * recognisable but muted); selected chips show the full colour plus a tinted
- * container background.
+ * Backed by [FlowRow] (Compose 1.6+, `@OptIn(ExperimentalLayoutApi)`)
+ * so chips wrap onto additional rows when the parent doesn't provide
+ * enough horizontal space. No horizontal scroll - the parent is expected
+ * to give the row enough width or live with wrapping. Used inside the
+ * expanded portion of [CoverageFilterSheet] (Material 3
+ * `BottomSheetScaffold`).
+ *
+ * Unselected chips show the network colour at 30 % alpha (so they're
+ * still recognisable but muted); selected chips show the full colour
+ * plus a tinted container background. Each chip carries a 10 dp
+ * colour-dot leading icon so users can match the chip to the tile on
+ * the map at a glance.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CoverageFilterChips(
     selected: Set<NetworkType>,
     onToggle: (NetworkType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scroll = rememberScrollState()
-    Row(
+    FlowRow(
         modifier = modifier
             .fillMaxWidth()
-            .horizontalScroll(scroll)
             .padding(horizontal = 12.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         NetworkType.values().forEach { type ->
             val isSelected = type in selected
@@ -71,4 +75,4 @@ fun CoverageFilterChips(
             )
         }
     }
-}
+}
