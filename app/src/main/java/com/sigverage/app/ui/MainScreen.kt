@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Settings
@@ -100,31 +99,33 @@ fun MainScreen(viewModel: MainViewModel) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    val stopSampling: () -> Unit = {
+        viewModel.setSampling(false)
+        SamplingService.stop(ctx)
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
-                actions = {
-                    IconButton(onClick = { viewModel.captureNow() }) {
-                        Icon(
-                            imageVector = Icons.Default.AddLocation,
-                            contentDescription = stringResource(R.string.capture_at_location)
-                        )
-                    }
-                    if (ui.isSampling) {
-                        IconButton(onClick = {
-                            viewModel.setSampling(false)
-                            SamplingService.stop(ctx)
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.PauseCircle,
-                                contentDescription = stringResource(R.string.stop_sampling),
-                                tint = MaterialTheme.colorScheme.error
-                            )
+            // The Map tab is immersive: the map runs edge-to-edge and its
+            // controls (capture, pause, filters, zoom) float on the map
+            // itself, so no app bar is drawn there. List/Settings keep the
+            // title bar, with the pause action available while sampling.
+            if (tab != Tab.Map) {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.app_name)) },
+                    actions = {
+                        if (ui.isSampling) {
+                            IconButton(onClick = stopSampling) {
+                                Icon(
+                                    imageVector = Icons.Default.PauseCircle,
+                                    contentDescription = stringResource(R.string.stop_sampling),
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
-                }
-            )
+                )
+            }
         },
         bottomBar = {
             NavigationBar {
@@ -160,6 +161,9 @@ fun MainScreen(viewModel: MainViewModel) {
                     lastFix = ui.lastFix,
                     coverageFilter = ui.coverageFilter,
                     onToggleFilter = viewModel::toggleCoverageFilter,
+                    isSampling = ui.isSampling,
+                    onCapture = { viewModel.captureNow() },
+                    onStopSampling = stopSampling,
                     operatorFilter = ui.operatorFilter,
                     onToggleOperatorFilter = viewModel::toggleOperatorFilter,
                     focusEvents = viewModel.focusEvents,

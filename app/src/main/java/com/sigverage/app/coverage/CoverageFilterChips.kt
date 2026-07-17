@@ -27,8 +27,7 @@ import com.sigverage.app.ui.theme.NetworkColors
  * so chips wrap onto additional rows when the parent doesn't provide
  * enough horizontal space. No horizontal scroll - the parent is expected
  * to give the row enough width or live with wrapping. Used inside the
- * expanded portion of [CoverageFilterSheet] (Material 3
- * `BottomSheetScaffold`).
+ * "Filters" modal sheet (`ModalBottomSheet`) hosted by `CoverageMapScreen`.
  *
  * Unselected chips show the network colour at 30 % alpha (so they're
  * still recognisable but muted); selected chips show the full colour
