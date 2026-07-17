@@ -103,22 +103,39 @@ class LocationTracker(private val context: Context) {
         return suspendCancellableCoroutine { cont ->
             val signal = CancellationSignal()
             cont.invokeOnCancellation { signal.cancel() }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                // API 30+: use the non-deprecated platform method
-                manager.getCurrentLocation(
-                    provider,
-                    signal,
-                    ContextCompat.getMainExecutor(context),
-                ) { location -> cont.resume(location?.toFix()) }
-            } else {
-                // API 26-29: use compat fallback
-                @Suppress("DEPRECATION")
-                LocationManagerCompat.getCurrentLocation(
-                    manager,
-                    provider,
-                    null,
-                    ContextCompat.getMainExecutor(context),
-                ) { location -> cont.resume(location?.toFix()) }
+            // Resume once, safely. Guards against the consumer callback firing
+            // *after* the synchronous-throw catch below has already resolved
+            // the continuation (IllegalStateException would otherwise escape
+            // onto the main executor and crash the caller).
+            val resumeOnce: (FixSample?) -> Unit = { fix ->
+                if (cont.isActive) cont.resume(fix)
+            }
+            // Preserve the previous runCatching wrapper: synchronous throws
+            // (SecurityException if permission is revoked between the
+            // hasFineLocation() check and the call, IllegalArgumentException
+            // on a vanished provider) would otherwise escape
+            // suspendCancellableCoroutine and crash the caller. Recover to
+            // null exactly like the old code did.
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    // API 30+: use the non-deprecated platform method
+                    manager.getCurrentLocation(
+                        provider,
+                        signal,
+                        ContextCompat.getMainExecutor(context),
+                    ) { location -> resumeOnce(location?.toFix()) }
+                } else {
+                    // API 26-29: use compat fallback
+                    @Suppress("DEPRECATION")
+                    LocationManagerCompat.getCurrentLocation(
+                        manager,
+                        provider,
+                        null,
+                        ContextCompat.getMainExecutor(context),
+                    ) { location -> resumeOnce(location?.toFix()) }
+                }
+            } catch (t: Throwable) {
+                resumeOnce(null)
             }
         }
     }
