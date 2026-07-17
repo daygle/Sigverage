@@ -97,13 +97,30 @@ class SignalRepository(
             }
         }
 
+        /**
+         * Migration from schema v2 to v3. Adds the composite coordinate index
+         * backing the smart-sampling dedup lookup. The index name must match
+         * the one Room derives from `@Index(value = ["latitude", "longitude"])`
+         * on [SignalReading] (`index_<table>_<cols>`) or Room's schema
+         * validation fails on open.
+         */
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "`index_signal_readings_latitude_longitude` " +
+                        "ON `signal_readings` (`latitude`, `longitude`)"
+                )
+            }
+        }
+
         private fun build(appContext: Context): SignalRepository {
             val db = Room.databaseBuilder(
                 appContext,
                 SignalDatabase::class.java,
                 DB_NAME
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
             return SignalRepository(db.signalReadingDao(), db.scheduleDao())

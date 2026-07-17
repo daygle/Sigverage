@@ -1,6 +1,7 @@
 package com.sigverage.app.model
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverter
 
@@ -27,7 +28,14 @@ enum class NetworkType(val label: String, val shortLabel: String) {
  * CellSignalStrength.dbm, API 23+, so API 26+ is safe). rsrp/rsrq/rssnr are
  * filled when the primary cell is LTE; they are null otherwise.
  */
-@Entity(tableName = "signal_readings")
+@Entity(
+    tableName = "signal_readings",
+    // Composite index on the coordinate columns so the smart-sampling
+    // bounding-box lookup (SignalReadingDao.existsInBounds, run on every
+    // fix while recording) is an index range-scan instead of a full table
+    // scan as the readings table grows.
+    indices = [Index(value = ["latitude", "longitude"])],
+)
 data class SignalReading(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val timestamp: Long,
