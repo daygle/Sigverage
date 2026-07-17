@@ -31,9 +31,11 @@
 
 ## TL;DR
 
-Sigverage runs on your phone, records a `SignalReading` (network type, signal dBm, GPS fix, timestamp, MCC/MNC/cell ID where available) at a configurable interval, and aggregates your readings into a coverage overlay on top of OpenStreetMap. **Everything stays on the device.** There is no account, no backend, no telemetry, no remote sync. You can export to CSV at any time and the retention policy is configurable from *Settings → Data → Auto-expire*.
+Sigverage runs on your phone, records a `SignalReading` (network type, signal dBm, GPS fix, timestamp, MCC/MNC/cell ID, operator name where available) at a configurable interval, and aggregates your readings into a coverage overlay on top of OpenStreetMap. **Everything stays on the device.** There is no account, no backend, no telemetry, no remote sync. You can export to CSV from *Settings → Data* and the retention policy is configurable from *Settings → Data → Auto-expire*.
 
-The map paints a small filled **box per Mercator tile** at a fixed storage zoom of Z=20 (~38 m tiles at the equator; ~50 m at mid-latitudes - labelled as "50 m cells" in the UI). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips at the top of the map hide / reveal each network family.
+The map paints a small filled **box per Mercator tile** at a fixed storage zoom of Z=20 (~38 m tiles at the equator; ~50 m at mid-latitudes - labelled as "50 m cells" in the UI). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips in a bottom sheet hide / reveal each network family.
+
+**Smart sampling** skips redundant recordings: once a reading exists in a ~50 m cell, the background service won't record again until you leave and return to that cell, saving battery and database space.
 
 ---
 
@@ -65,8 +67,10 @@ Markdown placeholders (leave them commented until you push images):
 ### 📡 Recording
 - **Foreground sampling service** (`SamplingService`) with `foregroundServiceType = location` - promoted on the *first line* of `onStartCommand` so Android 14's 5-second rule is always satisfied.
 - **Configurable interval**: 3 s / 5 s / 15 s / 60 s, live in *Settings → Recording*.
-- **Auto-record on launch** (opt-in, *Settings → Recording*): when enabled, `MainScreen` starts the foreground service automatically the moment you open the app - no need to tap the Play icon. If location permissions are missing, the LaunchedEffect surfaces a one-shot snackbar explaining how to fix it instead of crashing the FGS promotion on Android 14.
-- **"Record here" snapshot** for one-off readings without starting the service.
+- **Auto-record on launch** (opt-in, *Settings → Recording*): when enabled, sampling starts automatically the moment you open the app. If location permissions are missing, a one-shot snackbar surfaces explaining how to fix it.
+- **Smart sampling**: background service skips recording if a reading already exists in the current ~50 m coverage cell (zoom 20). Manual capture always records regardless.
+- **Manual capture** via the capture icon in the top app bar for one-off readings without starting the service.
+- **Network operator** (carrier name) is recorded and displayed prominently in both the list view and details sheet.
 - **CellularScanner** picks the strongest registered cell and classifies it:
   - 5G NSA detection via `TelephonyDisplayInfo.overrideNetworkType` (API 30+); we don't trust `dataNetworkType` alone because NSA anchors to an LTE control plane.
   - EDGE vs GSM via `dataNetworkType`. `CellInfoTdscdma` is gated on API 29.
@@ -94,10 +98,13 @@ Markdown placeholders (leave them commented until you push images):
   - 5G → `primary`, NR_NSA → `primaryContainer`, LTE → `tertiary`, HSPA → `tertiaryContainer`, GSM → `secondary`, EDGE → `secondaryContainer`, CDMA → `error`, Unknown → `outline`. So the legend is meaningful no matter which palette is active.
 
 ### 🧭 UI scaffold
-- **Bottom navigation** between Map and List views.
-- **Single AppBar action group**: play / pause (start/stop sampling) + export. Every other control moved under the **Settings** tab to keep the AppBar calm.
+- **Bottom navigation** between Map, List, and Settings views.
+- **Top app bar**: capture icon (manual one-shot reading) + conditional stop icon (only when sampling is active). No other clutter.
+- **Filter bottom sheet** on the map: collapsible sheet with network filter chips, non-modal so the map stays visible.
 - **Compose `SnackbarHost`** in the outer `Scaffold` - survives configuration changes via a one-shot `Channel<String>` from the ViewModel.
-- **List tab** with per-row `NetworkBadge` and tap → detail bottom sheet (RSRP / RSRQ / SNR for LTE, MCC / MNC / cell ID, operator, accuracy, time, lat/lng).
+- **List tab** with per-row `NetworkBadge` and operator name, tap → detail bottom sheet (RSRP / RSRQ / SNR for LTE, MCC / MNC / cell ID, operator, accuracy, time, lat/lng).
+- **Settings tab** with drill-out pages for Permissions and data management.
+- **Onboarding flow** on first launch guiding users through required permissions.
 
 ### 🔐 Privacy posture
 - No analytics SDK.
@@ -129,24 +136,31 @@ Markdown placeholders (leave them commented until you push images):
 
 ```
 MainActivity
-   └── SigverageTheme(dynamicColor, themeMode)        (Material 3 + dynamic palette)
-        └── MainScreen  ── Scaffold
-             ├── TopAppBar     (start/stop + export only)
-             ├── Tab content
-             │    ├── MapPanel   ── osmdroid MapView via AndroidView
-             │    │    ├── CoverageGridOverlay       ── Mercator tile aggregation + HSL+paint
-             │    │    └── CoverageFilterSheet     ── BottomSheetScaffold + chips (collapsed = handle + summary)
-             │    └── ListPanel  ── LazyColumn + per-row NetworkBadge + bottom sheet
-             └── NavigationBar  (Map ↔ List ↔ Settings)
+   └── OnboardingScreen (first launch only) ── permission walkthrough
+        └── SigverageTheme(dynamicColor, themeMode)        (Material 3 + dynamic palette)
+             └── MainScreen  ── Scaffold
+                  ├── TopAppBar     (capture icon + conditional stop icon)
+                  ├── Tab content
+                  │    ├── MapPanel   ── osmdroid MapView via AndroidView
+                  │    │    ├── CoverageGridOverlay       ── Mercator tile aggregation + HSL+paint
+                  │    │    ├── MyLocationNewOverlay     ── modern custom location indicator
+                  │    │    └── CoverageFilterSheet     ── BottomSheetScaffold + chips (collapsed = handle + summary)
+                  │    ├── ListPanel  ── LazyColumn + per-row NetworkBadge + operator + bottom sheet
+                  │    └── SettingsScreen ── Recording / Appearance / Data / Permissions / About
+                  │         ├── IntervalDialog, RetentionDialog, ThemeDialog
+                  │         ├── PermissionsPage (drill-out sub-page with back button)
+                  │         └── Export CSV launcher (Storage Access Framework)
+                  └── NavigationBar  (Map ↔ List ↔ Settings)
 
 MainViewModel  ── StateFlow ──► UI (collectAsState)
    ├── SignalRepository   ── Room DAO      ── signals.db   (single source of truth)
-   ├── PreferencesStore   ── SharedPrefs   ── retentionDays, themeMode, dynamicColorEnabled
+   ├── PreferencesStore   ── SharedPrefs   ── retentionDays, themeMode, dynamicColorEnabled, autoRecord, onboardingCompleted
    └── events: Flow<String> for one-shot snackbars (e.g. "Removed 47 old readings")
 
 SamplingService (foregroundServiceType=location)   ── ServiceCompat.startForeground on first line
    ├── LocationTracker   ── LocationManager callbackFlow
-   └── CellularScanner   ── TelephonyManager.allCellInfo snapshot at every tick
+   ├── CellularScanner   ── TelephonyManager.allCellInfo snapshot at every tick
+   └── Smart sampling    ── skips recording if current ~50 m cell already has a reading
                                  ↓
                         SignalRepository.add(reading)
 ```
@@ -176,7 +190,7 @@ Two deliberate separation-of-concerns choices worth noting:
         ├── res/
         │   ├── values/      (strings, themes, colors)
         │   ├── xml/         (backup + data-extraction rules)
-        │   ├── drawable/    (launcher bg/fg, notification icon)
+        │   ├── drawable/    (launcher bg/fg, notification icon, custom location indicator)
         │   └── mipmap-anydpi-v26/ (adaptive launcher icons)
         └── java/com/sigverage/app/
             ├── SigverageApp.kt           (Application + osmdroid config + notif channel)
@@ -196,7 +210,7 @@ Two deliberate separation-of-concerns choices worth noting:
             │   ├── CoverageGrid.kt           (osmdroid Overlay + slot grid + palette)
             │   ├── CoverageFilterChips.kt    (Material 3 FilterChip strip, FlowRow-wrapped)
             │   └── CoverageFilterSheet.kt    (BottomSheetScaffold + handle + summary)
-            ├── service/SamplingService.kt    (typed foreground service)
+            ├── service/SamplingService.kt    (typed foreground service + smart sampling)
             └── ui/
                 ├── MainViewModel.kt          (StateFlow + Channel<String> events)
                 ├── MainScreen.kt             (Scaffold + tabs + permission flow + Snackbar collector)
@@ -329,18 +343,21 @@ The bottom navigation has three tabs. The first two (Map / List) show your data;
 | Section | Row | What it does |
 | ------- | --- | ------------ |
 | **Recording** | Sample interval | 3 s / 5 s / 15 s / 60 s. |
-| **Recording** | Auto-record on launch | Switch. When on, sampling begins automatically the moment the app opens (after onboarding). Service keeps running with a sticky notification until you tap Pause. Default **off** - opt-in to avoid surprise battery drain. |
-| **Data** | Auto-expire readings | Forever / 30 d / 90 d / 6 mo / 1 y. Persisted in SharedPreferences. Silent sweep on app start. Snackbar feedback on manual change. |
-| **Data** | Delete all readings | Confirmation dialog → hard delete of the whole `signal_readings` table. |
-| **Permissions** | Precise location, Coarse, Background, Notifications, Phone state | Live grant status, **Grant** / **Open settings** actions, refreshes on `ON_RESUME`. |
+| **Recording** | Auto-record on launch | Switch. When on, sampling begins automatically the moment the app opens (after onboarding). Service keeps running with a sticky notification until you tap Pause in the top bar. Default **off** - opt-in to avoid surprise battery drain. |
 | **Appearance** | Theme | *Follow system* / *Light* / *Dark*. |
 | **Appearance** | Dynamic colour | Switch. On Android 12+ uses Material You; off falls back to the slate/sky palette. |
-| **About** | App name, version, license | Static info. |
+| **Data** | Export CSV | Export readings to CSV via Storage Access Framework. Shows count (e.g., "Export 42 readings to CSV"). Snackbar feedback on completion. |
+| **Data** | Auto-expire readings | Forever / 30 d / 90 d / 6 mo / 1 y. Persisted in SharedPreferences. Silent sweep on app start. Snackbar feedback on manual change. |
+| **Data** | Delete all readings | Confirmation dialog → hard delete of the whole `signal_readings` table. |
+| **Permissions** | Permissions (drill-out) | Taps open a dedicated sub-page with back button. Shows status banner (all granted / some missing), per-permission rows with grant/open-settings actions. |
+| **About** | App name, version, Android version, blurb | Static info. |
 
-### AppBar (Map & List)
-Two icons only:
-- ▶︎ / ⏸ - start or stop sampling.
-- ⤴ - Export readings as CSV via the Storage Access Framework.
+### Top App Bar (Map & List)
+Two or three icons:
+- 📍 - Capture a manual reading at the current location.
+- ⏸ - Stop sampling (only visible when sampling is active).
+
+Sampling is started via *Settings → Auto-record on launch*. The stop icon appears only when the foreground service is running.
 
 ---
 
