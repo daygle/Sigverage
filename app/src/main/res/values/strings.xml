@@ -101,7 +101,7 @@
     <!-- Theme picker -->
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_subtitle">Choose how the app looks.</string>
-    <string name="theme_system">Follow system</string>
+    <string name="theme_system">Follow System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
 
