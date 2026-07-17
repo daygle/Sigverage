@@ -12,15 +12,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -65,6 +70,13 @@ fun SettingsScreen(
     var showRetentionDialog by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showPermissionsPage by remember { mutableStateOf(false) }
+
+    // Dedicated permissions sub-page
+    if (showPermissionsPage) {
+        PermissionsPage(onBack = { showPermissionsPage = false })
+        return
+    }
 
     val scroll = rememberScrollState()
     Column(
@@ -136,7 +148,11 @@ fun SettingsScreen(
         Spacer(Modifier.height(8.dp))
 
         Section(stringResource(R.string.settings_section_permissions)) {
-            PermissionsSection()
+            SettingsRow(
+                title = stringResource(R.string.settings_permissions_title),
+                subtitle = stringResource(R.string.settings_permissions_subtitle),
+                onClick = { showPermissionsPage = true },
+            )
         }
 
         Spacer(Modifier.height(8.dp))
@@ -374,3 +390,28 @@ private fun retentionLabelFor(days: Int): String = when (days) {
     else -> stringResource(R.string.time_days, days)
 }
 
+/**
+ * Dedicated permissions sub-page with a back button in the top app bar.
+ * Reached by tapping the "Permissions" drill-out row in [SettingsScreen].
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PermissionsPage(onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_permissions_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.settings_permissions_back),
+                        )
+                    }
+                },
+            )
+        }
+    ) { padding ->
+        PermissionsSection(modifier = Modifier.padding(padding))
+    }
+}

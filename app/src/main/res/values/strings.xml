@@ -153,6 +153,9 @@
     <!-- Settings screen -->
     <string name="tab_settings">Settings</string>
     <string name="settings_section_permissions">Permissions</string>
+    <string name="settings_permissions_title">Permissions</string>
+    <string name="settings_permissions_subtitle">Grant or revoke the permissions Sigorage needs.</string>
+    <string name="settings_permissions_back">Back to settings</string>
     <string name="settings_section_about">About</string>
     <string name="about_version_value">Sigverage v%1$s</string>
     <string name="about_android_version_label">Android Version</string>
