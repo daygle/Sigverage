@@ -3,7 +3,7 @@
 > **Record cellular technology and signal strength at your location, then paint a coverage map from your own readings.**
 > 2G / 3G / HSPA / LTE / 5G NR / 5G NSA, on OpenStreetMap, fully on-device.
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.24-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-26%E2E40–34-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![License](https://img.shields.io/badge/License-Private-lightgrey)](#license)
@@ -31,11 +31,13 @@
 
 ## TL;DR
 
-Sigverage runs on your phone, records a `SignalReading` (network type, signal dBm, GPS fix, timestamp, MCC/MNC/cell ID, operator name where available) at a configurable interval, and aggregates your readings into a coverage overlay on top of OpenStreetMap. **Everything stays on the device.** There is no account, no backend, no telemetry, no remote sync. You can export to CSV from *Settings → Data* and the retention policy is configurable from *Settings → Data → Auto-expire*.
+Sigverage runs on your phone, records a `SignalReading` (network type, signal dBm, GPS fix, timestamp, MCC/MNC/cell ID, operator name where available) and aggregates your readings into a coverage overlay on top of OpenStreetMap. **Everything stays on the device.** There is no account, no backend, no telemetry, no remote sync. You can export to CSV from *Settings → Data* and the retention policy is configurable from *Settings → Data → Auto-expire*.
 
-The map paints a small filled **box per Mercator tile** at a fixed storage zoom of Z=20 (~38 m tiles at the equator; ~50 m at mid-latitudes - labelled as "50 m cells" in the UI). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips in a bottom sheet hide / reveal each network family.
+The map paints a small filled **box per Mercator tile** at a fixed storage zoom of Z=20 (~38 m tiles at the equator; ~50 m at mid-latitudes - labelled as "50 m cells" in the UI). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips in a bottom sheet hide / reveal each network family. **Operator filter** chips let you show only readings from a specific carrier.
 
-**Smart sampling** skips redundant recordings: once a reading exists in a ~50 m cell, the background service won't record again until you leave and return to that cell, saving battery and database space.
+**Activity-based sampling** uses the Activity Recognition Transition API to record only when you are moving - the service pauses when you are still, saving battery. **Smart sampling** skips redundant recordings: once a reading exists in a ~50 m cell, the background service won't record again until you leave and return to that cell.
+
+**Recording schedules** let you define time windows (e.g. Mon-Fri 09:00-17:00) when sampling should run automatically, using AlarmManager with exact alarms that survive reboots.
 
 ---
 
@@ -66,8 +68,9 @@ Markdown placeholders (leave them commented until you push images):
 
 ### 📡 Recording
 - **Foreground sampling service** (`SamplingService`) with `foregroundServiceType = location` - promoted on the *first line* of `onStartCommand` so Android 14's 5-second rule is always satisfied.
-- **Configurable interval**: 3 s / 5 s / 15 s / 60 s, live in *Settings → Recording*.
+- **Activity-based sampling** via the Activity Recognition Transition API - records only when the device detects movement (walking, running, cycling, vehicle). The service pauses when you are still, saving battery.
 - **Auto-record on launch** (opt-in, *Settings → Recording*): when enabled, sampling starts automatically the moment you open the app. If location permissions are missing, a one-shot snackbar surfaces explaining how to fix it.
+- **Recording schedules** (*Settings → Recording → Schedules*): define time windows (day-of-week + start/end time) when sampling should run automatically. Uses AlarmManager with exact alarms that survive reboots via `BootReceiver`.
 - **Smart sampling**: background service skips recording if a reading already exists in the current ~50 m coverage cell (zoom 20). Manual capture always records regardless.
 - **Manual capture** via the capture icon in the top app bar for one-off readings without starting the service.
 - **Network operator** (carrier name) is recorded and displayed prominently in both the list view and details sheet.
@@ -79,14 +82,15 @@ Markdown placeholders (leave them commented until you push images):
 ### 🗺️ Coverage map
 - **HSL-hybrid encoding**: hue = dominant network, alpha = mean dBm bucket (Strong / OK / Weak).
 - **2×4 corner slot grid**: a fixed-layout indicator grid in the bottom-right of every tile, with one slot per `NetworkType` (5G, NR_NSA, LTE, HSPA, GSM, EDGE, CDMA, Other). Filled = network present; alpha = its bucket strength. Filter-aware: disabled chips remove their slot everywhere. Slot positions are fixed so the legend is stable across the whole map.
-- **Web-Mercator slippy-tile aggregation** at zoom 12 (≈9.6 km) … zoom 20 (≈38 m). The storage zoom is **fixed at 20** (~50 m cells at mid-latitudes); there is no slider.
+- **Web-Mercator slippy-tile aggregation** at zoom 20 (~38 m tiles at the equator; ~50 m at mid-latitudes). The storage zoom is **fixed at 20**; there is no slider.
 - **Decoupled zoom axes**: visible map zoom (pinch gestures) is independent of the fixed coverage storage zoom - you can pinch to street level while the coverage grid keeps building at 50 m cells.
-- **Filter bottom sheet** (Material 3 `BottomSheetScaffold`): drag-up handle at the bottom of the map with a 1-line summary like `Filters: 5G, LTE (3 of 8 active)`. Expanded state shows the eight `FilterChip`s wrapping onto multiple rows via `FlowRow` - no horizontal scroll. Live preview keeps working because the sheet is non-modal and the map stays visible above it.
+- **Operator filter**: filter the coverage grid by network operator (carrier). Operator chips appear in the filter bottom sheet below the network type chips, derived dynamically from the readings' `operatorName` field. Empty filter shows all operators.
+- **Filter bottom sheet** (Material 3 `BottomSheetScaffold`): drag-up handle at the bottom of the map with a 1-line summary like `Filters: 5G, LTE (3 of 8 active) · 2/3 operators`. Expanded state shows network type `FilterChip`s plus operator `FilterChip`s wrapping onto multiple rows via `FlowRow` - no horizontal scroll. Live preview keeps working because the sheet is non-modal and the map stays visible above it.
 - **Themed palette**: marker / box colours come from `rememberNetworkColors(MaterialTheme.colorScheme)`, so the legend stays consistent across Light / Dark / Material You.
 - **Allocation-free rendering**: pre-allocated `Paint`, `Rect`, `GeoPoint`s, `Point`s; viewport culling + screen-rect culling in `CoverageGridOverlay.draw()`.
 
 ### 💾 Persistence
-- **Room 2.6.1** with a single `signal_readings` table + KSP-generated DAO.
+- **Room 2.8.4** with `signal_readings` and `recording_schedules` tables + KSP-generated DAOs.
 - **TTL retention** in *Settings → Data → Auto-expire*: Forever / 30 days / 90 days / 6 months / 1 year. Persisted in `SharedPreferences`, swept on app start (silent) and immediately on manual change (with Snackbar).
 - **Delete all** with confirmation dialog in the same Data section.
 - **CSV export** via the Storage Access Framework - write directly to Drive, email, or any provider.
@@ -118,16 +122,18 @@ Markdown placeholders (leave them commented until you push images):
 
 | Concern              | Choice                                                                                                |
 | -------------------- | ----------------------------------------------------------------------------------------------------- |
-| Language             | Kotlin 1.9.24                                                                                         |
+| Language             | Kotlin 2.2.10                                                                                         |
 | UI                   | Jetpack Compose + Material 3 (BOM 2024.06.00), Material 3 `FilterChip`, `AlertDialog`                  |
 | Maps                 | [osmdroid 6.1.18](https://github.com/osmdroid/osmdroid) (OpenStreetMap tiles, no API key)               |
 | Cellular info        | `android.telephony.TelephonyManager` + `CellInfo` + `TelephonyDisplayInfo` (5G NSA, API 30+)          |
 | Location             | `android.location.LocationManager` via `callbackFlow` (no Google Play Services dependency)            |
-| Storage              | Room 2.6.1 + KSP (`signal_readings` table, observed via `Flow`)                                        |
+| Activity recognition | Google Play Services Location (`play-services-location` 21.3.0) - movement-based sampling            |
+| Storage              | Room 2.8.4 + KSP (`signal_readings` + `recording_schedules` tables, observed via `Flow`)              |
 | Async                | Kotlin Coroutines 1.8.1 + `StateFlow`                                                                 |
+| Scheduling           | `AlarmManager` with exact alarms + `BroadcastReceiver` (survives reboots via `BOOT_COMPLETED`)         |
 | Settings storage     | `SharedPreferences` (singleton in `PreferencesStore.kt`)                                               |
 | Min SDK / Target SDK | 26 / 34                                                                                               |
-| AGP / Gradle wrapper | 8.5.2 / 8.7                                                                                           |
+| AGP / Gradle wrapper | 9.3.0 / 9.6.1                                                                                         |
 | JDK                  | 17                                                                                                    |
 
 ---
@@ -142,27 +148,34 @@ MainActivity
                   ├── TopAppBar     (capture icon + conditional stop icon)
                   ├── Tab content
                   │    ├── MapPanel   ── osmdroid MapView via AndroidView
-                  │    │    ├── CoverageGridOverlay       ── Mercator tile aggregation + HSL+paint
+                  │    │    ├── CoverageGridOverlay       ── Mercator tile aggregation + HSL+paint + operator filter
                   │    │    ├── MyLocationNewOverlay     ── modern custom location indicator
-                  │    │    └── CoverageFilterSheet     ── BottomSheetScaffold + chips (collapsed = handle + summary)
-                  │    ├── ListPanel  ── LazyColumn + per-row NetworkBadge + operator + bottom sheet
+                  │    │    └── CoverageFilterSheet     ── BottomSheetScaffold + network + operator chips
+                  │    ├── ListPanel  ── LazyColumn with Card-based reading items + details bottom sheet
                   │    └── SettingsScreen ── Recording / Appearance / Data / Permissions / About
-                  │         ├── IntervalDialog, RetentionDialog, ThemeDialog
+                  │         ├── SchedulesPage (drill-out: add/edit/delete/toggle schedules)
+                  │         ├── ScheduleDialog (day chips + time pickers)
                   │         ├── PermissionsPage (drill-out sub-page with back button)
+                  │         ├── RetentionDialog, ThemeDialog
                   │         └── Export CSV launcher (Storage Access Framework)
                   └── NavigationBar  (Map ↔ List ↔ Settings)
 
 MainViewModel  ── StateFlow ──► UI (collectAsState)
-   ├── SignalRepository   ── Room DAO      ── signals.db   (single source of truth)
+   ├── SignalRepository   ── Room DAOs     ── signals.db   (signal_readings + recording_schedules)
    ├── PreferencesStore   ── SharedPrefs   ── retentionDays, themeMode, dynamicColorEnabled, autoRecord, onboardingCompleted
    └── events: Flow<String> for one-shot snackbars (e.g. "Removed 47 old readings")
 
 SamplingService (foregroundServiceType=location)   ── ServiceCompat.startForeground on first line
+   ├── Activity Recognition transitions   ── start/stop on movement detection
    ├── LocationTracker   ── LocationManager callbackFlow
    ├── CellularScanner   ── TelephonyManager.allCellInfo snapshot at every tick
    └── Smart sampling    ── skips recording if current ~50 m cell already has a reading
                                  ↓
                         SignalRepository.add(reading)
+
+ScheduleManager (AlarmManager)   ── registers exact alarms for each schedule
+   ├── ScheduleReceiver   ── BroadcastReceiver: start/stop service on alarm
+   └── BootReceiver       ── re-register all alarms after device reboot
 ```
 
 Two deliberate separation-of-concerns choices worth noting:
@@ -196,29 +209,36 @@ Two deliberate separation-of-concerns choices worth noting:
             ├── SigverageApp.kt           (Application + osmdroid config + notif channel)
             ├── MainActivity.kt               (Compose host)
             ├── model/
-            │   ├── Models.kt                 (NetworkType + SignalReading entity + ThemeMode)
+            │   ├── Models.kt                 (NetworkType + SignalReading + RecordingSchedule + ThemeMode)
             │   └── ThemeMode.kt              (System/Light/Dark enum)
             ├── data/
-            │   ├── SignalDatabase.kt         (Room + TypeConverters + DAO)
-            │   ├── SignalRepository.kt       (singleton accessor + retention sweep)
+            │   ├── SignalDatabase.kt         (Room + TypeConverters + signalReadingDao + scheduleDao)
+            │   ├── SignalRepository.kt       (singleton accessor + retention sweep + schedule CRUD)
             │   └── PreferencesStore.kt       (SharedPreferences wrapper)
             ├── cellular/CellularScanner.kt   (TelephonyManager snapshot, 5G NSA aware)
             ├── location/LocationTracker.kt   (LocationManager callbackFlow)
             ├── permissions/PermissionsInventory.kt   (single source of truth)
             ├── coverage/
-            │   ├── CoverageModel.kt          (TileId, CellStats, NetworkAggregate, Mercator math, colorFor)
-            │   ├── CoverageGrid.kt           (osmdroid Overlay + slot grid + palette)
+            │   ├── CoverageModel.kt          (TileId, CellStats, NetworkAggregate, Mercator math, colorFor, aggregate)
+            │   ├── CoverageGrid.kt           (osmdroid Overlay + slot grid + palette + operator filter)
             │   ├── CoverageFilterChips.kt    (Material 3 FilterChip strip, FlowRow-wrapped)
-            │   └── CoverageFilterSheet.kt    (BottomSheetScaffold + handle + summary)
-            ├── service/SamplingService.kt    (typed foreground service + smart sampling)
+            │   └── CoverageFilterSheet.kt    (BottomSheetScaffold + network + operator chips)
+            ├── service/
+            │   ├── SamplingService.kt        (foreground service + activity recognition + smart sampling)
+            │   ├── TransitionReceiver.kt     (BroadcastReceiver for activity transitions)
+            │   ├── ScheduleManager.kt        (AlarmManager scheduling for recording schedules)
+            │   ├── ScheduleReceiver.kt       (BroadcastReceiver for schedule alarms)
+            │   └── BootReceiver.kt           (re-register alarms after device reboot)
             └── ui/
-                ├── MainViewModel.kt          (StateFlow + Channel<String> events)
+                ├── MainViewModel.kt          (StateFlow + Channel<String> events + schedule CRUD)
                 ├── MainScreen.kt             (Scaffold + tabs + permission flow + Snackbar collector)
-                ├── MapPanel.kt               (osmdroid + CoverageGridOverlay + chips)
-        ├── ListAndDetails.kt         (list + bottom sheet)
-        ├── RetentionDialog.kt        (Forever / 30d / 90d / 6mo / 1y)
+                ├── MapPanel.kt               (osmdroid + CoverageGridOverlay + chips + operator filter)
+                ├── ListAndDetails.kt         (Card-based list + bottom sheet)
+                ├── SettingsScreen.kt         (Recording / Schedules / Data / Permissions / Appearance / About)
+                ├── SchedulesPage.kt          (drill-out: add/edit/delete/toggle recording schedules)
+                ├── ScheduleDialog.kt         (day chips + time pickers)
+                ├── RetentionDialog.kt        (Forever / 30d / 90d / 6mo / 1y)
                 ├── ThemeDialog.kt            (System / Light / Dark)
-                ├── SettingsScreen.kt         (Recording / Coverage / Data / Permissions / Appearance / About)
                 └── theme/Theme.kt            (Material 3 + dynamic + rememberNetworkColors)
 ```
 
@@ -238,7 +258,7 @@ Each tile aggregates its readings into `CellStats.perNetwork: Map<NetworkType, N
 
 A tile below ~22 dp either dimension suppresses the corner grid (rare at the default zoom 20 - kept as a safety net for when the user pans the map far enough).
 
-Filter chips above the map hide/reveal **both** encodings: turning 5G off removes 5G from the dominant pick *and* greys out its slot across every tile.
+Filter chips in the bottom sheet hide/reveal **both** encodings: turning 5G off removes 5G from the dominant pick *and* greys out its slot across every tile. Operator filter chips additionally hide tiles that have no readings from the selected carriers.
 
 ---
 
@@ -323,6 +343,9 @@ Every permission is justified by a concrete feature, and the manifest comments n
 | `FOREGROUND_SERVICE` | The sampling service itself. | All API levels. | Granted at install. |
 | `FOREGROUND_SERVICE_LOCATION` | Typed FGS for Android 14. | Required on API 34. | Granted at install. |
 | `WAKE_LOCK` | Keep the CPU alive during short sampling windows. | All API levels. | Granted at install. |
+| `ACTIVITY_RECOGNITION` | Detect movement for activity-based sampling. | API 29+. | Requested in Settings → Permissions. |
+| `RECEIVE_BOOT_COMPLETED` | Re-register schedule alarms after device reboot. | All API levels. | Granted at install. |
+| `SCHEDULE_EXACT_ALARM` | Schedule exact alarms for recording schedules. | API 31+. | Granted at install (can be revoked by user). |
 | `READ_PHONE_STATE` (`maxSdkVersion=27`) | `allCellInfo` on API 24–27. Capped at 27 in the manifest because APIs 28+ no longer require it for cell info. | API ≤ 27 only. | Granted at install on those devices. |
 
 **Permission flow**: `MainScreen.toggleSampling` triggers `RequestMultiplePermissions` when anything is missing. Background location is automatically routed to system Settings by Android - we surface a status banner in *Settings → Permissions* if it's still missing, with an **Open settings** action deep-linking to `ACTION_APPLICATION_DETAILS_SETTINGS`.
@@ -342,12 +365,12 @@ The bottom navigation has three tabs. The first two (Map / List) show your data;
 ### ⚙️ Settings
 | Section | Row | What it does |
 | ------- | --- | ------------ |
-| **Recording** | Sample interval | 3 s / 5 s / 15 s / 60 s. |
 | **Recording** | Auto-record on launch | Switch. When on, sampling begins automatically the moment the app opens (after onboarding). Service keeps running with a sticky notification until you tap Pause in the top bar. Default **off** - opt-in to avoid surprise battery drain. |
+| **Recording** | Schedules (drill-out) | Taps open a dedicated sub-page where you can add/edit/delete recording schedules. Each schedule has a name, day-of-week selection, and start/end time. Schedules use AlarmManager with exact alarms. |
 | **Appearance** | Theme | *Follow system* / *Light* / *Dark*. |
 | **Appearance** | Dynamic colour | Switch. On Android 12+ uses Material You; off falls back to the slate/sky palette. |
-| **Data** | Export CSV | Export readings to CSV via Storage Access Framework. Shows count (e.g., "Export 42 readings to CSV"). Snackbar feedback on completion. |
 | **Data** | Auto-expire readings | Forever / 30 d / 90 d / 6 mo / 1 y. Persisted in SharedPreferences. Silent sweep on app start. Snackbar feedback on manual change. |
+| **Data** | Export CSV | Export readings to CSV via Storage Access Framework. Shows count (e.g., "Export 42 readings to CSV"). Snackbar feedback on completion. |
 | **Data** | Delete all readings | Confirmation dialog → hard delete of the whole `signal_readings` table. |
 | **Permissions** | Permissions (drill-out) | Taps open a dedicated sub-page with back button. Shows status banner (all granted / some missing), per-permission rows with grant/open-settings actions. |
 | **About** | App name, version, Android version, blurb | Static info. |
@@ -385,7 +408,7 @@ If you change the tile source, do it in `MapPanel.MapView`'s `setTileSource(Tile
 
 ## Roadmap
 
-Already shipped in this build: ⚙️ coverage grid + filter chips, **TTL retention**, **fixed 50 m cell size**, **theme picker**, **dynamic colour**, **Settings tab**, multi-network slot grid, live network palette.
+Already shipped in this build: coverage grid + network filter chips + **operator filter**, **activity-based sampling** (record only when moving), **recording schedules** (day-of-week + time windows via AlarmManager), **TTL retention**, **fixed 50 m cell size**, **theme picker**, **dynamic colour**, **card-based list UI**, **Settings redesign**, multi-network slot grid, live network palette, onboarding flow, CSV export.
 
 Next up:
 
@@ -394,7 +417,6 @@ Next up:
 - GPX / KML export alongside CSV - the geometry is already there, just a serializer.
 - Route replay: draw a polyline through every reading in an animated tour.
 - Live signal-vs-speed chart while the user is moving.
-- Migration framework for Room v2+ (you're safe to add columns today; this just smooths upgrades).
 
 ---
 
