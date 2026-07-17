@@ -9,7 +9,6 @@ import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PauseCircle
-import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,7 +37,6 @@ fun MainScreen(viewModel: MainViewModel) {
     val snackbar = remember { SnackbarHostState() }
     val ui by viewModel.ui.collectAsState()
     val readings by viewModel.readings.collectAsState()
-    val count by viewModel.count.collectAsState()
 
     var tab by rememberSaveable { mutableStateOf(Tab.Map) }
     var sheetReading by remember { mutableStateOf<SignalReading?>(null) }
@@ -206,15 +204,6 @@ fun MainScreen(viewModel: MainViewModel) {
                 )
                 Tab.Settings -> SettingsScreen(viewModel = viewModel)
             }
-            StatusBanner(
-                sampling = ui.isSampling,
-                count = count,
-                lastFix = ui.lastFix,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-            )
-        }
     }
 
     sheetReading?.let { reading ->
@@ -227,39 +216,6 @@ fun MainScreen(viewModel: MainViewModel) {
             },
             onShowOnMap = { jumpToReading(reading) },
         )
-    }
-}
-
-@Composable
-private fun StatusBanner(
-    sampling: Boolean,
-    count: Int,
-    lastFix: com.sigverage.app.location.FixSample?,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier,
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-        tonalElevation = 4.dp
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(
-                imageVector = if (sampling) Icons.Default.PlayCircle else Icons.Default.PauseCircle,
-                tint = if (sampling) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                contentDescription = null
-            )
-            val text = when {
-                sampling -> stringResource(R.string.status_recording, count)
-                lastFix == null -> stringResource(R.string.status_no_fix)
-                else -> stringResource(R.string.status_idle)
-            }
-            Text(text = text, style = MaterialTheme.typography.bodyMedium)
-        }
     }
 }
 
