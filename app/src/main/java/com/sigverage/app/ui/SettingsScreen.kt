@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import com.sigverage.app.BuildConfig
 import com.sigverage.app.R
 import com.sigverage.app.model.RecordingSchedule
+import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
 import kotlinx.coroutines.launch
 
@@ -79,6 +80,7 @@ fun SettingsScreen(
     var showRetentionDialog by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showSamplingModeDialog by remember { mutableStateOf(false) }
     var showPermissionsPage by remember { mutableStateOf(false) }
     var showSchedulesPage by remember { mutableStateOf(false) }
     var showScheduleDialog by remember { mutableStateOf(false) }
@@ -137,6 +139,13 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_auto_record_subtitle),
                 checked = ui.autoRecordEnabled,
                 onCheckedChange = viewModel::setAutoRecordEnabled,
+            )
+            CardDivider()
+            SettingsRow(
+                title = stringResource(R.string.settings_sampling_mode_title),
+                subtitle = stringResource(R.string.settings_sampling_mode_subtitle),
+                value = samplingModeLabelFor(ui.samplingMode),
+                onClick = { showSamplingModeDialog = true },
             )
             CardDivider()
             SettingsRow(
@@ -256,6 +265,16 @@ fun SettingsScreen(
             onPick = { mode ->
                 viewModel.setThemeMode(mode)
                 showThemeDialog = false
+            },
+        )
+    }
+    if (showSamplingModeDialog) {
+        SamplingModeDialog(
+            current = ui.samplingMode,
+            onDismiss = { showSamplingModeDialog = false },
+            onPick = { mode ->
+                viewModel.setSamplingMode(mode)
+                showSamplingModeDialog = false
             },
         )
     }
@@ -503,6 +522,14 @@ private fun themeLabelFor(mode: ThemeMode): String = when (mode) {
     ThemeMode.System -> stringResource(R.string.theme_system)
     ThemeMode.Light -> stringResource(R.string.theme_light)
     ThemeMode.Dark -> stringResource(R.string.theme_dark)
+}
+
+@Composable
+private fun samplingModeLabelFor(mode: SamplingMode): String = when (mode) {
+    SamplingMode.Auto -> stringResource(R.string.sampling_mode_auto)
+    SamplingMode.PowerSaver -> stringResource(R.string.sampling_mode_power_saver)
+    SamplingMode.Balanced -> stringResource(R.string.sampling_mode_balanced)
+    SamplingMode.HighAccuracy -> stringResource(R.string.sampling_mode_high_accuracy)
 }
 
 @Composable

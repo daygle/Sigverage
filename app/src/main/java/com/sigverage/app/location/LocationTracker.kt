@@ -6,11 +6,14 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.os.BatteryManager
 import android.os.Build
+import android.os.PowerManager
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationListenerCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.core.location.LocationRequestCompat
+import com.sigverage.app.model.SamplingMode
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -34,9 +37,10 @@ data class FixSample(
  *
  * Battery: fixes are the app's dominant power cost, so `stream()` registers a
  * **single** provider - fused on API 31+, else GPS, else network - rather than
- * every enabled provider at once, tags the request as balanced-power, and adds
- * a minimum-distance filter so a stationary device stops waking the radio.
- * `lastKnown()` reads only cached fixes and never powers the radio.
+ * every enabled provider at once, and its interval, distance filter and
+ * power/accuracy quality all come from the user-selected [SamplingMode] so a
+ * stationary device stops waking the radio. `lastKnown()` reads only cached
+ * fixes and never powers the radio.
  */
 @SuppressLint("MissingPermission")
 class LocationTracker(private val context: Context) {
@@ -64,12 +68,12 @@ class LocationTracker(private val context: Context) {
      * Cold-ish stream that listens to a single, battery-efficient provider and
      * emits a [FixSample] whenever a new location is available.
      *
-     * [intervalMs] is the desired (fastest) update period. The request is
-     * tagged [LocationRequestCompat.QUALITY_BALANCED_POWER_ACCURACY] and
-     * carries a [MIN_UPDATE_DISTANCE_M] filter so a still device stops
-     * generating redundant fixes even if the caller keeps the stream open.
+     * [mode] drives the power/accuracy trade-off: its interval, minimum-update
+     * distance and the quality hint below all scale together so a stationary
+     * device stops generating redundant fixes even if the caller keeps the
+     * stream open.
      */
-    fun stream(intervalMs: Long = 2_500L): Flow<FixSample> = callbackFlow {
+    fun stream(mode: SamplingMode = SamplingMode.Default): Flow<FixSample> = callbackFlow {
         if (!hasFineLocation()) {
             close()
             return@callbackFlow
@@ -79,10 +83,11 @@ class LocationTracker(private val context: Context) {
             close()
             return@callbackFlow
         }
-        val request = LocationRequestCompat.Builder(intervalMs)
-            .setQuality(LocationRequestCompat.QUALITY_BALANCED_POWER_ACCURACY)
-            .setMinUpdateIntervalMillis(intervalMs)
-            .setMinUpdateDistanceMeters(MIN_UPDATE_DISTANCE_M)
+        val effective = resolve(mode)
+        val request = LocationRequestCompat.Builder(effective.intervalMs)
+            .setQuality(qualityFor(effective))
+            .setMinUpdateIntervalMillis(effective.intervalMs)
+            .setMinUpdateDistanceMeters(effective.minDistanceMeters)
             .build()
         val listener = LocationListenerCompat { location -> trySend(location.toFix()) }
         runCatching {
@@ -116,6 +121,34 @@ class LocationTracker(private val context: Context) {
         }
     }
 
+    /**
+     * Resolve [SamplingMode.Auto] to a concrete mode from live power state:
+     * [SamplingMode.PowerSaver] when the system is in Battery Saver or the
+     * battery is at/below [SamplingMode.AUTO_LOW_BATTERY_PERCENT], else
+     * [SamplingMode.Balanced]. Any non-Auto mode is returned unchanged.
+     */
+    private fun resolve(mode: SamplingMode): SamplingMode {
+        if (mode != SamplingMode.Auto) return mode
+        val saver = runCatching {
+            (context.getSystemService(Context.POWER_SERVICE) as PowerManager).isPowerSaveMode
+        }.getOrDefault(false)
+        val level = runCatching {
+            (context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager)
+                .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        }.getOrDefault(-1)
+        val lowBattery = level in 0..SamplingMode.AUTO_LOW_BATTERY_PERCENT
+        return if (saver || lowBattery) SamplingMode.PowerSaver else SamplingMode.Balanced
+    }
+
+    /** Map a [SamplingMode] to the matching LocationRequest power/accuracy hint. */
+    private fun qualityFor(mode: SamplingMode): Int = when (mode) {
+        SamplingMode.PowerSaver -> LocationRequestCompat.QUALITY_LOW_POWER
+        SamplingMode.HighAccuracy -> LocationRequestCompat.QUALITY_HIGH_ACCURACY
+        // Auto never reaches here (resolved above); treat as Balanced if it does.
+        SamplingMode.Balanced, SamplingMode.Auto ->
+            LocationRequestCompat.QUALITY_BALANCED_POWER_ACCURACY
+    }
+
     private fun Location.toFix(): FixSample = FixSample(
         latitude = latitude,
         longitude = longitude,
@@ -123,14 +156,4 @@ class LocationTracker(private val context: Context) {
         provider = provider ?: "unknown",
         timestamp = time
     )
-
-    private companion object {
-        /**
-         * Minimum distance between successive fixes. A stationary device
-         * produces no updates below this threshold, so the radio idles instead
-         * of re-reporting the same spot. Kept well under the ~38 m coverage
-         * tile size so tile crossings are never missed while moving.
-         */
-        const val MIN_UPDATE_DISTANCE_M = 10f
-    }
 }

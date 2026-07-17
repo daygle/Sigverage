@@ -12,6 +12,7 @@ import com.sigverage.app.location.FixSample
 import com.sigverage.app.location.LocationTracker
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.RecordingSchedule
+import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.model.ThemeMode
 import com.sigverage.app.service.ScheduleManager
@@ -70,6 +71,12 @@ data class HomeUiState(
      * UI will do on the next composition.
      */
     val autoRecordEnabled: Boolean = PreferencesStore.DEFAULT_AUTO_RECORD_ENABLED,
+    /**
+     * Location sampling mode: the battery-vs-accuracy trade-off applied while
+     * recording. Consumed by the foreground service; surfaced here so the
+     * Settings row reflects the persisted choice.
+     */
+    val samplingMode: SamplingMode = SamplingMode.Default,
 )
 
 /**
@@ -159,6 +166,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             // Auto-record opt-in. Default false; only flips true if the
             // user has explicitly toggled the Settings switch.
             autoRecordEnabled = prefs.autoRecordEnabled,
+            // Battery-vs-accuracy sampling mode. Default Auto.
+            samplingMode = prefs.samplingMode,
         )
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -311,6 +320,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setAutoRecordEnabled(enabled: Boolean) {
         prefs.autoRecordEnabled = enabled
         _ui.value = _ui.value.copy(autoRecordEnabled = enabled)
+    }
+
+    /**
+     * Update the location sampling mode (battery-vs-accuracy trade-off).
+     * Persisted immediately; the running foreground service picks up the new
+     * mode the next time it (re)starts the location stream on a still ->
+     * moving transition, so an in-progress burst isn't interrupted.
+     */
+    fun setSamplingMode(mode: SamplingMode) {
+        prefs.samplingMode = mode
+        _ui.value = _ui.value.copy(samplingMode = mode)
     }
 
     /**

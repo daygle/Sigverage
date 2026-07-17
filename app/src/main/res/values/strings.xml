@@ -146,6 +146,18 @@
     <string name="auto_record_started">Auto-record on. Sampling started.</string>
     <string name="auto_record_no_permissions">Auto-record is on, but location permissions are missing. Grant them from Settings → Permissions to start sampling.</string>
 
+    <!-- Location sampling mode (battery vs accuracy) -->
+    <string name="settings_sampling_mode_title">Battery usage</string>
+    <string name="settings_sampling_mode_subtitle">Balance GPS accuracy against battery drain while recording.</string>
+    <string name="sampling_mode_auto">Automatic</string>
+    <string name="sampling_mode_auto_desc">Adapts to your device — saves power when the battery is low or Battery Saver is on.</string>
+    <string name="sampling_mode_power_saver">Power saver</string>
+    <string name="sampling_mode_power_saver_desc">Fewer fixes, lowest battery use. Best for long recordings.</string>
+    <string name="sampling_mode_balanced">Balanced</string>
+    <string name="sampling_mode_balanced_desc">Good accuracy with moderate battery use.</string>
+    <string name="sampling_mode_high_accuracy">High accuracy</string>
+    <string name="sampling_mode_high_accuracy_desc">Most frequent fixes and finest detail; highest battery use.</string>
+
     <!-- Settings screen -->
     <string name="tab_settings">Settings</string>
     <string name="settings_section_permissions">Permissions</string>
