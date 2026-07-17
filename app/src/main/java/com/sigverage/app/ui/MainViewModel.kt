@@ -190,6 +190,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 _events.trySend(app.getString(R.string.capture_no_location))
                 return@launch
             }
+            if (!fix.isAccurateEnough()) {
+                // The only fix we have is too coarse to place on the map;
+                // storing it would drop the reading into the wrong tile.
+                _events.trySend(app.getString(R.string.capture_low_accuracy))
+                return@launch
+            }
             val reading = cellular.snapshot(
                 provider = fix.provider,
                 latitude = fix.latitude,

@@ -71,7 +71,16 @@ fun MapPanel(
         }
     }
     val locationOverlay = remember {
-        MyLocationNewOverlay(GpsMyLocationProvider(context), mapView).apply {
+        // Throttle the blue-dot provider. osmdroid's GpsMyLocationProvider
+        // defaults to min-time 0 / min-distance 0 and polls GPS *and* network
+        // as fast as the OS allows for as long as the map is visible - a real
+        // drain even when not recording. Cap it so merely viewing the map
+        // doesn't hammer the GPS radio. Must be set before enableMyLocation().
+        val locationProvider = GpsMyLocationProvider(context).apply {
+            locationUpdateMinTime = MAP_LOCATION_MIN_TIME_MS
+            locationUpdateMinDistance = MAP_LOCATION_MIN_DISTANCE_M
+        }
+        MyLocationNewOverlay(locationProvider, mapView).apply {
             val indicator = ContextCompat.getDrawable(context, R.drawable.ic_my_location_indicator)
             if (indicator != null) {
                 val bitmap = android.graphics.Bitmap.createBitmap(
@@ -171,3 +180,9 @@ fun MapPanel(
         onToggleOperatorFilter = onToggleOperatorFilter,
     )
 }
+
+/** Minimum time between blue-dot location updates on the map (ms). */
+private const val MAP_LOCATION_MIN_TIME_MS = 5_000L
+
+/** Minimum movement between blue-dot location updates on the map (m). */
+private const val MAP_LOCATION_MIN_DISTANCE_M = 10f

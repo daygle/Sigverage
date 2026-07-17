@@ -25,7 +25,26 @@ data class FixSample(
     val accuracyMeters: Float,
     val provider: String,
     val timestamp: Long = System.currentTimeMillis()
-)
+) {
+    /**
+     * Whether this fix is precise enough to store. Fixes with a *known*
+     * accuracy worse than [maxMeters] (e.g. coarse network fixes) would land
+     * in the wrong coverage tile and can even block a later accurate reading
+     * via the dedup, so they're rejected. A fix with unknown accuracy
+     * ([Float.NaN], rare on modern GPS) gets the benefit of the doubt.
+     */
+    fun isAccurateEnough(maxMeters: Float = DEFAULT_MAX_ACCURACY_M): Boolean =
+        accuracyMeters.isNaN() || accuracyMeters <= maxMeters
+
+    companion object {
+        /**
+         * Accuracy cutoff for a storable fix, in metres. Chosen at roughly the
+         * ~38 m coverage-tile size so a stored reading is confidently inside
+         * the tile it's binned into.
+         */
+        const val DEFAULT_MAX_ACCURACY_M = 50f
+    }
+}
 
 /**
  * Pure-platform LocationManager wrapper (no Google Play Services), since we

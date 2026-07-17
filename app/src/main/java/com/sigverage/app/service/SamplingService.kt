@@ -111,6 +111,10 @@ class SamplingService : Service() {
         locationJob = scope.launch {
             // Stream location fixes at the mode's cadence while moving.
             location.stream(mode).collectLatest { fix ->
+                // Quality gate: drop coarse fixes that would be binned into the
+                // wrong tile. Another fix will arrive shortly while moving.
+                if (!fix.isAccurateEnough()) return@collectLatest
+
                 // Smart sampling: skip if a reading already exists in
                 // the current coverage tile (~50 m cell at zoom 20).
                 val alreadyCovered = repo.hasReadingInTile(
