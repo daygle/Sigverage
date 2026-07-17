@@ -8,8 +8,8 @@ import androidx.compose.runtime.remember
 import androidx.core.content.ContextCompat
 import androidx.compose.ui.platform.LocalContext
 import com.sigverage.app.R
-import com.sigverage.app.coverage.CoverageFilterSheet
 import com.sigverage.app.coverage.CoverageGridOverlay
+import com.sigverage.app.coverage.CoverageMapScreen
 import com.sigverage.app.coverage.aggregate
 import com.sigverage.app.location.FixSample
 import com.sigverage.app.model.NetworkType
@@ -43,12 +43,12 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
  * (`readings`-change). Filter toggles don't need re-aggregation; they
  * just change the in-memory `allowed` set; map zoom/pan stays cheap.
  *
- * The network filter UI (the eight Material 3 `FilterChip`s) lives in
- * [CoverageFilterSheet], a Material 3 `BottomSheetScaffold` we host at
- * the bottom of the screen. Collapsed = thin handle + 1-line summary
- * ("Filters: 5G, LTE (3 of 8 active)"); expanded = handle + summary +
- * chip strip wrapping onto multiple rows. Live preview works because
- * the sheet is non-modal and the map stays visible above it.
+ * The map's controls all float directly on the map surface in
+ * [CoverageMapScreen]: a top filter bar (quick network toggles + a
+ * "Filters" pill that opens the full network/operator sheet), a
+ * bottom-centre "Capture here" FAB (plus a pause button while sampling),
+ * and bottom-right zoom/recenter FABs. The quick network toggles sit on
+ * the map with no scrim, so toggling one previews the coverage grid live.
  */
 @Composable
 fun MapPanel(
@@ -56,6 +56,9 @@ fun MapPanel(
     lastFix: FixSample?,
     coverageFilter: Set<NetworkType>,
     onToggleFilter: (NetworkType) -> Unit,
+    isSampling: Boolean,
+    onCapture: () -> Unit,
+    onStopSampling: () -> Unit,
     operatorFilter: Set<String> = emptySet(),
     onToggleOperatorFilter: (String) -> Unit = {},
     focusEvents: Flow<Pair<Double, Double>> = emptyFlow(),
@@ -192,17 +195,19 @@ fun MapPanel(
         mapView.invalidate()
     }
 
-    // The BottomSheetScaffold (and its embedded FilterChips) lives in
-    // [CoverageFilterSheet] - it consumes the same `mapView` we just
-    // configured, mounts it inside the `content` slot, and shows the
-    // chip strip in the `sheetContent` slot with a 72 dp peek height.
-    CoverageFilterSheet(
+    // [CoverageMapScreen] consumes the same `mapView` we just configured,
+    // mounts it full-bleed, and overlays every control (filter bar,
+    // capture/pause, zoom/recenter) directly on the map surface.
+    CoverageMapScreen(
         mapView = mapView,
         readings = readings,
         coverageFilter = coverageFilter,
         onToggleFilter = onToggleFilter,
         operatorFilter = operatorFilter,
         onToggleOperatorFilter = onToggleOperatorFilter,
+        isSampling = isSampling,
+        onCapture = onCapture,
+        onStopSampling = onStopSampling,
         onZoomIn = { mapView.controller.zoomIn() },
         onZoomOut = { mapView.controller.zoomOut() },
         onRecenter = {
