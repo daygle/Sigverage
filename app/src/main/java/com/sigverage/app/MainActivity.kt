@@ -14,7 +14,7 @@ import androidx.compose.ui.Modifier
 import com.sigverage.app.ui.MainScreen
 import com.sigverage.app.ui.MainViewModel
 import com.sigverage.app.ui.OnboardingScreen
-import com.sigverage.app.ui.theme.SigorageTheme
+import com.sigverage.app.ui.theme.SigverageTheme
 
 /**
  * Single-activity host. Everything UI lives inside this Activity under a
@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
             // Observe the ViewModel at the activity root so the theme
             // re-resolves whenever the user toggles the override in Settings.
             val ui by viewModel.ui.collectAsState()
-            SigorageTheme(
+            SigverageTheme(
                 themeMode = ui.themeMode,
                 dynamicColor = ui.dynamicColorEnabled,
             ) {
