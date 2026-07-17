@@ -50,7 +50,7 @@ fun CoverageFilterChips(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        NetworkType.values().forEach { type ->
+        NetworkType.entries.forEach { type ->
             val isSelected = type in selected
             val swatch = NetworkColors[type] ?: Color.Gray
             FilterChip(

@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sigverage.app.cellular.CellularScanner
-import com.sigverage.app.coverage.CoverageGridOverlay
 import com.sigverage.app.R
 import com.sigverage.app.data.PreferencesStore
 import com.sigverage.app.data.SignalRepository
@@ -37,7 +36,7 @@ data class HomeUiState(
     val lastFix: FixSample? = null,
     val latestReading: SignalReading? = null,
     /** Networks currently displayed by the coverage grid. Defaults to all. */
-    val coverageFilter: Set<NetworkType> = NetworkType.values().toSet(),
+    val coverageFilter: Set<NetworkType> = NetworkType.entries.toSet(),
     /** Operators currently displayed by the coverage grid. Empty = show all. */
     val operatorFilter: Set<String> = emptySet(),
     /** Retention in days; `0` means "forever" (the default - opt-in expiry). */

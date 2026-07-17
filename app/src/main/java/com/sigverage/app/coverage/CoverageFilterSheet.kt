@@ -239,7 +239,7 @@ private fun SheetContents(
  */
 @Composable
 private fun filterSummaryText(selected: Set<NetworkType>, selectedOperators: Set<String>, operatorCount: Int): String {
-    val total = NetworkType.values().size
+    val total = NetworkType.entries.size
     val distinctLabels = selected.map { it.shortLabel }.distinct()
     val networkPart = when (selected.size) {
         0 -> stringResource(R.string.filter_sheet_summary_none)
