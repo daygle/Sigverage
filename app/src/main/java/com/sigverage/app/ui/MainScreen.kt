@@ -58,10 +58,12 @@ fun MainScreen(viewModel: MainViewModel) {
     // map-zoom policy) lands everywhere at once. Wrapped in `remember` keyed
     // on the (stable) ViewModel so the lambda ref stays stable across
     // recompositions and ListPanel / DetailsSheet memoization can skip work.
-    val jumpToReading: (SignalReading) -> Unit = remember(viewModel) { reading ->
-        sheetReading = null
-        tab = Tab.Map
-        viewModel.focusOnLocation(reading.latitude, reading.longitude)
+    val jumpToReading: (SignalReading) -> Unit = remember(viewModel) {
+        { reading: SignalReading ->
+            sheetReading = null
+            tab = Tab.Map
+            viewModel.focusOnLocation(reading.latitude, reading.longitude)
+        }
     }
 
     // Pump one-shot UI events (purge counts after a retention change,
