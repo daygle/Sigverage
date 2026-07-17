@@ -62,6 +62,14 @@ val PERMISSIONS_INVENTORY: List<PermissionItem> = listOf(
         required = false,
     ),
     PermissionItem(
+        key = "activity_recognition",
+        labelRes = R.string.perm_activity_recognition_label,
+        descriptionRes = R.string.perm_activity_recognition_desc,
+        permission = Manifest.permission.ACTIVITY_RECOGNITION,
+        runtime = true,
+        required = false,
+    ),
+    PermissionItem(
         key = "read_phone_state",
         labelRes = R.string.perm_phone_state_label,
         descriptionRes = R.string.perm_phone_state_desc,

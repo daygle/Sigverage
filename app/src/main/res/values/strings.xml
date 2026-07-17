@@ -166,6 +166,8 @@
     <string name="perm_background_location_desc">Keep sampling while the screen is off (Android 10+).</string>
     <string name="perm_post_notifications_label">Notifications</string>
     <string name="perm_post_notifications_desc">Allow the foreground-service notification (Android 13+).</string>
+    <string name="perm_activity_recognition_label">Activity Recognition</string>
+    <string name="perm_activity_recognition_desc">Detect when you are moving to record only while in motion, saving battery.</string>
     <string name="perm_phone_state_label">Phone State</string>
     <string name="perm_phone_state_desc">Required only on Android 8–9 to read cellular info; granted automatically on newer Android versions.</string>
     <string name="perm_status_granted">Granted</string>
