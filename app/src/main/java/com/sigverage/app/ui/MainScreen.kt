@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Settings
@@ -123,23 +122,25 @@ fun MainScreen(viewModel: MainViewModel) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    val stopSampling: () -> Unit = {
+        viewModel.setSampling(false)
+        SamplingService.stop(ctx)
+    }
+
     Scaffold(
         topBar = {
-            if (!settingsSubPageActive) {
+            // The Map tab is immersive: the map runs edge-to-edge and its
+            // controls (capture, pause, filters, zoom) float on the map
+            // itself, so no app bar is drawn there. A Settings drill-out owns
+            // the whole screen via its own Scaffold, so no app bar there
+            // either. Otherwise the title bar shows, with the pause action
+            // available while sampling.
+            if (tab != Tab.Map && !settingsSubPageActive) {
                 TopAppBar(
                     title = { Text(stringResource(R.string.app_name)) },
                     actions = {
-                        IconButton(onClick = { viewModel.captureNow() }) {
-                            Icon(
-                                imageVector = Icons.Default.AddLocation,
-                                contentDescription = stringResource(R.string.capture_at_location)
-                            )
-                        }
                         if (ui.isSampling) {
-                            IconButton(onClick = {
-                                viewModel.setSampling(false)
-                                SamplingService.stop(ctx)
-                            }) {
+                            IconButton(onClick = stopSampling) {
                                 Icon(
                                     imageVector = Icons.Default.PauseCircle,
                                     contentDescription = stringResource(R.string.stop_sampling),
@@ -194,6 +195,9 @@ fun MainScreen(viewModel: MainViewModel) {
                     lastFix = ui.lastFix,
                     coverageFilter = ui.coverageFilter,
                     onToggleFilter = viewModel::toggleCoverageFilter,
+                    isSampling = ui.isSampling,
+                    onCapture = { viewModel.captureNow() },
+                    onStopSampling = stopSampling,
                     operatorFilter = ui.operatorFilter,
                     onToggleOperatorFilter = viewModel::toggleOperatorFilter,
                     focusEvents = viewModel.focusEvents,
