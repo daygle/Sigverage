@@ -4,11 +4,14 @@ import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Delete
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import com.sigverage.app.model.DaysOfWeekConverter
 import com.sigverage.app.model.NetworkType
+import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SignalReading
 import kotlinx.coroutines.flow.Flow
 
@@ -60,12 +63,35 @@ interface SignalReadingDao {
     suspend fun existsInBounds(northLat: Double, westLng: Double, southLat: Double, eastLng: Double): Boolean
 }
 
+/**
+ * DAO for [RecordingSchedule] CRUD operations.
+ */
+@Dao
+interface ScheduleDao {
+
+    @Query("SELECT * FROM recording_schedules ORDER BY startHour, startMinute")
+    fun observeAll(): Flow<List<RecordingSchedule>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(schedule: RecordingSchedule): Long
+
+    @Query("DELETE FROM recording_schedules WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
+    @Query("SELECT * FROM recording_schedules WHERE enabled = 1")
+    suspend fun getEnabled(): List<RecordingSchedule>
+
+    @Query("SELECT * FROM recording_schedules WHERE id = :id")
+    suspend fun getById(id: Long): RecordingSchedule?
+}
+
 @Database(
-    entities = [SignalReading::class],
-    version = 1,
+    entities = [SignalReading::class, RecordingSchedule::class],
+    version = 2,
     exportSchema = false
 )
-@TypeConverters(Converters::class)
+@TypeConverters(Converters::class, DaysOfWeekConverter::class)
 abstract class SignalDatabase : RoomDatabase() {
     abstract fun signalReadingDao(): SignalReadingDao
+    abstract fun scheduleDao(): ScheduleDao
 }

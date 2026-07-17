@@ -25,7 +25,6 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
@@ -57,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.BuildConfig
 import com.sigverage.app.R
+import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.ThemeMode
 import kotlinx.coroutines.launch
 
@@ -74,11 +74,15 @@ fun SettingsScreen(
 ) {
     val ui by viewModel.ui.collectAsState()
     val readings by viewModel.readings.collectAsState()
+    val schedules by viewModel.schedules.collectAsState()
 
     var showRetentionDialog by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showPermissionsPage by remember { mutableStateOf(false) }
+    var showSchedulesPage by remember { mutableStateOf(false) }
+    var showScheduleDialog by remember { mutableStateOf(false) }
+    var editingSchedule by remember { mutableStateOf<RecordingSchedule?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val csvLauncher = rememberLauncherForActivityResult(
@@ -102,6 +106,19 @@ fun SettingsScreen(
         return
     }
 
+    // Dedicated schedules sub-page
+    if (showSchedulesPage) {
+        SchedulesPage(
+            schedules = schedules,
+            onBack = { showSchedulesPage = false },
+            onAdd = { editingSchedule = null; showScheduleDialog = true },
+            onEdit = { sched -> editingSchedule = sched; showScheduleDialog = true },
+            onDelete = { viewModel.deleteSchedule(it) },
+            onToggleEnabled = { viewModel.toggleScheduleEnabled(it) },
+        )
+        return
+    }
+
     val scroll = rememberScrollState()
     Column(
         modifier = modifier
@@ -120,6 +137,14 @@ fun SettingsScreen(
                 subtitle = stringResource(R.string.settings_auto_record_subtitle),
                 checked = ui.autoRecordEnabled,
                 onCheckedChange = viewModel::setAutoRecordEnabled,
+            )
+            CardDivider()
+            SettingsRow(
+                title = stringResource(R.string.settings_schedules_title),
+                subtitle = stringResource(R.string.settings_schedules_subtitle),
+                value = if (schedules.isEmpty()) null
+                        else stringResource(R.string.schedule_count, schedules.size),
+                onClick = { showSchedulesPage = true },
             )
         }
 
@@ -231,6 +256,17 @@ fun SettingsScreen(
             onPick = { mode ->
                 viewModel.setThemeMode(mode)
                 showThemeDialog = false
+            },
+        )
+    }
+    if (showScheduleDialog) {
+        ScheduleDialog(
+            existing = editingSchedule,
+            onDismiss = { showScheduleDialog = false; editingSchedule = null },
+            onSave = { schedule ->
+                viewModel.saveSchedule(schedule)
+                showScheduleDialog = false
+                editingSchedule = null
             },
         )
     }

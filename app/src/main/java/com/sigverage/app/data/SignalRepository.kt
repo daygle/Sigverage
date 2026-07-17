@@ -2,17 +2,23 @@ package com.sigverage.app.data
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SignalReading
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Single source of truth for signal readings. Wraps the Room DAO and hides
- * Room from the rest of the codebase.
+ * Single source of truth for signal readings and recording schedules.
+ * Wraps the Room DAOs and hides Room from the rest of the codebase.
  *
  * The `get(context)` factory keeps the database instance singleton across
  * the app - including from inside the foreground service.
  */
-class SignalRepository(private val dao: SignalReadingDao) {
+class SignalRepository(
+    private val dao: SignalReadingDao,
+    private val scheduleDao: ScheduleDao,
+) {
 
     fun observeReadings(): Flow<List<SignalReading>> = dao.observeAll()
     fun observeCount(): Flow<Int> = dao.observeCount()
@@ -42,6 +48,23 @@ class SignalRepository(private val dao: SignalReadingDao) {
     suspend fun deleteOlderThan(thresholdMillis: Long): Int =
         dao.deleteOlderThan(thresholdMillis)
 
+    // ---- Schedule operations ----
+
+    fun observeSchedules(): Flow<List<RecordingSchedule>> = scheduleDao.observeAll()
+
+    /** Insert or update a schedule. Returns the row id. */
+    suspend fun upsertSchedule(schedule: RecordingSchedule): Long =
+        scheduleDao.upsert(schedule)
+
+    suspend fun deleteSchedule(id: Long) = scheduleDao.deleteById(id)
+
+    /** All enabled schedules, used by [ScheduleManager] to register alarms. */
+    suspend fun getEnabledSchedules(): List<RecordingSchedule> =
+        scheduleDao.getEnabled()
+
+    suspend fun getScheduleById(id: Long): RecordingSchedule? =
+        scheduleDao.getById(id)
+
     companion object {
         private const val DB_NAME = "signals.db"
 
@@ -53,15 +76,37 @@ class SignalRepository(private val dao: SignalReadingDao) {
                 INSTANCE ?: build(context.applicationContext).also { INSTANCE = it }
             }
 
+        /**
+         * Migration from schema v1 (readings only) to v2 (readings + schedules).
+         * Creates the new `recording_schedules` table.
+         */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS recording_schedules (
+                       id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                       name TEXT NOT NULL,
+                       daysOfWeek TEXT NOT NULL,
+                       startHour INTEGER NOT NULL,
+                       startMinute INTEGER NOT NULL,
+                       endHour INTEGER NOT NULL,
+                       endMinute INTEGER NOT NULL,
+                       enabled INTEGER NOT NULL DEFAULT 1
+                    )"""
+                )
+            }
+        }
+
         private fun build(appContext: Context): SignalRepository {
             val db = Room.databaseBuilder(
                 appContext,
                 SignalDatabase::class.java,
                 DB_NAME
             )
-                .fallbackToDestructiveMigration(dropAllTables = true) // v1 only; drop everything on schema mismatch and add proper migrations later
+                .addMigrations(MIGRATION_1_2)
+                .fallbackToDestructiveMigration(dropAllTables = true)
                 .build()
-            return SignalRepository(db.signalReadingDao())
+            return SignalRepository(db.signalReadingDao(), db.scheduleDao())
         }
     }
 }

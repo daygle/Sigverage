@@ -226,7 +226,7 @@ class SamplingService : Service() {
 
         fun start(context: Context) {
             val i = Intent(context, SamplingService::class.java)
-                .putExtra(EXTRA_IS_MOVING, false)
+                .putExtra(EXTRA_IS_MOVING, true)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(i)
             } else {

@@ -31,6 +31,11 @@
     <!-- Activity Recognition: detect still/moving transitions for battery-efficient sampling -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
+    <!-- Schedule alarms: re-register alarms after reboot -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Schedule alarms: keep CPU alive long enough to process alarm -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+
     <uses-feature
         android:name="android.hardware.location"
         android:required="false" />
@@ -75,6 +80,24 @@
         <receiver
             android:name=".service.TransitionReceiver"
             android:exported="false" />
+
+        <receiver
+            android:name=".service.ScheduleReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.sigverage.app.SCHEDULE_START" />
+                <action android:name="com.sigverage.app.SCHEDULE_STOP" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Re-register schedule alarms after device reboot -->
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
     </application>
 </manifest>

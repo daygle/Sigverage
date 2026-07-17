@@ -2,6 +2,7 @@ package com.sigverage.app.model
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverter
 
 /**
  * Cellular technology classification surfaced to the UI.
@@ -44,3 +45,39 @@ data class SignalReading(
     val cellId: Long?,
     val operatorName: String?
 )
+
+/**
+ * A user-defined recording schedule. Specifies which days of the week
+ * and what time window the app should automatically start/stop sampling.
+ *
+ * [daysOfWeek] uses ISO-8601 day numbers: 1=Monday, 7=Sunday.
+ * [startHour]/[startMinute] and [endHour]/[endMinute] define the
+ * active window. When [enabled] is false the schedule is paused.
+ */
+@Entity(tableName = "recording_schedules")
+data class RecordingSchedule(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val daysOfWeek: Set<Int>,
+    val startHour: Int,
+    val startMinute: Int,
+    val endHour: Int,
+    val endMinute: Int,
+    val enabled: Boolean = true,
+)
+
+/**
+ * TypeConverter for [RecordingSchedule.daysOfWeek]: persists a Set<Int>
+ * as a comma-separated string (e.g. "1,2,3,4,5" for Mon-Fri).
+ */
+class DaysOfWeekConverter {
+    @TypeConverter
+    fun fromSet(days: Set<Int>): String =
+        days.sorted().joinToString(",")
+
+    @TypeConverter
+    fun toSet(csv: String): Set<Int> {
+        if (csv.isBlank()) return emptySet()
+        return csv.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()
+    }
+}

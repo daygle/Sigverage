@@ -12,8 +12,10 @@ import com.sigverage.app.data.SignalRepository
 import com.sigverage.app.location.FixSample
 import com.sigverage.app.location.LocationTracker
 import com.sigverage.app.model.NetworkType
+import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.model.ThemeMode
+import com.sigverage.app.service.ScheduleManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -126,6 +128,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val readings: StateFlow<List<SignalReading>> = repo.observeReadings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    val schedules: StateFlow<List<RecordingSchedule>> = repo.observeSchedules()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     val count: StateFlow<Int> = repo.observeCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
@@ -215,6 +220,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setThemeMode(mode: ThemeMode) {
         prefs.themeMode = mode
         _ui.value = _ui.value.copy(themeMode = mode)
+    }
+
+    // ---- Schedule operations ----
+
+    fun saveSchedule(schedule: RecordingSchedule) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val id = repo.upsertSchedule(schedule)
+            val updated = schedule.copy(id = id)
+            ScheduleManager.rescheduleOne(getApplication(), updated)
+            _events.trySend(getApplication<Application>().getString(R.string.schedule_saved))
+        }
+    }
+
+    fun deleteSchedule(schedule: RecordingSchedule) {
+        viewModelScope.launch(Dispatchers.IO) {
+            ScheduleManager.cancelOne(getApplication(), schedule)
+            repo.deleteSchedule(schedule.id)
+            _events.trySend(getApplication<Application>().getString(R.string.schedule_deleted))
+        }
+    }
+
+    fun toggleScheduleEnabled(schedule: RecordingSchedule) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val updated = schedule.copy(enabled = !schedule.enabled)
+            repo.upsertSchedule(updated)
+            ScheduleManager.rescheduleOne(getApplication(), updated)
+        }
     }
 
     /**

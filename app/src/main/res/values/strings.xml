@@ -190,4 +190,37 @@
     <string name="onboarding_done_body">Sigorage is ready. Tap below to open the map. You can update these permissions any time from Settings → Permissions.</string>
     <string name="onboarding_done_body_partial">Some permissions weren\'t granted yet - Sigorage can\'t fully record without location, and Android won\'t keep sampling alive without notifications. Tap below to open the app and finish granting permissions from Settings → Permissions.</string>
     <string name="onboarding_open_app">Open Sigorage</string>
+
+    <!-- Schedules -->
+    <string name="settings_schedules_title">Schedules</string>
+    <string name="settings_schedules_subtitle">Automatically record during specific times.</string>
+    <string name="schedule_empty">No schedules yet. Add one to start automatic recording.</string>
+    <string name="schedule_add">Add schedule</string>
+    <string name="schedule_edit">Edit schedule</string>
+    <string name="schedule_delete">Delete</string>
+    <string name="schedule_name_label">Schedule name</string>
+    <string name="schedule_name_hint">e.g. Weekday commute</string>
+    <string name="schedule_days_label">Days</string>
+    <string name="schedule_time_label">Time</string>
+    <string name="schedule_time_from">From</string>
+    <string name="schedule_time_to">To</string>
+    <string name="schedule_day_mon">Mon</string>
+    <string name="schedule_day_tue">Tue</string>
+    <string name="schedule_day_wed">Wed</string>
+    <string name="schedule_day_thu">Thu</string>
+    <string name="schedule_day_fri">Fri</string>
+    <string name="schedule_day_sat">Sat</string>
+    <string name="schedule_day_sun">Sun</string>
+    <string name="schedule_save">Save</string>
+    <string name="schedule_cancel">Cancel</string>
+    <string name="schedule_active_now">Active now</string>
+    <string name="schedule_next_start">Starts %1$s</string>
+    <string name="schedule_delete_confirm_title">Delete Schedule?</string>
+    <string name="schedule_delete_confirm_msg">This schedule will be removed.</string>
+    <string name="schedule_saved">Schedule saved</string>
+    <string name="schedule_deleted">Schedule deleted</string>
+    <string name="schedule_error_name_required">Name is required</string>
+    <string name="schedule_error_days_required">Select at least one day</string>
+    <string name="schedule_error_time_invalid">End time must be after start time</string>
+    <string name="schedule_count">%1$d schedules</string>
 </resources>
