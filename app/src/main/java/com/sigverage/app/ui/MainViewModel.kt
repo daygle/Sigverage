@@ -427,10 +427,24 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         writer.append('\n')
     }
 
-    /** RFC-4180 style "quote fields with comma/quote/newline, double inner quotes". */
+    /**
+     * RFC-4180 quoting (quote fields with comma/quote/newline, double inner
+     * quotes) plus spreadsheet formula-injection defence: a field beginning
+     * with a formula trigger (`=`, `+`, `-`, `@`, tab or CR) is prefixed with a
+     * single quote so Excel/Sheets treat it as text rather than executing it.
+     * The only free-text field exported is the network operator name, which is
+     * normally harmless but is ultimately attacker-influenceable (a rogue base
+     * station can advertise an arbitrary operator name).
+     */
     private fun csvEscape(s: String): String {
-        val needsQuote = s.any { it == ',' || it == '"' || it == '\n' || it == '\r' }
-        val escaped = s.replace("\"", "\"\"")
+        val guarded = if (s.isNotEmpty() && s.first() in FORMULA_TRIGGERS) "'$s" else s
+        val needsQuote = guarded.any { it == ',' || it == '"' || it == '\n' || it == '\r' }
+        val escaped = guarded.replace("\"", "\"\"")
         return if (needsQuote) "\"$escaped\"" else escaped
+    }
+
+    private companion object {
+        /** Leading characters that make a spreadsheet interpret a cell as a formula. */
+        private const val FORMULA_TRIGGERS = "=+-@\t\r"
     }
 }

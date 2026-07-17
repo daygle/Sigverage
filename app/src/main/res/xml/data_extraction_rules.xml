@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <data-extraction-rules>
+    <!--
+        Cloud backup deliberately EXCLUDES signals.db: it holds the user's
+        location history, and the app promises nothing leaves the device. Only
+        the non-sensitive osmdroid tile-cache prefs are cloud-backed.
+    -->
     <cloud-backup>
-        <include domain="database" path="signals.db" />
+        <exclude domain="database" path="signals.db" />
         <include domain="sharedpref" path="osmdroid.xml" />
     </cloud-backup>
+    <!--
+        Local device-to-device transfer (new-phone migration) keeps the
+        readings: this is a direct phone-to-phone copy, not an off-device
+        upload, so it's consistent with the local-only promise.
+    -->
     <device-transfer>
         <include domain="database" path="signals.db" />
         <include domain="sharedpref" path="osmdroid.xml" />
