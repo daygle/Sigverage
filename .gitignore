@@ -13,3 +13,5 @@ captures/
 *.aab
 *.keystore
 nul
+.freebuff/
+
