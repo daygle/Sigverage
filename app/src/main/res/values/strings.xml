@@ -18,7 +18,7 @@
     <!-- Tile (coverage square) details sheet -->
     <string name="tile_details_title">Cell Details</string>
     <string name="tile_details_center">Center: %1$s, %2$s</string>
-    <string name="tile_details_dominant">Strongest network: %1$s</string>
+    <string name="tile_details_dominant">Strongest Network: %1$s</string>
     <string name="tile_details_networks_label">Networks in This Cell</string>
     <string name="tile_details_operators_label">Operators</string>
     <string name="tile_details_no_signal">No signal value</string>
