@@ -102,6 +102,14 @@ fun CoverageMapScreen(
     val allOperators = remember(readings) {
         readings.mapNotNull { it.operatorName }.filter { it.isNotBlank() }.distinct().sorted()
     }
+    // Only surface network toggles for technologies that actually appear in
+    // the current readings, so the filter bar and sheet don't advertise
+    // networks with nothing to show. Enum order is preserved for a stable,
+    // predictable chip layout.
+    val presentNetworks = remember(readings) {
+        val present = readings.mapTo(HashSet()) { it.networkType }
+        NetworkType.entries.filter { it in present }
+    }
 
     Box(
         modifier = modifier.fillMaxSize()
@@ -112,8 +120,12 @@ fun CoverageMapScreen(
         )
 
         FloatingFilterBar(
-            selected = coverageFilter,
-            onToggle = onToggleFilter,
+            networks = presentNetworks,
+            selectedNetworks = coverageFilter,
+            onToggleNetwork = onToggleFilter,
+            operators = allOperators,
+            selectedOperators = operatorFilter,
+            onToggleOperator = onToggleOperatorFilter,
             activeOperatorCount = operatorFilter.size,
             onOpenFilters = { showFilterSheet = true },
             modifier = Modifier
@@ -193,6 +205,7 @@ fun CoverageMapScreen(
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
             FilterSheet(
+                networks = presentNetworks,
                 selected = coverageFilter,
                 onToggle = onToggleFilter,
                 selectedOperators = operatorFilter,
@@ -207,18 +220,26 @@ fun CoverageMapScreen(
  * The always-visible, horizontally-scrollable filter bar floating at the
  * top of the map. Wrapped in a translucent rounded [Surface] so the chips
  * stay legible over arbitrary map tiles. Leads with a "Filters" pill
- * (opens the full [FilterSheet]) followed by one colour-dotted quick
- * toggle per [NetworkType].
+ * (opens the full [FilterSheet]), followed by one colour-dotted quick
+ * toggle per present [NetworkType] and then a quick toggle per present
+ * operator. Only [networks]/[operators] that appear in the current
+ * readings are shown, so the bar never advertises an empty filter; when a
+ * group is empty its chips (and the divider) simply drop out.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FloatingFilterBar(
-    selected: Set<NetworkType>,
-    onToggle: (NetworkType) -> Unit,
+    networks: List<NetworkType>,
+    selectedNetworks: Set<NetworkType>,
+    onToggleNetwork: (NetworkType) -> Unit,
+    operators: List<String>,
+    selectedOperators: Set<String>,
+    onToggleOperator: (String) -> Unit,
     activeOperatorCount: Int,
     onOpenFilters: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(28.dp),
@@ -252,15 +273,69 @@ private fun FloatingFilterBar(
                     )
                 },
             )
-            NetworkType.entries.forEach { type ->
+            networks.forEach { type ->
                 NetworkQuickChip(
                     type = type,
-                    isSelected = type in selected,
-                    onClick = { onToggle(type) },
+                    isSelected = type in selectedNetworks,
+                    onClick = { onToggleNetwork(type) },
                 )
+            }
+            // Operator quick-toggles live on the same always-visible bar as
+            // the network toggles (they previously hid inside the modal
+            // sheet). A thin divider separates the two groups; both drop out
+            // when the readings carry nothing for them.
+            if (operators.isNotEmpty()) {
+                FilterBarDivider()
+                operators.forEach { operator ->
+                    OperatorQuickChip(
+                        label = operator.replaceFirstChar {
+                            if (it.isLowerCase()) it.titlecase(locale) else it.toString()
+                        },
+                        isSelected = operator in selectedOperators,
+                        onClick = { onToggleOperator(operator) },
+                    )
+                }
             }
         }
     }
+}
+
+/**
+ * A thin vertical divider used inside the horizontally-scrollable
+ * [FloatingFilterBar] to visually separate the network quick-toggles from
+ * the operator quick-toggles.
+ */
+@Composable
+private fun FilterBarDivider() {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 2.dp)
+            .size(width = 1.dp, height = 24.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant)
+    )
+}
+
+/**
+ * A single operator quick toggle used in the floating filter bar. Mirrors
+ * the chip styling used for operators inside [FilterSheet] (tertiary tint)
+ * so the two surfaces feel like one control.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OperatorQuickChip(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+) {
+    FilterChip(
+        selected = isSelected,
+        onClick = onClick,
+        label = { Text(label) },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.18f),
+            selectedLabelColor = MaterialTheme.colorScheme.onSurface,
+        ),
+    )
 }
 
 /**
@@ -349,6 +424,7 @@ private fun MapControls(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun FilterSheet(
+    networks: List<NetworkType>,
     selected: Set<NetworkType>,
     onToggle: (NetworkType) -> Unit,
     selectedOperators: Set<String>,
@@ -375,17 +451,20 @@ private fun FilterSheet(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = stringResource(R.string.filter_network_label),
-            modifier = Modifier.padding(horizontal = 16.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        CoverageFilterChips(
-            selected = selected,
-            onToggle = onToggle,
-        )
+        if (networks.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.filter_network_label),
+                modifier = Modifier.padding(horizontal = 16.dp),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            CoverageFilterChips(
+                types = networks,
+                selected = selected,
+                onToggle = onToggle,
+            )
+        }
 
         if (allOperators.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))

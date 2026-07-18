@@ -21,7 +21,11 @@ import com.sigverage.app.model.NetworkType
 import com.sigverage.app.ui.theme.NetworkColors
 
 /**
- * Material 3 [FilterChip] strip for the eight cellular network types.
+ * Material 3 [FilterChip] strip for cellular network types.
+ *
+ * Renders one chip per [NetworkType] in [types] - callers pass only the
+ * networks worth showing (e.g. those actually present in the current
+ * readings), so the strip never advertises an empty network.
  *
  * Backed by [FlowRow] (Compose 1.6+, `@OptIn(ExperimentalLayoutApi)`)
  * so chips wrap onto additional rows when the parent doesn't provide
@@ -38,6 +42,7 @@ import com.sigverage.app.ui.theme.NetworkColors
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CoverageFilterChips(
+    types: List<NetworkType>,
     selected: Set<NetworkType>,
     onToggle: (NetworkType) -> Unit,
     modifier: Modifier = Modifier,
@@ -49,7 +54,7 @@ fun CoverageFilterChips(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        NetworkType.entries.forEach { type ->
+        types.forEach { type ->
             val isSelected = type in selected
             val swatch = NetworkColors[type] ?: Color.Gray
             FilterChip(
