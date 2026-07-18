@@ -27,7 +27,6 @@ import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -70,10 +69,11 @@ import org.osmdroid.views.MapView
  *    Because these chips sit directly on the map (no scrim), toggling one
  *    gives an instant, fully-visible live preview of the coverage grid -
  *    the property the old non-modal bottom sheet was built to preserve.
- *  - **Bottom-centre:** the primary "Capture here" [ExtendedFloatingActionButton],
- *    and - only while sampling - a pause [SmallFloatingActionButton] beside
- *    it. These used to live as easy-to-miss icons in the app's top bar.
- *  - **Bottom-end:** recenter / zoom-in / zoom-out [SmallFloatingActionButton]s.
+ *  - **Bottom-centre:** only while sampling, a pause
+ *    [SmallFloatingActionButton] so recording can be stopped from the map.
+ *  - **Bottom-end:** recenter / capture-here / zoom-in / zoom-out
+ *    [SmallFloatingActionButton]s. The "Capture here" action sits between
+ *    the recenter and zoom-in buttons, styled to match the zoom controls.
  *
  * The **full** filter set (operators, plus the networks again for
  * completeness) lives in a [ModalBottomSheet] opened by the "Filters" pill;
@@ -123,6 +123,7 @@ fun CoverageMapScreen(
         )
 
         MapControls(
+            onCapture = onCapture,
             onZoomIn = onZoomIn,
             onZoomOut = onZoomOut,
             onRecenter = onRecenter,
@@ -131,40 +132,22 @@ fun CoverageMapScreen(
                 .padding(16.dp),
         )
 
-        // Recording actions grouped bottom-centre: the prominent "Capture
-        // here" FAB, plus a pause button while sampling so recording can be
-        // stopped without leaving the map.
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (isSampling) {
-                SmallFloatingActionButton(
-                    onClick = onStopSampling,
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PauseCircle,
-                        contentDescription = stringResource(R.string.stop_sampling),
-                    )
-                }
+        // While sampling, a pause button sits bottom-centre so recording can
+        // be stopped without leaving the map.
+        if (isSampling) {
+            SmallFloatingActionButton(
+                onClick = onStopSampling,
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PauseCircle,
+                    contentDescription = stringResource(R.string.stop_sampling),
+                )
             }
-            ExtendedFloatingActionButton(
-                onClick = onCapture,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.AddLocation,
-                        contentDescription = null,
-                    )
-                },
-                text = { Text(stringResource(R.string.map_capture_here)) },
-            )
         }
 
         if (readings.isEmpty()) {
@@ -298,13 +281,16 @@ private fun NetworkQuickChip(
 
 /**
  * A vertical stack of the standard interactive map controls - recenter,
- * zoom-in, zoom-out - rendered as Material 3 [SmallFloatingActionButton]s
- * overlaid on the map's bottom-right corner (the platform-conventional
- * spot). These replace osmdroid's dated built-in zoom buttons with
- * touch-target-sized, theme-aware FABs that match the rest of the app.
+ * capture-here, zoom-in, zoom-out - rendered as Material 3
+ * [SmallFloatingActionButton]s overlaid on the map's bottom-right corner
+ * (the platform-conventional spot). These replace osmdroid's dated
+ * built-in zoom buttons with touch-target-sized, theme-aware FABs that
+ * match the rest of the app. The "Capture here" action sits between the
+ * recenter and zoom-in buttons, styled to match the zoom controls.
  */
 @Composable
 private fun MapControls(
+    onCapture: () -> Unit,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onRecenter: () -> Unit,
@@ -323,6 +309,12 @@ private fun MapControls(
             Icon(
                 imageVector = Icons.Default.MyLocation,
                 contentDescription = stringResource(R.string.map_recenter),
+            )
+        }
+        SmallFloatingActionButton(onClick = onCapture) {
+            Icon(
+                imageVector = Icons.Default.AddLocation,
+                contentDescription = stringResource(R.string.map_capture_here),
             )
         }
         SmallFloatingActionButton(onClick = onZoomIn) {
