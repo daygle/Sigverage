@@ -4,7 +4,7 @@
 > 2G / 3G / HSPA / LTE / 5G NR / 5G NSA, on OpenStreetMap, fully on-device.
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.2.10-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
-[![Android](https://img.shields.io/badge/Android-26%E2E40–34-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
+[![Android](https://img.shields.io/badge/Android-26--34-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![License](https://img.shields.io/badge/License-Private-lightgrey)](#license)
 
@@ -128,19 +128,19 @@ Markdown placeholders (leave them commented until you push images):
 
 | Concern              | Choice                                                                                                |
 | -------------------- | ----------------------------------------------------------------------------------------------------- |
-| Language             | Kotlin 2.2.10                                                                                         |
-| UI                   | Jetpack Compose + Material 3 (BOM 2024.06.00), Material 3 `FilterChip`, `AlertDialog`                  |
+| Language             | Kotlin 2.3.0                                                                                          |
+| UI                   | Jetpack Compose + Material 3 (BOM 2026.06.00), Material 3 `FilterChip`, `AlertDialog`                  |
 | Maps                 | [osmdroid 6.1.18](https://github.com/osmdroid/osmdroid) (OpenStreetMap tiles, no API key)               |
 | Cellular info        | `android.telephony.TelephonyManager` + `CellInfo` + `TelephonyDisplayInfo` (5G NSA, API 30+)          |
 | Location             | `android.location.LocationManager` via `callbackFlow` (no Google Play Services dependency); adaptive interval / distance filter per `SamplingMode` |
-| Activity recognition | Google Play Services Location (`play-services-location` 21.3.0) - movement-based sampling            |
-| Storage              | Room 2.8.4 + KSP (`signal_readings` + `recording_schedules` tables, observed via `Flow`)              |
-| Async                | Kotlin Coroutines 1.8.1 + `StateFlow`                                                                 |
+| Activity recognition | Google Play Services Location (`play-services-location` 21.5.0) - movement-based sampling            |
+| Storage              | Room 2.9.0 + KSP (`signal_readings` + `recording_schedules` tables, observed via `Flow`)              |
+| Async                | Kotlin Coroutines 1.10.1 + `StateFlow`                                                                |
 | Scheduling           | `AlarmManager` with exact alarms + `BroadcastReceiver` (survives reboots via `BOOT_COMPLETED`)         |
 | Settings storage     | `SharedPreferences` (singleton in `PreferencesStore.kt`)                                               |
-| Min SDK / Target SDK | 26 / 34                                                                                               |
+| minSdk / targetSdk   | 26 / 34                                                                                               |
 | AGP / Gradle wrapper | 9.3.0 / 9.6.1                                                                                         |
-| JDK                  | 17                                                                                                    |
+| JDK                  | 21                                                                                                    |
 
 ---
 
@@ -279,8 +279,8 @@ The network filter chips (on the floating bar and in the "Filters" modal sheet) 
 
 ### Prerequisites
 
-- **JDK 17** (`brew install --formulae openjdk@17`, `sdkman install java 17.0.10-tem`, or your distro package).
-- **Android Studio Hedgehog (2023.1.1) or newer.** Older Studio releases don't bundle AGP 8.5.
+- **JDK 21** (`brew install --formulae openjdk@21`, `sdkman install java 21.0.x-tem`, or your distro package).
+- **Android Studio Meerkat (2025.1) or newer.** Older Studio releases don't bundle AGP 9.x.
 - **Android Platform 34** installed via SDK Manager (`compileSdk = 34`).
 - **A real Android device** (USB debugging enabled) or an emulator running API 26+. *osmdroid tiles need an internet connection at runtime* - there's no offline mode yet.
 
@@ -335,7 +335,7 @@ Add the four env vars to a **non-tracked** keystore.properties or your CI secret
 
 ### Troubleshooting
 
-- **`Could not find tools.jar`** → JDK 17 isn't on `JAVA_HOME`. `javac --version` should report 17.
+- **`Could not find tools.jar`** → your Gradle daemon is running on an old Java 8 runtime instead of JDK 21. Check `JAVA_HOME` and Android Studio's Gradle JDK settings; `javac --version` should report 21.
 - **`License for package … not accepted`** → open Android Studio, *SDK Manager → SDK Tools → accept licences*.
 - **Empty map at first launch** → your device hasn't produced a GPS fix yet. Move outdoors or check that *Location* is turned on in system Settings.
 - **Sampling stops after a few seconds** on Android 14 → make sure *POST_NOTIFICATIONS* and *Background location* are both granted. Without the notification the OS kills the foreground service.
@@ -362,7 +362,7 @@ Every permission is justified by a concrete feature, and the manifest comments n
 
 **Permission flow**: toggling sampling triggers `RequestMultiplePermissions` when anything is missing. Background location is automatically routed to system Settings by Android - we surface a status banner in *Settings → Permissions & Access* if it's still missing, with an **Open settings** action deep-linking to `ACTION_APPLICATION_DETAILS_SETTINGS`.
 
-**Beyond the manifest**: two system grants that have no manifest declaration are surfaced in the **Background Access** card of *Settings → Permissions & Access* - the **battery-optimisation exemption** (`ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS`) and, on Android 12+, **exact-alarm scheduling** (`ACTION_REQUEST_SCHEDULE_EXACT_ALARM`). Each row reads its live status (`PowerManager.isIgnoringBatteryOptimizations`, `AlarmManager.canScheduleExactAlarms`) and re-checks on resume.
+**Beyond the manifest**: Two system grants that have no manifest declaration are surfaced live in the **Background Access** card of *Settings → Permissions & Access* — the **battery-optimisation exemption** and, on Android 12+, **exact-alarm scheduling**. Each row reads its current status (`PowerManager.isIgnoringBatteryOptimizations`, `AlarmManager.canScheduleExactAlarms`) on every resume.
 
 **Single source of truth**: `app/src/main/java/com/sigverage/app/permissions/PermissionsInventory.kt`. UI rows in the *App Permissions* card of *Settings → Permissions & Access* are generated from this list, so adding a new permission is one entry.
 
@@ -421,14 +421,14 @@ If you change the tile source, do it in `MapPanel.MapView`'s `setTileSource(Tile
 
 ## Roadmap
 
-Already shipped in this build: coverage grid + network filter chips + **operator filter**, **activity-based sampling** (record only when moving), **adaptive battery-usage / sampling modes**, **recording schedules** (day-of-week + time windows via AlarmManager), **background-reliability controls** (battery-optimisation + exact-alarm deep-links), **TTL retention**, **fixed 50 m cell size**, **theme picker**, **dynamic colour**, **card-based list UI** with **show-on-map** + **delete-with-undo**, **Settings redesign**, multi-network slot grid, live network palette, onboarding flow, CSV export.
+**Shipped:** coverage grid + network filter chips + **operator filter** · **activity-based sampling** (records only while moving) · **adaptive battery / sampling modes** · **recording schedules** (day-of-week + time windows via `AlarmManager`) · **background-reliability toggles** (battery-optimisation + exact-alarm deep-links) · **TTL retention** · **fixed 50 m cell size** · **theme picker** · **dynamic colour** · card-based list UI with **show-on-map** + **delete-with-undo** · **Settings redesign** · multi-network slot grid · live network palette · onboarding flow · CSV export.
 
-Next up:
+**Next up:**
 
-- Heatmap / cluster overlay for hundreds of cells per region (current overlay scales to ~thousands; thousands-of-thousands needs quad-tree culling).
+- Heatmap / cluster overlay for hundreds of cells per region — the current overlay scales comfortably to ~thousands; pushing it into the tens-of-thousands will need quad-tree culling.
 - Wi-Fi scanning alongside cellular (Android 9+ throttles `WifiManager.startScan`; needs workarounds).
-- GPX / KML export alongside CSV - the geometry is already there, just a serializer.
-- Route replay: draw a polyline through every reading in an animated tour.
+- GPX / KML export alongside CSV — the geometry is already in the data model, just a serializer.
+- Route replay: animate a polyline through every reading in chronological order.
 - Live signal-vs-speed chart while the user is moving.
 
 ---
