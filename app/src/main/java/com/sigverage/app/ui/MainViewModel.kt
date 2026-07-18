@@ -120,7 +120,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = SignalRepository.get(app)
     private val location = LocationTracker(app)
-    private val cellular = CellularScanner(app)
     private val prefs = PreferencesStore(app)
 
     /**
@@ -156,7 +155,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /**
      * Emit a one-shot UI event (e.g. snackbar message) from any screen.
-     * The event is consumed by MainScreen's [LaunchedEffect] collector.
+     * The event is consumed by MainScreen's `LaunchedEffect` collector.
      */
     fun emitEvent(message: String) {
         _events.trySend(message)
@@ -167,9 +166,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     val schedules: StateFlow<List<RecordingSchedule>> = repo.observeSchedules()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val count: StateFlow<Int> = repo.observeCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     private val _ui = MutableStateFlow(HomeUiState())
     val ui: StateFlow<HomeUiState> = _ui.asStateFlow()
@@ -214,46 +210,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
-     * Capture a single reading at the device's current location.
-     *
-     * Requests a fresh single fix (not the possibly-stale last-known cache) so
-     * the reading reflects where the user is now, then reports the outcome via
-     * [events]. The radio is powered only for the one fix.
-     */
-    fun captureNow() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val app = getApplication<Application>()
-            val fix = location.currentFix()
-            if (fix == null) {
-                // No fix available: tell the user instead of silently doing
-                // nothing while the UI implies a reading was captured.
-                _events.trySend(app.getString(R.string.capture_no_location))
-                return@launch
-            }
-            if (!fix.isAccurateEnough()) {
-                // The only fix we have is too coarse to place on the map;
-                // storing it would drop the reading into the wrong tile.
-                _events.trySend(app.getString(R.string.capture_low_accuracy))
-                return@launch
-            }
-            if (ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) !=
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                return@launch
-            }
-            val reading = cellular.snapshot(
-                provider = fix.provider,
-                latitude = fix.latitude,
-                longitude = fix.longitude,
-                accuracyMeters = fix.accuracyMeters
-            )
-            repo.add(reading)
-            _ui.value = _ui.value.copy(lastFix = fix, latestReading = reading)
-            _events.trySend(app.getString(R.string.capture_snackbar, count.value + 1))
-        }
-    }
-
-    /**
      * One-shot "reading deleted" events carrying the removed row so the UI can
      * offer an Undo. Kept separate from [events] because these need a richer
      * payload (the full reading) and an action-bearing snackbar, not a plain
@@ -261,10 +217,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     private val _undoDeleteEvents = Channel<SignalReading>(Channel.BUFFERED)
     val undoDeleteEvents: Flow<SignalReading> = _undoDeleteEvents.receiveAsFlow()
-
-    fun delete(id: Long) {
-        viewModelScope.launch(Dispatchers.IO) { repo.delete(id) }
-    }
 
     /**
      * Delete [reading] and surface an undoable event. The full row is carried
@@ -303,13 +255,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _events.trySend(app.getString(R.string.auto_record_no_permissions))
             return
         }
-        setSampling(true)
+        setSampling(active = true)
         SamplingService.start(app)
     }
 
     /** Stop recording on demand (mirror of [startSampling]). */
     fun stopSampling() {
-        setSampling(false)
+        setSampling(active = false)
         SamplingService.stop(getApplication<Application>())
     }
 
@@ -545,7 +497,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun applyRetention(days: Int, announce: Boolean) {
         val cutoff = System.currentTimeMillis() -
-            days.toLong() * 24L * 60L * 60L * 1000L
+            (days.toLong() * 24L * 60L * 60L * 1000L)
         viewModelScope.launch(Dispatchers.IO) {
             val count = repo.deleteOlderThan(cutoff)
             if (announce && count > 0) {

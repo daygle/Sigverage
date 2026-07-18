@@ -30,7 +30,7 @@ object ScheduleManager {
      * after the database migration, and whenever a schedule is
      * created/updated/deleted.
      */
-    suspend fun rescheduleAll(context: Context, schedules: List<RecordingSchedule>) {
+    fun rescheduleAll(context: Context, schedules: List<RecordingSchedule>) {
         cancelAll(context)
         for (schedule in schedules) {
             if (!schedule.enabled) continue
@@ -57,7 +57,7 @@ object ScheduleManager {
             val intent = Intent(context, ScheduleReceiver::class.java)
             val pi = PendingIntent.getBroadcast(
                 context, requestCode, intent,
-                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
             )
             if (pi != null) am.cancel(pi)
         }
@@ -102,7 +102,7 @@ object ScheduleManager {
         val startCal = nextOccurrence(schedule, schedule.startHour, schedule.startMinute, now)
         val endCal = nextOccurrence(schedule, schedule.endHour, schedule.endMinute, now)
 
-        val isActive = now in startCal..endCal
+        val isActive = now in (startCal..endCal)
         val targetCal: Calendar
         val action: String
         val requestCode: Int
@@ -161,7 +161,7 @@ object ScheduleManager {
             val candidate = (cal.clone() as Calendar).apply {
                 add(Calendar.DAY_OF_YEAR, offset)
             }
-            val isoDay = candidate.get(Calendar.DAY_OF_WEEK).toIsoDay()
+            val isoDay = candidate[Calendar.DAY_OF_WEEK].toIsoDay()
             if (isoDay in schedule.daysOfWeek && candidate.after(now)) {
                 return candidate
             }
@@ -197,7 +197,4 @@ object ScheduleManager {
         Calendar.SUNDAY -> 7
         else -> this
     }
-
-    private operator fun Calendar.compareTo(other: Calendar): Int =
-        this.timeInMillis.compareTo(other.timeInMillis)
 }

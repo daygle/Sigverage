@@ -113,7 +113,7 @@ fun PermissionsSection(modifier: Modifier = Modifier) {
     }
 
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { _ ->
         snapshot = takeSnapshot(context, activity)
     }
@@ -166,7 +166,7 @@ private fun StatusBanner(allGranted: Boolean) {
                 contentDescription = null,
                 modifier = Modifier.size(24.dp),
                 tint = if (allGranted) MaterialTheme.colorScheme.primary
-                       else MaterialTheme.colorScheme.error,
+                else MaterialTheme.colorScheme.error,
             )
             Spacer(Modifier.width(12.dp))
             Text(
@@ -177,7 +177,7 @@ private fun StatusBanner(allGranted: Boolean) {
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = if (allGranted) MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onErrorContainer,
+                else MaterialTheme.colorScheme.onErrorContainer,
             )
         }
     }
@@ -215,7 +215,7 @@ private fun PermissionCard(
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = if (isGranted) MaterialTheme.colorScheme.primary
-                           else MaterialTheme.colorScheme.onSurfaceVariant,
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.width(12.dp))
                 // Title

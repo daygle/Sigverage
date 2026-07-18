@@ -88,7 +88,7 @@ interface ScheduleDao {
 @Database(
     entities = [SignalReading::class, RecordingSchedule::class],
     version = 3,
-    exportSchema = false
+    exportSchema = false,
 )
 @TypeConverters(Converters::class, DaysOfWeekConverter::class)
 abstract class SignalDatabase : RoomDatabase() {

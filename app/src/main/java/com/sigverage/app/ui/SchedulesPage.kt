@@ -103,7 +103,7 @@ fun SchedulesPage(
                     imageVector = Icons.Default.EventBusy,
                     contentDescription = null,
                     modifier = Modifier.size(64.dp),
-                    tint = MaterialTheme.colorScheme.outlineVariant
+                    tint = MaterialTheme.colorScheme.outlineVariant,
                 )
                 Spacer(Modifier.height(16.dp))
                 Text(
@@ -111,7 +111,7 @@ fun SchedulesPage(
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.padding(horizontal = 48.dp),
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
             }
         } else {
@@ -142,16 +142,18 @@ fun SchedulesPage(
             title = { Text(stringResource(R.string.schedule_delete_confirm_title)) },
             text = { Text(stringResource(R.string.schedule_delete_confirm_msg)) },
             confirmButton = {
-                TextButton(onClick = {
-                    onDelete(schedule)
-                    confirmDelete = null
-                }) { Text(stringResource(R.string.confirm_yes)) }
+                TextButton(
+                    onClick = {
+                        onDelete(schedule)
+                        confirmDelete = null
+                    },
+                ) { Text(stringResource(R.string.confirm_yes)) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = null }) {
                     Text(stringResource(R.string.confirm_no))
                 }
-            }
+            },
         )
     }
 }
@@ -168,9 +170,9 @@ private fun ScheduleCard(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = MaterialTheme.colorScheme.surface,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
     ) {
         Row(
             modifier = Modifier
@@ -191,16 +193,16 @@ private fun ScheduleCard(
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Default.Event,
+                        imageVector = Icons.Default.Event,
                         contentDescription = null,
                         modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = formatDays(schedule.daysOfWeek),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 
@@ -219,8 +221,8 @@ private fun ScheduleCard(
                         text = formatTimeRange(schedule.startHour, schedule.startMinute, schedule.endHour, schedule.endMinute),
                         style = MaterialTheme.typography.bodySmall,
                         color = if (schedule.enabled) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium,
                     )
                 }
 
@@ -229,24 +231,24 @@ private fun ScheduleCard(
                     Text(
                         text = stringResource(R.string.schedule_overnight_note),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
-            
+
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onDelete) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = stringResource(R.string.delete_reading),
                         tint = MaterialTheme.colorScheme.error.copy(alpha = if (schedule.enabled) 0.8f else 0.5f),
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(20.dp),
                     )
                 }
                 Switch(
                     checked = schedule.enabled,
                     onCheckedChange = { onToggleEnabled() },
-                    modifier = Modifier.scale(0.85f)
+                    modifier = Modifier.scale(0.85f),
                 )
             }
         }

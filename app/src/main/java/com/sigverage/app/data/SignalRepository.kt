@@ -37,7 +37,6 @@ class SignalRepository(
         return dao.existsInBounds(bounds.northLat, bounds.westLng, bounds.southLat, bounds.eastLng)
     }
     suspend fun delete(id: Long) = dao.deleteById(id)
-    suspend fun delete(reading: SignalReading) = dao.delete(reading)
     suspend fun deleteAll() = dao.deleteAll()
 
     /**
@@ -58,7 +57,7 @@ class SignalRepository(
 
     suspend fun deleteSchedule(id: Long) = scheduleDao.deleteById(id)
 
-    /** All enabled schedules, used by [ScheduleManager] to register alarms. */
+    /** All enabled schedules, used by `ScheduleManager` to register alarms. */
     suspend fun getEnabledSchedules(): List<RecordingSchedule> =
         scheduleDao.getEnabled()
 
@@ -92,7 +91,7 @@ class SignalRepository(
                        endHour INTEGER NOT NULL,
                        endMinute INTEGER NOT NULL,
                        enabled INTEGER NOT NULL DEFAULT 1
-                    )"""
+                    )""",
                 )
             }
         }

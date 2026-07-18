@@ -78,7 +78,7 @@ import com.sigverage.app.R
  *
  * A persistent **Skip** affordance lives at the top-right corner of every
  * step so the user can leave onboarding immediately. Skipping sets
- * [MainViewModel.onboardingCompleted] to `true`; the user lands on
+ * `viewModel.completeOnboarding()` to `true`; the user lands on
  * `MainScreen` and can finish granting permissions from Settings
  * → Permissions or by starting sampling from the Map FAB.
  *
@@ -94,10 +94,10 @@ fun OnboardingScreen(viewModel: MainViewModel) {
     // True once any permission was denied. Survives rotation. Drives the
     // copy on the Done page so users who skipped or denied aren't left
     // wondering why their first recording fails.
-    var anyDenied by rememberSaveable { mutableStateOf(false) }
+    var anyDenied by rememberSaveable { mutableStateOf(value = false) }
 
     val locationLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
         // `grants` is a Map<String, Boolean> with one entry per requested
         // permission. Flag any denial but always advance - the user can
@@ -215,7 +215,7 @@ fun OnboardingScreen(viewModel: MainViewModel) {
                 },
                 // Optional: let the user move on without granting it.
                 secondaryCta = stringResource(R.string.onboarding_background_skip),
-                onSecondary = { step = step.next() },
+                onSecondary = { step = step.next() }
             )
             OnboardingStep.Done -> OnboardingPage(
                 icon = Icons.Filled.LocationOn,
@@ -344,7 +344,7 @@ private fun OnboardingPage(
         ) {
             Text(cta, style = MaterialTheme.typography.titleMedium)
         }
-        if (secondaryCta != null && onSecondary != null) {
+        if ((secondaryCta != null) && (onSecondary != null)) {
             Spacer(Modifier.height(8.dp))
             TextButton(
                 onClick = onSecondary,

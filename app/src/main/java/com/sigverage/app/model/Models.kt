@@ -51,7 +51,7 @@ data class SignalReading(
     val mcc: Int?,
     val mnc: Int?,
     val cellId: Long?,
-    val operatorName: String?
+    val operatorName: String?,
 )
 
 /**
@@ -81,7 +81,7 @@ data class RecordingSchedule(
 class DaysOfWeekConverter {
     @TypeConverter
     fun fromSet(days: Set<Int>): String =
-        days.sorted().joinToString(",")
+        days.asSequence().sorted().joinToString(",")
 
     @TypeConverter
     fun toSet(csv: String): Set<Int> {

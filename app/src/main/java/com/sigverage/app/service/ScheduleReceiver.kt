@@ -20,8 +20,7 @@ class ScheduleReceiver : BroadcastReceiver() {
         val scheduleId = intent.getLongExtra(ScheduleManager.EXTRA_SCHEDULE_ID, -1)
         if (scheduleId == -1L) return
 
-        val action = intent.action
-        when (action) {
+        when (intent.action) {
             ScheduleManager.ACTION_SCHEDULE_START -> {
                 SamplingService.start(context)
             }
@@ -35,8 +34,7 @@ class ScheduleReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val repo = SignalRepository.get(context)
-                val schedule = repo.getScheduleById(scheduleId)
-                if (schedule != null) {
+                repo.getScheduleById(scheduleId)?.let { schedule ->
                     ScheduleManager.rescheduleOne(context, schedule)
                 }
             } finally {

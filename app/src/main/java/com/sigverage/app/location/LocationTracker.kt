@@ -28,7 +28,7 @@ data class FixSample(
     val longitude: Double,
     val accuracyMeters: Float,
     val provider: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
 ) {
     /**
      * Whether this fix is precise enough to store. Fixes with a *known*
@@ -38,7 +38,7 @@ data class FixSample(
      * ([Float.NaN], rare on modern GPS) gets the benefit of the doubt.
      */
     fun isAccurateEnough(maxMeters: Float = DEFAULT_MAX_ACCURACY_M): Boolean =
-        accuracyMeters.isNaN() || accuracyMeters <= maxMeters
+        accuracyMeters.isNaN() || (accuracyMeters <= maxMeters)
 
     companion object {
         /**
@@ -84,7 +84,7 @@ class LocationTracker(private val context: Context) {
         return providers.asSequence()
             .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
             .maxByOrNull { it.time }
-            ?.let { it.toFix() }
+            ?.toFix()
     }
 
     /**
@@ -96,7 +96,6 @@ class LocationTracker(private val context: Context) {
      * battery-cheap while guaranteeing the reading reflects where the user
      * actually is now.
      */
-    @Suppress("deprecation")
     suspend fun currentFix(): FixSample? {
         if (!hasFineLocation()) return null
         val provider = bestProvider() ?: return null
@@ -123,7 +122,7 @@ class LocationTracker(private val context: Context) {
                     signal,
                     ContextCompat.getMainExecutor(context),
                 ) { location -> resumeOnce(location?.toFix()) }
-            } catch (t: Throwable) {
+            } catch (_: Throwable) {
                 resumeOnce(null)
             }
         }
@@ -196,7 +195,7 @@ class LocationTracker(private val context: Context) {
         if (mode != SamplingMode.Auto) return mode
         val saver = runCatching {
             (context.getSystemService(Context.POWER_SERVICE) as PowerManager).isPowerSaveMode
-        }.getOrDefault(false)
+        }.getOrDefault(defaultValue = false)
         val level = runCatching {
             (context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager)
                 .getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)

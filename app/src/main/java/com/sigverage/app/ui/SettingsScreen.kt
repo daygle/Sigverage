@@ -51,7 +51,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -112,18 +111,18 @@ fun SettingsScreen(
     val readings by viewModel.readings.collectAsState()
     val schedules by viewModel.schedules.collectAsState()
 
-    var showRetentionDialog by remember { mutableStateOf(false) }
-    var confirmDeleteAll by remember { mutableStateOf(false) }
-    var showThemeDialog by remember { mutableStateOf(false) }
-    var showTimeFormatDialog by remember { mutableStateOf(false) }
-    var showDateFormatDialog by remember { mutableStateOf(false) }
-    var showSamplingModeDialog by remember { mutableStateOf(false) }
-    var showScheduleDialog by remember { mutableStateOf(false) }
+    var showRetentionDialog by remember { mutableStateOf(value = false) }
+    var confirmDeleteAll by remember { mutableStateOf(value = false) }
+    var showThemeDialog by remember { mutableStateOf(value = false) }
+    var showTimeFormatDialog by remember { mutableStateOf(value = false) }
+    var showDateFormatDialog by remember { mutableStateOf(value = false) }
+    var showSamplingModeDialog by remember { mutableStateOf(value = false) }
+    var showScheduleDialog by remember { mutableStateOf(value = false) }
     var editingSchedule by remember { mutableStateOf<RecordingSchedule?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val csvLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
+        contract = ActivityResultContracts.CreateDocument("text/csv"),
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
@@ -138,204 +137,217 @@ fun SettingsScreen(
         }
     }
 
-    // Top-level page selection: if/else-if/else so the dialog checks at the
-    // bottom of this composable ALWAYS get evaluated, even when a sub-page is
-    // on screen.
-    if (subPage == SettingsSubPage.Permissions) {
-        BackHandler { onSubPageChange(SettingsSubPage.None) }
-        PermissionsAccessPage(onBack = { onSubPageChange(SettingsSubPage.None) })
-    } else if (subPage == SettingsSubPage.Schedules) {
-        BackHandler { onSubPageChange(SettingsSubPage.None) }
-        SchedulesPage(
-            schedules = schedules,
-            onBack = { onSubPageChange(SettingsSubPage.None) },
-            onAdd = { editingSchedule = null; showScheduleDialog = true },
-            onEdit = { sched -> editingSchedule = sched; showScheduleDialog = true },
-            onDelete = { viewModel.deleteSchedule(it) },
-            onToggleEnabled = { viewModel.toggleScheduleEnabled(it) },
-        )
-    } else if (subPage == SettingsSubPage.MapFilters) {
-        BackHandler { onSubPageChange(SettingsSubPage.None) }
-        val operators = remember(readings) {
-            readings.mapNotNull { it.operatorName }.filter { it.isNotBlank() }.distinct().sorted()
+    when (subPage) {
+        SettingsSubPage.Permissions -> {
+            BackHandler { onSubPageChange(SettingsSubPage.None) }
+            PermissionsAccessPage { onSubPageChange(SettingsSubPage.None) }
         }
-        MapFiltersPage(
-            selectedNetworks = ui.defaultNetworkFilter,
-            onToggleNetwork = viewModel::toggleDefaultNetwork,
-            operators = operators,
-            selectedOperators = ui.defaultOperatorFilter,
-            onToggleOperator = viewModel::toggleDefaultOperator,
-            onBack = { onSubPageChange(SettingsSubPage.None) },
-        )
-    } else {
-        val scroll = rememberScrollState()
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .verticalScroll(scroll)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // -- Recording section --
-            SettingsCard(
-                headerIcon = Icons.Default.Schedule,
-                headerTitle = stringResource(R.string.settings_section_recording),
-            ) {
-                // Manual recording control + live status. Replaces the pause
-                // action that used to sit in the top app bar - recording is
-                // now started and stopped here, and the subtitle reflects
-                // whether sampling is currently running.
-                SwitchRow(
-                    title = stringResource(R.string.settings_recording_title),
-                    subtitle = stringResource(
-                        if (ui.isSampling) R.string.settings_recording_running
-                        else R.string.settings_recording_stopped
-                    ),
-                    checked = ui.isSampling,
-                    onCheckedChange = { start ->
-                        if (start) viewModel.startSampling() else viewModel.stopSampling()
-                    },
-                )
-                CardDivider()
-                SwitchRow(
-                    title = stringResource(R.string.settings_auto_record_title),
-                    subtitle = stringResource(R.string.settings_auto_record_subtitle),
-                    checked = ui.autoRecordEnabled,
-                    onCheckedChange = viewModel::setAutoRecordEnabled,
-                )
-                CardDivider()
-                SettingsRow(
-                    title = stringResource(R.string.settings_sampling_mode_title),
-                    subtitle = stringResource(R.string.settings_sampling_mode_subtitle),
-                    value = samplingModeLabelFor(ui.samplingMode),
-                    onClick = { showSamplingModeDialog = true },
-                )
-                CardDivider()
-                SettingsRow(
-                    title = stringResource(R.string.settings_schedules_title),
-                    subtitle = stringResource(R.string.settings_schedules_subtitle),
-                    value = if (schedules.isEmpty()) null
-                    else pluralStringResource(R.plurals.schedule_count, schedules.size, schedules.size),
-                    onClick = { onSubPageChange(SettingsSubPage.Schedules) },
-                )
+        SettingsSubPage.Schedules -> {
+            BackHandler { onSubPageChange(SettingsSubPage.None) }
+            SchedulesPage(
+                schedules = schedules,
+                onBack = { onSubPageChange(SettingsSubPage.None) },
+                onAdd = {
+                    editingSchedule = null
+                    showScheduleDialog = true
+                },
+                onEdit = { sched ->
+                    editingSchedule = sched
+                    showScheduleDialog = true
+                },
+                onDelete = { viewModel.deleteSchedule(it) },
+                onToggleEnabled = { viewModel.toggleScheduleEnabled(it) },
+            )
+        }
+        SettingsSubPage.MapFilters -> {
+            BackHandler { onSubPageChange(SettingsSubPage.None) }
+            val operators = remember(readings) {
+                readings.asSequence()
+                    .mapNotNull { it.operatorName }
+                    .filter { it.isNotBlank() }
+                    .distinct()
+                    .sorted()
+                    .toList()
             }
-
-            // -- Appearance section --
-            SettingsCard(
-                headerIcon = Icons.Default.Palette,
-                headerTitle = stringResource(R.string.settings_section_appearance),
+            MapFiltersPage(
+                selectedNetworks = ui.defaultNetworkFilter,
+                onToggleNetwork = viewModel::toggleDefaultNetwork,
+                operators = operators,
+                selectedOperators = ui.defaultOperatorFilter,
+                onToggleOperator = viewModel::toggleDefaultOperator,
+                onBack = { onSubPageChange(SettingsSubPage.None) },
+            )
+        }
+        SettingsSubPage.None -> {
+            val scroll = rememberScrollState()
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .verticalScroll(scroll)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                SettingsRow(
-                    title = stringResource(R.string.settings_theme_title),
-                    subtitle = stringResource(R.string.settings_theme_subtitle),
-                    value = themeLabelFor(ui.themeMode),
-                    onClick = { showThemeDialog = true },
-                )
-                CardDivider()
-                SettingsRow(
-                    title = stringResource(R.string.settings_time_format_title),
-                    subtitle = stringResource(R.string.settings_time_format_subtitle),
-                    value = timeFormatLabelFor(ui.timeFormat),
-                    onClick = { showTimeFormatDialog = true },
-                )
-                CardDivider()
-                SettingsRow(
-                    title = stringResource(R.string.settings_date_format_title),
-                    subtitle = stringResource(R.string.settings_date_format_subtitle),
-                    value = dateFormatLabelFor(ui.dateFormat),
-                    onClick = { showDateFormatDialog = true },
-                )
-                CardDivider()
-                SwitchRow(
-                    title = stringResource(R.string.settings_dynamic_color_title),
-                    subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
-                    checked = ui.dynamicColorEnabled,
-                    onCheckedChange = viewModel::setDynamicColorEnabled,
-                )
-            }
+                // -- Recording section --
+                SettingsCard(
+                    headerIcon = Icons.Default.Schedule,
+                    headerTitle = stringResource(R.string.settings_section_recording),
+                ) {
+                    // Manual recording control + live status. Replaces the pause
+                    // action that used to sit in the top app bar - recording is
+                    // now started and stopped here, and the subtitle reflects
+                    // whether sampling is currently running.
+                    SwitchRow(
+                        title = stringResource(R.string.settings_recording_title),
+                        subtitle = stringResource(
+                            if (ui.isSampling) R.string.settings_recording_running
+                            else R.string.settings_recording_stopped
+                        ),
+                        checked = ui.isSampling,
+                        onCheckedChange = { start ->
+                            if (start) viewModel.startSampling() else viewModel.stopSampling()
+                        },
+                    )
+                    CardDivider()
+                    SwitchRow(
+                        title = stringResource(R.string.settings_auto_record_title),
+                        subtitle = stringResource(R.string.settings_auto_record_subtitle),
+                        checked = ui.autoRecordEnabled,
+                        onCheckedChange = viewModel::setAutoRecordEnabled,
+                    )
+                    CardDivider()
+                    SettingsRow(
+                        title = stringResource(R.string.settings_sampling_mode_title),
+                        subtitle = stringResource(R.string.settings_sampling_mode_subtitle),
+                        value = samplingModeLabelFor(ui.samplingMode),
+                        onClick = { showSamplingModeDialog = true },
+                    )
+                    CardDivider()
+                    SettingsRow(
+                        title = stringResource(R.string.settings_schedules_title),
+                        subtitle = stringResource(R.string.settings_schedules_subtitle),
+                        value = if (schedules.isEmpty()) null
+                        else pluralStringResource(R.plurals.schedule_count, schedules.size, schedules.size),
+                        onClick = { onSubPageChange(SettingsSubPage.Schedules) },
+                    )
+                }
 
-            // -- Map section --
-            SettingsCard(
-                headerIcon = Icons.Default.Map,
-                headerTitle = stringResource(R.string.settings_section_map),
-            ) {
-                SettingsRow(
-                    title = stringResource(R.string.settings_map_filters_title),
-                    subtitle = stringResource(R.string.settings_map_filters_subtitle),
-                    value = mapFilterSummary(ui.defaultNetworkFilter, ui.defaultOperatorFilter),
-                    onClick = { onSubPageChange(SettingsSubPage.MapFilters) },
-                )
-            }
+                // -- Appearance section --
+                SettingsCard(
+                    headerIcon = Icons.Default.Palette,
+                    headerTitle = stringResource(R.string.settings_section_appearance),
+                ) {
+                    SettingsRow(
+                        title = stringResource(R.string.settings_theme_title),
+                        subtitle = stringResource(R.string.settings_theme_subtitle),
+                        value = themeLabelFor(ui.themeMode),
+                        onClick = { showThemeDialog = true },
+                    )
+                    CardDivider()
+                    SettingsRow(
+                        title = stringResource(R.string.settings_time_format_title),
+                        subtitle = stringResource(R.string.settings_time_format_subtitle),
+                        value = timeFormatLabelFor(ui.timeFormat),
+                        onClick = { showTimeFormatDialog = true },
+                    )
+                    CardDivider()
+                    SettingsRow(
+                        title = stringResource(R.string.settings_date_format_title),
+                        subtitle = stringResource(R.string.settings_date_format_subtitle),
+                        value = dateFormatLabelFor(ui.dateFormat),
+                        onClick = { showDateFormatDialog = true },
+                    )
+                    CardDivider()
+                    SwitchRow(
+                        title = stringResource(R.string.settings_dynamic_color_title),
+                        subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
+                        checked = ui.dynamicColorEnabled,
+                        onCheckedChange = viewModel::setDynamicColorEnabled,
+                    )
+                }
 
-            // -- Data section --
-            SettingsCard(
-                headerIcon = Icons.Default.CloudDownload,
-                headerTitle = stringResource(R.string.settings_section_data),
-            ) {
-                SettingsRow(
-                    title = stringResource(R.string.settings_retention_title),
-                    subtitle = stringResource(R.string.settings_retention_subtitle),
-                    value = retentionLabelFor(ui.retentionDays),
-                    onClick = { showRetentionDialog = true },
-                )
-                CardDivider()
-                SettingsRow(
-                    title = stringResource(R.string.export_csv),
-                    subtitle = if (readings.isEmpty()) {
-                        stringResource(R.string.export_nothing)
-                    } else {
-                        pluralStringResource(R.plurals.settings_export_count, readings.size, readings.size)
-                    },
-                    enabled = readings.isNotEmpty(),
-                    onClick = { csvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
-                )
-                CardDivider()
-                SettingsRow(
-                    title = stringResource(R.string.settings_delete_all_title),
-                    subtitle = if (readings.isEmpty()) {
-                        stringResource(R.string.settings_delete_all_empty)
-                    } else {
-                        pluralStringResource(R.plurals.settings_delete_all_count, readings.size, readings.size)
-                    },
-                    destructive = true,
-                    enabled = readings.isNotEmpty(),
-                    onClick = { confirmDeleteAll = true },
-                )
-            }
+                // -- Map section --
+                SettingsCard(
+                    headerIcon = Icons.Default.Map,
+                    headerTitle = stringResource(R.string.settings_section_map),
+                ) {
+                    SettingsRow(
+                        title = stringResource(R.string.settings_map_filters_title),
+                        subtitle = stringResource(R.string.settings_map_filters_subtitle),
+                        value = mapFilterSummary(ui.defaultNetworkFilter, ui.defaultOperatorFilter),
+                        onClick = { onSubPageChange(SettingsSubPage.MapFilters) },
+                    )
+                }
 
-            // -- Permissions & Access drill-out --
-            SettingsCard(
-                headerIcon = Icons.Default.Security,
-                headerTitle = stringResource(R.string.settings_section_permissions),
-            ) {
-                SettingsRow(
-                    title = stringResource(R.string.settings_permissions_title),
-                    subtitle = stringResource(R.string.settings_permissions_subtitle),
-                    onClick = { onSubPageChange(SettingsSubPage.Permissions) },
-                )
-            }
+                // -- Data section --
+                SettingsCard(
+                    headerIcon = Icons.Default.CloudDownload,
+                    headerTitle = stringResource(R.string.settings_section_data),
+                ) {
+                    SettingsRow(
+                        title = stringResource(R.string.settings_retention_title),
+                        subtitle = stringResource(R.string.settings_retention_subtitle),
+                        value = retentionLabelFor(ui.retentionDays),
+                        onClick = { showRetentionDialog = true },
+                    )
+                    CardDivider()
+                    SettingsRow(
+                        title = stringResource(R.string.export_csv),
+                        subtitle = if (readings.isEmpty()) {
+                            stringResource(R.string.export_nothing)
+                        } else {
+                            pluralStringResource(R.plurals.settings_export_count, readings.size, readings.size)
+                        },
+                        enabled = readings.isNotEmpty(),
+                        onClick = { csvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
+                    )
+                    CardDivider()
+                    SettingsRow(
+                        title = stringResource(R.string.settings_delete_all_title),
+                        subtitle = if (readings.isEmpty()) {
+                            stringResource(R.string.settings_delete_all_empty)
+                        } else {
+                            pluralStringResource(R.plurals.settings_delete_all_count, readings.size, readings.size)
+                        },
+                        destructive = true,
+                        enabled = readings.isNotEmpty(),
+                        onClick = { confirmDeleteAll = true },
+                    )
+                }
 
-            // -- About section --
-            SettingsCard(
-                headerIcon = Icons.Default.Info,
-                headerTitle = stringResource(R.string.settings_section_about),
-            ) {
-                AboutRow(
-                    label = stringResource(R.string.about_version_value, BuildConfig.VERSION_NAME),
-                )
-                CardDivider()
-                AboutRow(
-                    label = stringResource(R.string.about_android_version_label),
-                    value = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
-                )
-                CardDivider()
-                AboutRow(
-                    label = stringResource(R.string.about_blurb),
-                    isSubtitle = true,
-                )
-            }
+                // -- Permissions & Access drill-out --
+                SettingsCard(
+                    headerIcon = Icons.Default.Security,
+                    headerTitle = stringResource(R.string.settings_section_permissions),
+                ) {
+                    SettingsRow(
+                        title = stringResource(R.string.settings_permissions_title),
+                        subtitle = stringResource(R.string.settings_permissions_subtitle),
+                        onClick = { onSubPageChange(SettingsSubPage.Permissions) },
+                    )
+                }
 
-            Spacer(Modifier.height(16.dp))
+                // -- About section --
+                SettingsCard(
+                    headerIcon = Icons.Default.Info,
+                    headerTitle = stringResource(R.string.settings_section_about),
+                ) {
+                    AboutRow(
+                        label = stringResource(R.string.about_version_value, BuildConfig.VERSION_NAME),
+                    )
+                    CardDivider()
+                    AboutRow(
+                        label = stringResource(R.string.about_android_version_label),
+                        value = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})",
+                    )
+                    CardDivider()
+                    AboutRow(
+                        label = stringResource(R.string.about_blurb),
+                        isSubtitle = true,
+                    )
+                }
+
+                Spacer(Modifier.height(16.dp))
+            }
         }
     }
 
@@ -392,7 +404,10 @@ fun SettingsScreen(
     if (showScheduleDialog) {
         ScheduleDialog(
             existing = editingSchedule,
-            onDismiss = { showScheduleDialog = false; editingSchedule = null },
+            onDismiss = {
+                showScheduleDialog = false
+                editingSchedule = null
+            },
             onSave = { schedule ->
                 viewModel.saveSchedule(schedule)
                 showScheduleDialog = false
@@ -406,16 +421,18 @@ fun SettingsScreen(
             title = { Text(stringResource(R.string.confirm_delete_all_title)) },
             text = { Text(stringResource(R.string.confirm_delete_all_msg)) },
             confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteAll()
-                    confirmDeleteAll = false
-                }) { Text(stringResource(R.string.confirm_yes)) }
+                TextButton(
+                    onClick = {
+                        viewModel.deleteAll()
+                        confirmDeleteAll = false
+                    },
+                ) { Text(stringResource(R.string.confirm_yes)) }
             },
             dismissButton = {
                 TextButton(onClick = { confirmDeleteAll = false }) {
                     Text(stringResource(R.string.confirm_no))
                 }
-            }
+            },
         )
     }
 }
@@ -532,7 +549,7 @@ private fun SettingsRow(
                     destructive -> MaterialTheme.colorScheme.error
                     !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                     else -> MaterialTheme.colorScheme.onSurface
-                }
+                },
             )
             if (subtitle != null) {
                 Text(
@@ -662,7 +679,7 @@ private fun openExactAlarmSettings(context: Context) {
         runCatching {
             context.startActivity(
                 Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
         }
     }
@@ -693,8 +710,8 @@ private fun mapFilterSummary(
 /**
  * Settings drill-out for the persisted default map filters: which networks and
  * operators the coverage map loads with. Editing these writes straight to
- * [PreferencesStore]; the live map picks them up the next time the Map tab is
- * opened (temporary on-map chip overrides are discarded then).
+ * [com.sigverage.app.data.PreferencesStore]; the live map picks them up the next
+ * time the Map tab is opened (temporary on-map chip overrides are discarded then).
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -719,7 +736,7 @@ private fun MapFiltersPage(
                     }
                 },
             )
-        }
+        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -761,7 +778,7 @@ private fun MapFiltersPage(
                                         .background(
                                             NetworkColors[type] ?: MaterialTheme.colorScheme.outline,
                                             CircleShape,
-                                        )
+                                        ),
                                 )
                             },
                         )
@@ -877,7 +894,7 @@ private fun PermissionsAccessPage(onBack: () -> Unit) {
                     }
                 },
             )
-        }
+        },
     ) { padding ->
         Column(
             modifier = Modifier

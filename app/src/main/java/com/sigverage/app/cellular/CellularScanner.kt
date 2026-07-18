@@ -41,13 +41,13 @@ class CellularScanner(private val context: Context) {
         provider: String,
         latitude: Double,
         longitude: Double,
-        accuracyMeters: Float
+        accuracyMeters: Float,
     ): SignalReading {
         val infos: List<CellInfo> = runCatching {
             telephonyManager.allCellInfo.orEmpty()
         }.getOrDefault(emptyList())
 
-        val primary: CellInfo? = infos
+        val primary: CellInfo? = infos.asSequence()
             .filter { it.isRegistered }
             .maxByOrNull { signalDbmOf(it) ?: Int.MIN_VALUE }
 
@@ -61,16 +61,9 @@ class CellularScanner(private val context: Context) {
 
         // LTE-specific signal decomposition (RSRP/RSRQ/SNR are most useful for
         // assessing LTE/NR quality).
-        val rsrp = if (primary is android.telephony.CellInfoLte) {
-            primary.cellSignalStrength.rsrp.takeIf { it != Int.MAX_VALUE }
-        } else null
-        val rsrq = if (primary is android.telephony.CellInfoLte) {
-            primary.cellSignalStrength.rsrq.takeIf { it != Int.MAX_VALUE }
-        } else null
-        val rssnr = if (primary is android.telephony.CellInfoLte) {
-            @Suppress("DEPRECATION")
-            primary.cellSignalStrength.rssnr.takeIf { it != Int.MAX_VALUE }
-        } else null
+        val rsrp = (primary as? android.telephony.CellInfoLte)?.cellSignalStrength?.rsrp?.takeIf { it != Int.MAX_VALUE }
+        val rsrq = (primary as? android.telephony.CellInfoLte)?.cellSignalStrength?.rsrq?.takeIf { it != Int.MAX_VALUE }
+        val rssnr = (primary as? android.telephony.CellInfoLte)?.cellSignalStrength?.rssnr?.takeIf { it != Int.MAX_VALUE }
 
         return SignalReading(
             timestamp = System.currentTimeMillis(),

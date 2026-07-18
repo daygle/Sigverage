@@ -143,18 +143,6 @@ class CoverageGridOverlay(
         palette = newPalette
     }
 
-    fun update(
-        newStats: Map<TileId, CellStats>,
-        newAllowed: Set<NetworkType>,
-        newAllowedOperators: Set<String> = emptySet(),
-        newPalette: Map<NetworkType, androidx.compose.ui.graphics.Color> = palette,
-    ) {
-        stats = newStats
-        allowed = newAllowed
-        allowedOperators = newAllowedOperators
-        palette = newPalette
-    }
-
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
         if (shadow || stats.isEmpty()) return
         val projection = mapView.projection
@@ -349,7 +337,7 @@ class CoverageGridOverlay(
          *  "50 m cells" - a rounded mid-latitude figure that matches what
          *  users actually see in the field. **Exact** 50 m would require
          *  a fractional-zoom refactor (the `aggregate()` function and the
-         *  `TileId` data class in [com.sigverage.app.coverage.CoverageModel]
+         *  `TileId` data class in `com.sigverage.app.coverage.CoverageModel`
          *  currently use `Int` zooms); this constant sits at the integer
          *  zoom whose cells are slightly finer than 50 m at typical
          *  mid-latitudes, which is the closest integer Mercator step ≤ 50 m.

@@ -41,7 +41,7 @@ fun TimePickerDialog(
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
-            usePlatformDefaultWidth = false
+            usePlatformDefaultWidth = false,
         ),
     ) {
         Surface(
@@ -52,26 +52,26 @@ fun TimePickerDialog(
                 .height(IntrinsicSize.Min)
                 .background(
                     shape = RoundedCornerShape(28.dp),
-                    color = containerColor
+                    color = containerColor,
                 ),
-            color = containerColor
+            color = containerColor,
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp),
                     text = title,
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMedium,
                 )
                 content()
                 Row(
                     modifier = Modifier
                         .height(40.dp)
-                        .fillMaxWidth()
+                        .fillMaxWidth(),
                 ) {
                     Spacer(modifier = Modifier.weight(1f))
                     dismissButton?.invoke()

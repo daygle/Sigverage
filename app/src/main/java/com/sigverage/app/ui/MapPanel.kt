@@ -108,7 +108,7 @@ fun MapPanel(
                 val bitmap = indicator.toBitmap(
                     width = indicator.intrinsicWidth.coerceAtLeast(1),
                     height = indicator.intrinsicHeight.coerceAtLeast(1),
-                    config = android.graphics.Bitmap.Config.ARGB_8888
+                    config = android.graphics.Bitmap.Config.ARGB_8888,
                 )
                 setPersonIcon(bitmap)
             }
@@ -259,7 +259,7 @@ fun MapPanel(
             selectedTile = null
             coverageOverlay.setSelectedTile(null)
             mapView.invalidate()
-        },
+        }
     )
 }
 
@@ -277,7 +277,7 @@ private fun buildTileDetails(
     allowed: Set<NetworkType>,
 ): TileDetails {
     val bounds = tileBounds(tile)
-    val networks = cell.perNetwork.entries
+    val networks = cell.perNetwork.entries.asSequence()
         .sortedByDescending { it.value.count }
         .map { (type, agg) ->
             TileNetworkStat(
@@ -288,6 +288,7 @@ private fun buildTileDetails(
                 worstDbm = agg.worstDbm,
             )
         }
+        .toList()
     return TileDetails(
         centerLat = (bounds.northLat + bounds.southLat) / 2.0,
         centerLng = (bounds.westLng + bounds.eastLng) / 2.0,

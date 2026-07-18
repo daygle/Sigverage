@@ -133,7 +133,7 @@ fun ScheduleDialog(
                     Spacer(Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         for (day in DAY_OPTIONS) {
                             val isSelected = day.isoDay in selectedDays
@@ -147,7 +147,7 @@ fun ScheduleDialog(
                                         selectedDays + day.isoDay
                                     }
                                     daysError = false
-                                }
+                                },
                             )
                         }
                     }
@@ -180,7 +180,7 @@ fun ScheduleDialog(
                         label = stringResource(R.string.schedule_starts_at),
                         hour = startHour,
                         minute = startMinute,
-                        onClick = { pickingStartTime = true }
+                        onClick = { pickingStartTime = true },
                     )
 
                     Spacer(Modifier.height(8.dp))
@@ -189,7 +189,7 @@ fun ScheduleDialog(
                         label = stringResource(R.string.schedule_ends_at),
                         hour = endHour,
                         minute = endMinute,
-                        onClick = { pickingEndTime = true }
+                        onClick = { pickingEndTime = true },
                     )
 
                     val identical = startHour == endHour && startMinute == endMinute
@@ -252,17 +252,19 @@ fun ScheduleDialog(
             title = stringResource(R.string.schedule_select_start_time),
             onDismissRequest = { pickingStartTime = false },
             confirmButton = {
-                TextButton(onClick = {
-                    startHour = state.hour
-                    startMinute = state.minute
-                    pickingStartTime = false
-                }) { Text(stringResource(R.string.action_ok)) }
+                TextButton(
+                    onClick = {
+                        startHour = state.hour
+                        startMinute = state.minute
+                        pickingStartTime = false
+                    },
+                ) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
                 TextButton(onClick = { pickingStartTime = false }) {
                     Text(stringResource(R.string.schedule_cancel))
                 }
-            }
+            },
         ) {
             TimePicker(state = state)
         }
@@ -274,17 +276,19 @@ fun ScheduleDialog(
             title = stringResource(R.string.schedule_select_end_time),
             onDismissRequest = { pickingEndTime = false },
             confirmButton = {
-                TextButton(onClick = {
-                    endHour = state.hour
-                    endMinute = state.minute
-                    pickingEndTime = false
-                }) { Text(stringResource(R.string.action_ok)) }
+                TextButton(
+                    onClick = {
+                        endHour = state.hour
+                        endMinute = state.minute
+                        pickingEndTime = false
+                    },
+                ) { Text(stringResource(R.string.action_ok)) }
             },
             dismissButton = {
                 TextButton(onClick = { pickingEndTime = false }) {
                     Text(stringResource(R.string.schedule_cancel))
                 }
-            }
+            },
         ) {
             TimePicker(state = state)
         }

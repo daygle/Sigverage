@@ -82,7 +82,7 @@ fun ListPanel(
                     modifier = Modifier.padding(horizontal = 32.dp),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.outline,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
                 )
             }
         }
@@ -96,7 +96,7 @@ fun ListPanel(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(readings, key = { it.id }) { r ->
             ReadingCard(
@@ -170,7 +170,7 @@ private fun ReadingCard(
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium,
-                                color = signalStrengthColor(dbm)
+                                color = signalStrengthColor(dbm),
                             )
                         }
                         Spacer(Modifier.width(8.dp))
@@ -178,7 +178,7 @@ private fun ReadingCard(
                     Text(
                         text = fmt.format(Date(r.timestamp)),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
 
@@ -186,7 +186,7 @@ private fun ReadingCard(
                     text = "%.5f, %.5f".format(r.latitude, r.longitude),
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.outline
+                    color = MaterialTheme.colorScheme.outline,
                 )
             }
 
@@ -194,14 +194,14 @@ private fun ReadingCard(
                 onClick = onFocusMap,
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
-                    contentColor = MaterialTheme.colorScheme.primary
+                    contentColor = MaterialTheme.colorScheme.primary,
                 ),
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(44.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.MyLocation,
                     contentDescription = stringResource(R.string.show_on_map_cd),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
 
@@ -211,14 +211,14 @@ private fun ReadingCard(
                 onClick = onDelete,
                 colors = IconButtonDefaults.iconButtonColors(
                     containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.4f),
-                    contentColor = MaterialTheme.colorScheme.error
+                    contentColor = MaterialTheme.colorScheme.error,
                 ),
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(44.dp),
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = stringResource(R.string.delete_reading),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -293,13 +293,13 @@ fun DetailsSheet(
                         text = reading.networkType.label,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     reading.operatorName?.let {
                         Text(
                             text = it,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                 }
@@ -330,7 +330,7 @@ fun DetailsSheet(
             // Location section
             DetailRow(
                 stringResource(R.string.detail_lat_lng),
-                stringResource(R.string.detail_lat_lng_value, reading.latitude, reading.longitude)
+                stringResource(R.string.detail_lat_lng_value, reading.latitude, reading.longitude),
             )
             DetailRow(stringResource(R.string.detail_accuracy), stringResource(R.string.detail_accuracy_value, reading.accuracyMeters.toInt().coerceAtLeast(0)))
             DetailRow(stringResource(R.string.detail_provider), reading.provider)
@@ -355,16 +355,18 @@ fun DetailsSheet(
             // Action buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
             ) {
-                TextButton(onClick = {
-                    scope.launch { sheetState.hide() }
-                        .invokeOnCompletion { onShowOnMap() }
-                }) {
+                TextButton(
+                    onClick = {
+                        scope.launch { sheetState.hide() }
+                            .invokeOnCompletion { onShowOnMap() }
+                    },
+                ) {
                     Icon(
                         imageVector = Icons.Default.Map,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.show_on_map_action))
@@ -373,13 +375,13 @@ fun DetailsSheet(
                     onClick = {
                         scope.launch { sheetState.hide() }
                             .invokeOnCompletion { onDelete() }
-                    }
+                    },
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(18.dp),
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.delete_reading))

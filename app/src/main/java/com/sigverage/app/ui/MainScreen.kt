@@ -15,7 +15,6 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScaffoldDefaults
 import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
@@ -60,7 +59,7 @@ fun MainScreen(viewModel: MainViewModel) {
     // renders that sub-page full-screen, so we hide the app bar and bottom
     // navigation and let the sub-page's own Scaffold own the system insets.
     var settingsSubPage by remember { mutableStateOf(SettingsSubPage.None) }
-    val settingsSubPageActive = tab == Tab.Settings && settingsSubPage != SettingsSubPage.None
+    val settingsSubPageActive = tab == Tab.Settings && (settingsSubPage != SettingsSubPage.None)
 
     val jumpToReading: (SignalReading) -> Unit = remember(viewModel) {
         { reading: SignalReading ->
@@ -105,7 +104,7 @@ fun MainScreen(viewModel: MainViewModel) {
             return@LaunchedEffect
         }
         if (ui.isSampling) return@LaunchedEffect
-        viewModel.setSampling(true)
+        viewModel.setSampling(active = true)
         SamplingService.start(ctx)
         snackbar.showSnackbar(msgStarted)
     }
@@ -147,7 +146,7 @@ fun MainScreen(viewModel: MainViewModel) {
                         selected = tab == Tab.Map,
                         onClick = { tab = Tab.Map },
                         icon = { Icon(Icons.Default.Map, contentDescription = null) },
-                        label = { Text(stringResource(R.string.tab_map)) }
+                        label = { Text(stringResource(R.string.tab_map)) },
                     )
                     NavigationBarItem(
                         selected = tab == Tab.List,
@@ -214,7 +213,7 @@ fun MainScreen(viewModel: MainViewModel) {
                 viewModel.deleteReading(reading)
                 sheetReading = null
             },
-            onShowOnMap = { jumpToReading(reading) },
+            onShowOnMap = { jumpToReading(reading) }
         )
     }
 }

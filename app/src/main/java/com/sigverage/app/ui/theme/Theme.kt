@@ -53,7 +53,7 @@ val NetworkColors: Map<NetworkType, Color> = mapOf(
     NetworkType.GSM to Color(0xFFA855F7),
     NetworkType.EDGE to Color(0xFF7C3AED),         // EDGE ≈ CDMA-deep-purple in static
     NetworkType.CDMA to SignalRed,
-    NetworkType.Unknown to Slate700
+    NetworkType.Unknown to Slate700,
 )
 
 /**
@@ -105,7 +105,7 @@ private val LightColors = lightColorScheme(
     onSurface = Slate900,
     surfaceVariant = Color(0xFFE2E8F0),
     onSurfaceVariant = Slate700,
-    error = SignalRed
+    error = SignalRed,
 )
 
 private val DarkColors = darkColorScheme(
@@ -121,7 +121,7 @@ private val DarkColors = darkColorScheme(
     onSurface = Slate100,
     surfaceVariant = Color(0xFF334155),
     onSurfaceVariant = Color(0xFFCBD5F1),
-    error = Color(0xFFFCA5A5)
+    error = Color(0xFFFCA5A5),
 )
 
 /**
@@ -137,7 +137,7 @@ private val DarkColors = darkColorScheme(
 fun SigverageTheme(
     themeMode: ThemeMode = ThemeMode.Default,
     dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
     val darkTheme: Boolean = when (themeMode) {
         ThemeMode.System -> isSystemInDarkTheme()
