@@ -19,9 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AssistChip
@@ -46,7 +44,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -54,7 +54,34 @@ import com.sigverage.app.R
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.ui.theme.NetworkColors
+import java.util.Locale
 import org.osmdroid.views.MapView
+
+/**
+ * Per-network row inside a selected tile's details sheet: how many readings
+ * that network had in the cell and its mean signal ([meanDbm] is null when no
+ * reading in the cell carried a usable dBm value).
+ */
+data class TileNetworkStat(
+    val type: NetworkType,
+    val count: Int,
+    val meanDbm: Int?,
+)
+
+/**
+ * Everything the tile-details sheet shows for a tapped coverage square:
+ * its centre coordinate, the currently-dominant network (matching the drawn
+ * fill), the full per-network breakdown, the operators seen there, and the
+ * total reading count.
+ */
+data class TileDetails(
+    val centerLat: Double,
+    val centerLng: Double,
+    val dominant: NetworkType?,
+    val networks: List<TileNetworkStat>,
+    val operators: List<String>,
+    val totalReadings: Int,
+)
 
 /**
  * Full-bleed coverage map with all controls floating **on** the map
@@ -69,11 +96,10 @@ import org.osmdroid.views.MapView
  *    Because these chips sit directly on the map (no scrim), toggling one
  *    gives an instant, fully-visible live preview of the coverage grid -
  *    the property the old non-modal bottom sheet was built to preserve.
- *  - **Bottom-centre:** only while sampling, a pause
- *    [SmallFloatingActionButton] so recording can be stopped from the map.
- *  - **Bottom-end:** recenter / capture-here / zoom-in / zoom-out
- *    [SmallFloatingActionButton]s. The "Capture here" action sits between
- *    the recenter and zoom-in buttons, styled to match the zoom controls.
+ *  - **Bottom-end:** recenter / zoom-in / zoom-out
+ *    [SmallFloatingActionButton]s. Recording (start/stop and one-off
+ *    captures) is driven entirely from the Settings page, so the map
+ *    carries no recording controls.
  *
  * The **full** filter set (operators, plus the networks again for
  * completeness) lives in a [ModalBottomSheet] opened by the "Filters" pill;
@@ -90,13 +116,12 @@ fun CoverageMapScreen(
     onToggleFilter: (NetworkType) -> Unit,
     operatorFilter: Set<String>,
     onToggleOperatorFilter: (String) -> Unit,
-    isSampling: Boolean,
-    onCapture: () -> Unit,
-    onStopSampling: () -> Unit,
     modifier: Modifier = Modifier,
     onZoomIn: () -> Unit = {},
     onZoomOut: () -> Unit = {},
     onRecenter: () -> Unit = {},
+    tileDetails: TileDetails? = null,
+    onDismissTileDetails: () -> Unit = {},
 ) {
     var showFilterSheet by rememberSaveable { mutableStateOf(false) }
     val allOperators = remember(readings) {
@@ -135,7 +160,6 @@ fun CoverageMapScreen(
         )
 
         MapControls(
-            onCapture = onCapture,
             onZoomIn = onZoomIn,
             onZoomOut = onZoomOut,
             onRecenter = onRecenter,
@@ -143,24 +167,6 @@ fun CoverageMapScreen(
                 .align(Alignment.BottomEnd)
                 .padding(16.dp),
         )
-
-        // While sampling, a pause button sits bottom-centre so recording can
-        // be stopped without leaving the map.
-        if (isSampling) {
-            SmallFloatingActionButton(
-                onClick = onStopSampling,
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(16.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PauseCircle,
-                    contentDescription = stringResource(R.string.stop_sampling),
-                )
-            }
-        }
 
         if (readings.isEmpty()) {
             Surface(
@@ -197,6 +203,148 @@ fun CoverageMapScreen(
             )
         }
     }
+
+    if (tileDetails != null) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
+            onDismissRequest = onDismissTileDetails,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            TileDetailsSheet(details = tileDetails)
+        }
+    }
+}
+
+/**
+ * Bottom-sheet contents for a tapped coverage square: its centre coordinate,
+ * the dominant network (matching the painted fill), a per-network breakdown
+ * of reading counts and mean signal, and the operators observed in the cell.
+ */
+@Composable
+private fun TileDetailsSheet(details: TileDetails) {
+    val locale = LocalConfiguration.current.locales[0]
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 24.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.tile_details_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = stringResource(
+                R.string.tile_details_center,
+                String.format(Locale.US, "%.5f", details.centerLat),
+                String.format(Locale.US, "%.5f", details.centerLng),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(2.dp))
+        Text(
+            text = pluralStringResource(
+                R.plurals.tile_details_readings,
+                details.totalReadings,
+                details.totalReadings,
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        if (details.dominant != null) {
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                NetworkDot(details.dominant)
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    text = stringResource(
+                        R.string.tile_details_dominant,
+                        details.dominant.label,
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Text(
+            text = stringResource(R.string.tile_details_networks_label),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(4.dp))
+        details.networks.forEach { stat ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                NetworkDot(stat.type)
+                Spacer(Modifier.size(8.dp))
+                Text(
+                    text = stat.type.label,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = if (stat.meanDbm != null) {
+                        stringResource(R.string.tile_details_dbm, stat.meanDbm)
+                    } else {
+                        stringResource(R.string.tile_details_no_signal)
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.size(12.dp))
+                Text(
+                    text = pluralStringResource(
+                        R.plurals.tile_details_readings,
+                        stat.count,
+                        stat.count,
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        if (details.operators.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = stringResource(R.string.tile_details_operators_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = details.operators.joinToString {
+                    it.replaceFirstChar { c ->
+                        if (c.isLowerCase()) c.titlecase(locale) else c.toString()
+                    }
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+/** A small colour-coded dot for [type], matching the coverage-grid palette. */
+@Composable
+private fun NetworkDot(type: NetworkType) {
+    Box(
+        modifier = Modifier
+            .size(12.dp)
+            .background(
+                color = NetworkColors[type] ?: Color.Gray,
+                shape = CircleShape,
+            )
+    )
 }
 
 /**
@@ -356,16 +504,15 @@ private fun NetworkQuickChip(
 
 /**
  * A vertical stack of the standard interactive map controls - recenter,
- * capture-here, zoom-in, zoom-out - rendered as Material 3
- * [SmallFloatingActionButton]s overlaid on the map's bottom-right corner
- * (the platform-conventional spot). These replace osmdroid's dated
- * built-in zoom buttons with touch-target-sized, theme-aware FABs that
- * match the rest of the app. The "Capture here" action sits between the
- * recenter and zoom-in buttons, styled to match the zoom controls.
+ * zoom-in, zoom-out - rendered as Material 3 [SmallFloatingActionButton]s
+ * overlaid on the map's bottom-right corner (the platform-conventional
+ * spot). These replace osmdroid's dated built-in zoom buttons with
+ * touch-target-sized, theme-aware FABs that match the rest of the app.
+ * Recording is driven from the Settings page, so no capture control lives
+ * here.
  */
 @Composable
 private fun MapControls(
-    onCapture: () -> Unit,
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onRecenter: () -> Unit,
@@ -384,12 +531,6 @@ private fun MapControls(
             Icon(
                 imageVector = Icons.Default.MyLocation,
                 contentDescription = stringResource(R.string.map_recenter),
-            )
-        }
-        SmallFloatingActionButton(onClick = onCapture) {
-            Icon(
-                imageVector = Icons.Default.AddLocation,
-                contentDescription = stringResource(R.string.map_capture_here),
             )
         }
         SmallFloatingActionButton(onClick = onZoomIn) {

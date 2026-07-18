@@ -73,8 +73,8 @@ Markdown placeholders (leave them commented until you push images):
 - **Auto-record on launch** (opt-in, *Settings → Recording*): when enabled, sampling starts automatically the moment you open the app. If location permissions are missing, a one-shot snackbar surfaces explaining how to fix it.
 - **Recording schedules** (*Settings → Recording → Schedules*): define time windows (day-of-week + start/end time, including overnight windows) when sampling should run automatically. Uses AlarmManager with exact alarms that survive reboots via `BootReceiver`.
 - **Background reliability controls** (*Settings → Permissions & Access → Background Access*): deep-links to the OS **battery-optimisation exemption** ("Run Reliably in Background") and, on Android 12+, the **exact-alarm** grant ("Exact Schedule Timing"), each showing its live status so long recordings and schedules aren't paused by the system.
-- **Smart sampling**: background service skips recording if a reading already exists in the current ~50 m coverage cell (zoom 20). Manual capture always records regardless.
-- **Manual capture** via the **Capture here** button in the map's on-map control stack (bottom-right, between the recenter and zoom-in buttons) for one-off readings without starting the service.
+- **Smart sampling**: background service skips recording if a reading already exists in the current ~50 m coverage cell (zoom 20).
+- **Recording control**: sampling is started and stopped from *Settings → Recording*, where a **Recording** switch shows the live running/stopped status. There are no recording controls on the map or in the top app bar.
 - **Network operator** (carrier name) is recorded and displayed prominently in both the list view and details sheet.
 - **CellularScanner** picks the strongest registered cell and classifies it:
   - 5G NSA detection via `TelephonyDisplayInfo.overrideNetworkType` (API 30+); we don't trust `dataNetworkType` alone because NSA anchors to an LTE control plane.
@@ -105,8 +105,9 @@ Markdown placeholders (leave them commented until you push images):
 
 ### 🧭 UI scaffold
 - **Bottom navigation** between Map, List, and Settings views.
-- **Immersive map tab**: the map runs edge-to-edge with no app bar; every control floats on the map itself - a top filter bar, a bottom-right control stack of **recenter → Capture here → zoom-in → zoom-out** small FABs (the "Capture here" action is styled to match the zoom buttons and sits between recenter and zoom-in), plus a pause FAB at the bottom-centre while sampling.
-- **Top app bar** (List / Settings root only, never on the immersive Map): app title + a conditional pause/stop icon shown only while sampling is active. No other clutter.
+- **Immersive map tab**: the map runs edge-to-edge with no app bar; every control floats on the map itself - a top filter bar and a bottom-right control stack of **recenter → zoom-in → zoom-out** small FABs. osmdroid's built-in zoom buttons are disabled so these are the only zoom controls. Sampling is started and stopped from the Settings page.
+- **Tap a coverage square** to open a details sheet: the tapped cell is highlighted and the sheet shows its centre coordinate, the dominant network, a per-network breakdown of reading counts and mean signal, and the operators seen there.
+- **Top app bar** (List / Settings root only, never on the immersive Map): app title only. No other clutter.
 - **Floating filter bar** on the map: quick network toggles plus a **Filters** pill that opens the full network + operator filter modal sheet.
 - **Compose `SnackbarHost`** in the outer `Scaffold` - survives configuration changes via a one-shot `Channel<String>` from the ViewModel.
 - **List tab** with per-row `NetworkBadge`, operator name, colour-coded dBm chip and coordinates. Each card has inline **Show on map** and **Delete** buttons; tapping the card opens a detail bottom sheet (dBm, RSRP / RSRQ / SNR for LTE, MCC / MNC / cell ID, operator, provider, accuracy, time, lat/lng) with its own **Show on map** / **Delete** / **Close** actions.
@@ -155,7 +156,7 @@ MainActivity
                   │    ├── MapPanel   ── osmdroid MapView via AndroidView
                   │    │    ├── CoverageGridOverlay       ── Mercator tile aggregation + HSL+paint + operator filter
                   │    │    ├── MyLocationNewOverlay     ── modern custom location indicator
-                  │    │    └── CoverageMapScreen       ── full-bleed map + floating filter bar + on-map control stack (recenter / capture / zoom) + ModalBottomSheet filters
+                  │    │    └── CoverageMapScreen       ── full-bleed map + floating filter bar + on-map control stack (recenter / zoom) + ModalBottomSheet filters + tile-details sheet
                   │    ├── ListPanel  ── LazyColumn with Card-based reading items (show-on-map + delete) + details bottom sheet
                   │    └── SettingsScreen ── Recording / Appearance / Data / Permissions & Access / About
                   │         ├── SchedulesPage (drill-out: add/edit/delete/toggle schedules)
@@ -229,7 +230,7 @@ Two deliberate separation-of-concerns choices worth noting:
             │   ├── CoverageModel.kt          (TileId, CellStats, NetworkAggregate, Mercator math, colorFor, aggregate)
             │   ├── CoverageGrid.kt           (osmdroid Overlay + slot grid + palette + operator filter)
             │   ├── CoverageFilterChips.kt    (Material 3 FilterChip strip, FlowRow-wrapped)
-            │   └── CoverageMapScreen.kt      (full-bleed map + floating filter bar + on-map control stack: recenter / capture / zoom + ModalBottomSheet filters)
+            │   └── CoverageMapScreen.kt      (full-bleed map + floating filter bar + on-map control stack: recenter / zoom + ModalBottomSheet filters + tile-details sheet)
             ├── service/
             │   ├── SamplingService.kt        (foreground service + activity recognition + smart sampling)
             │   ├── TransitionReceiver.kt     (BroadcastReceiver for activity transitions)
@@ -262,7 +263,7 @@ You have two categorical × continuous dimensions to show: **which network** (ca
 | Dimension  | Visual channel                                    | Why                                                                             |
 | ---------- | ------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Network    | Box **fill colour hue**                           | Pre-attentive grouping - the eye chunks colour regions faster than shape or text. |
-| Strength   | Box **fill alpha** (0.95 Strong → 0.34 Weak)      | Alpha survives being shrunk down; the hue identity stays usable everywhere.    |
+| Strength   | Box **fill alpha** (0.60 Strong → 0.22 Weak)      | Alpha survives being shrunk down; the hue identity stays usable everywhere. Kept translucent so the map underneath stays readable through the squares. |
 | Secondary networks present | 2×4 **corner slot grid** in the bottom-right corner | Slot positions are fixed: row 0 has the modern nets, row 1 has fallbacks.       |
 
 Each tile aggregates its readings into `CellStats.perNetwork: Map<NetworkType, NetworkAggregate>`. A single dominant network is then picked via `pickDominant()` (highest count; tiebreakers: more recent → stronger mean dBm). The corner grid still exposes the *non-dominant* networks that were present in the same tile - so you can read *"mostly LTE, with patches of 5G"* at a glance.
@@ -371,13 +372,14 @@ Every permission is justified by a concrete feature, and the manifest comments n
 The bottom navigation has three tabs. The first two (Map / List) show your data; the third (Settings) is where every knob lives.
 
 ### 🗺️ Map | 📋 List
-- **Map**: coverage boxes on OpenStreetMap. Floating filter chips at the top; on-map control stack (recenter / **Capture here** / zoom) at the bottom-right; a pause FAB appears bottom-centre while sampling. *Snackbar* sits in the outer Scaffold so messages reach you even when you drag the map around.
+- **Map**: coverage boxes on OpenStreetMap. Floating filter chips at the top; on-map control stack (recenter / zoom) at the bottom-right. Tap a coverage square to open its details sheet (dominant network, per-network counts and mean signal, operators). *Snackbar* sits in the outer Scaffold so messages reach you even when you drag the map around.
 - **List**: every reading, most-recent first, each card showing network badge, operator, a colour-coded dBm chip and coordinates. Inline **Show on map** and **Delete** buttons per card; tap the card → bottom sheet with the full reading (signal dBm, LTE RSRP/RSRQ/SNR, MCC/MNC/cell ID, operator, provider, accuracy, timestamp, lat/lng) plus Show on map / Delete / Close. Deleting shows an **Undo** snackbar.
 
 ### ⚙️ Settings
 | Section | Row | What it does |
 | ------- | --- | ------------ |
-| **Recording** | Auto-record on launch | Switch. When on, sampling begins automatically the moment the app opens (after onboarding). Service keeps running with a sticky notification until you tap Pause (on the map, or in the List / Settings top bar). Default **off** - opt-in to avoid surprise battery drain. |
+| **Recording** | Recording | Switch. Starts/stops sampling on demand; the subtitle shows the live status (*Running* / *Stopped*). Turning it on checks location/notification permissions first and surfaces a snackbar if any are missing. This is the primary place to start and stop recording. |
+| **Recording** | Auto-record on launch | Switch. When on, sampling begins automatically the moment the app opens (after onboarding). Service keeps running with a sticky notification until you turn recording off here. Default **off** - opt-in to avoid surprise battery drain. |
 | **Recording** | Battery Usage | Opens a picker: *Automatic* / *Power Saver* / *Balanced* / *High Accuracy* - trades GPS fix frequency / accuracy against battery drain while recording. Automatic adapts to Battery Saver and low-battery state. |
 | **Recording** | Schedules (drill-out) | Taps open a dedicated sub-page where you can add/edit/delete/toggle recording schedules. Each schedule has a name, day-of-week selection, and start/end time (overnight windows supported). Schedules use AlarmManager with exact alarms. |
 | **Appearance** | Theme | *Follow system* / *Light* / *Dark*. |
@@ -389,7 +391,7 @@ The bottom navigation has three tabs. The first two (Map / List) show your data;
 | **About** | App name, version, Android version, blurb | Static info. |
 
 ### Top app bar
-The immersive **Map** tab has no app bar - all its controls float on the map. The **List** and **Settings** (root) tabs show a slim app bar with the app title and, **only while sampling is active**, a ⏸ pause/stop icon. There is no capture icon in the app bar; manual capture lives in the map's on-map control stack. Sampling itself is started from *Settings → Auto-record on launch*, a schedule, or by leaving Auto-record on.
+The immersive **Map** tab has no app bar - all its controls float on the map. The **List** and **Settings** (root) tabs show a slim app bar with just the app title; recording is started and stopped from *Settings → Recording* (or a schedule / auto-record on launch), so the bar carries no pause or capture actions.
 
 ---
 

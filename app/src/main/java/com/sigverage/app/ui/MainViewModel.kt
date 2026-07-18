@@ -2,8 +2,10 @@ package com.sigverage.app.ui
 
 import android.Manifest
 import android.app.Application
+import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +20,7 @@ import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.model.ThemeMode
+import com.sigverage.app.service.SamplingService
 import com.sigverage.app.service.ScheduleManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -252,6 +255,61 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setSampling(active: Boolean) {
         _ui.value = _ui.value.copy(isSampling = active)
+    }
+
+    /**
+     * Start recording on demand (e.g. from the Settings recording toggle).
+     *
+     * Verifies the runtime permissions the foreground sampling service needs
+     * before starting; if any are missing we surface a snackbar via [events]
+     * and leave [HomeUiState.isSampling] false, so the UI reflects that no
+     * recording could start rather than implying one that can't run.
+     */
+    fun startSampling() {
+        val app = getApplication<Application>()
+        if (missingSamplingPermissions(app).isNotEmpty()) {
+            _events.trySend(app.getString(R.string.auto_record_no_permissions))
+            return
+        }
+        setSampling(true)
+        SamplingService.start(app)
+    }
+
+    /** Stop recording on demand (mirror of [startSampling]). */
+    fun stopSampling() {
+        setSampling(false)
+        SamplingService.stop(getApplication<Application>())
+    }
+
+    /**
+     * The runtime permissions the foreground sampling service needs that are
+     * not currently granted. Empty means sampling can start. Shared by the
+     * auto-record path and the manual Settings recording toggle so both gate
+     * recording on exactly the same set of grants.
+     */
+    fun missingSamplingPermissions(context: Context = getApplication<Application>()): List<String> {
+        val missing = mutableListOf<String>()
+        val fine = Manifest.permission.ACCESS_FINE_LOCATION
+        if (ContextCompat.checkSelfPermission(context, fine) != PackageManager.PERMISSION_GRANTED) {
+            missing += fine
+        }
+        val coarse = Manifest.permission.ACCESS_COARSE_LOCATION
+        if (ContextCompat.checkSelfPermission(context, coarse) != PackageManager.PERMISSION_GRANTED) {
+            missing += coarse
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val notif = Manifest.permission.POST_NOTIFICATIONS
+            if (ContextCompat.checkSelfPermission(context, notif) != PackageManager.PERMISSION_GRANTED) {
+                missing += notif
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val bg = Manifest.permission.ACCESS_BACKGROUND_LOCATION
+            if (ContextCompat.checkSelfPermission(context, bg) != PackageManager.PERMISSION_GRANTED) {
+                missing += bg
+            }
+        }
+        return missing
     }
 
     /**

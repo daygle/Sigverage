@@ -152,6 +152,22 @@ fun SettingsScreen(
                 headerIcon = Icons.Default.Schedule,
                 headerTitle = stringResource(R.string.settings_section_recording),
             ) {
+                // Manual recording control + live status. Replaces the pause
+                // action that used to sit in the top app bar - recording is
+                // now started and stopped here, and the subtitle reflects
+                // whether sampling is currently running.
+                SwitchRow(
+                    title = stringResource(R.string.settings_recording_title),
+                    subtitle = stringResource(
+                        if (ui.isSampling) R.string.settings_recording_running
+                        else R.string.settings_recording_stopped
+                    ),
+                    checked = ui.isSampling,
+                    onCheckedChange = { start ->
+                        if (start) viewModel.startSampling() else viewModel.stopSampling()
+                    },
+                )
+                CardDivider()
                 SwitchRow(
                     title = stringResource(R.string.settings_auto_record_title),
                     subtitle = stringResource(R.string.settings_auto_record_subtitle),
@@ -215,7 +231,7 @@ fun SettingsScreen(
                         pluralStringResource(R.plurals.settings_export_count, readings.size, readings.size)
                     },
                     enabled = readings.isNotEmpty(),
-                    onClick = { csvLauncher.launch("sigorage_${System.currentTimeMillis()}.csv") },
+                    onClick = { csvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
                 )
                 CardDivider()
                 SettingsRow(
