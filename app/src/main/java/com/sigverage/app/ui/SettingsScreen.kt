@@ -59,7 +59,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -71,6 +70,7 @@ import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.launch
 
 /**
@@ -112,6 +112,7 @@ fun SettingsScreen(
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             val n = viewModel.exportCsv(uri)
+            @Suppress("LocalContextGetResourceValueCall", "LocalContextResourcesRead")
             val msg = when {
                 n > 0 -> context.resources.getQuantityString(R.plurals.export_done, n, n)
                 n == 0 -> context.getString(R.string.export_nothing)
@@ -574,13 +575,14 @@ private fun retentionLabelFor(days: Int): String = when (days) {
     90 -> stringResource(R.string.retention_90_days)
     180 -> stringResource(R.string.retention_6_months)
     365 -> stringResource(R.string.retention_1_year)
-    else -> stringResource(R.string.time_days, days)
+    else -> pluralStringResource(R.plurals.time_days, days, days)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PermissionsAccessPage(onBack: () -> Unit) {
     val context = LocalContext.current
+    @Suppress("DEPRECATION")
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var reliability by remember { mutableStateOf(readReliabilityStatus(context)) }

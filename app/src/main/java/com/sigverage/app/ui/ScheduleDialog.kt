@@ -1,5 +1,6 @@
 package com.sigverage.app.ui
 
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -29,7 +30,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableIntState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -72,10 +75,10 @@ fun ScheduleDialog(
     var nameError by remember { mutableStateOf(false) }
     var daysError by remember { mutableStateOf(false) }
 
-    var startHour by remember { mutableStateOf(existing?.startHour ?: 9) }
-    var startMinute by remember { mutableStateOf(existing?.startMinute ?: 0) }
-    var endHour by remember { mutableStateOf(existing?.endHour ?: 17) }
-    var endMinute by remember { mutableStateOf(existing?.endMinute ?: 0) }
+    var startHour by remember { mutableIntStateOf(existing?.startHour ?: 9) }
+    var startMinute by remember { mutableIntStateOf(existing?.startMinute ?: 0) }
+    var endHour by remember { mutableIntStateOf(existing?.endHour ?: 17) }
+    var endMinute by remember { mutableIntStateOf(existing?.endMinute ?: 0) }
 
     var pickingStartTime by remember { mutableStateOf(false) }
     var pickingEndTime by remember { mutableStateOf(false) }

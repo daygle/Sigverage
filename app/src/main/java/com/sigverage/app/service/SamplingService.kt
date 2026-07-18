@@ -1,15 +1,18 @@
 package com.sigverage.app.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
+import androidx.core.content.ContextCompat
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionRequest
@@ -123,6 +126,10 @@ class SamplingService : Service() {
                 )
                 if (alreadyCovered) return@collectLatest
 
+                if (ContextCompat.checkSelfPermission(this@SamplingService, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    return@collectLatest
+                }
+
                 val reading = cellular.snapshot(
                     provider = fix.provider,
                     latitude = fix.latitude,
@@ -173,12 +180,16 @@ class SamplingService : Service() {
     }
 
     private fun unregisterTransitions() {
-        try {
-            ActivityRecognition.getClient(this).removeActivityTransitionUpdates(
-                transitionPendingIntent
-            )
-        } catch (_: Exception) {
-            // Best-effort cleanup.
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            try {
+                ActivityRecognition.getClient(this).removeActivityTransitionUpdates(
+                    transitionPendingIntent
+                )
+            } catch (_: Exception) {
+                // Best-effort cleanup.
+            }
         }
         transitionsRegistered = false
     }
@@ -207,7 +218,7 @@ class SamplingService : Service() {
         return NotificationCompat.Builder(this, SigverageApp.CHANNEL_SAMPLING)
             .setSmallIcon(R.drawable.ic_signal_notification)
             .setContentTitle(getString(R.string.notif_sampling_title))
-            .setContentText(getString(R.string.notif_sampling_text, 0))
+            .setContentText(resources.getQuantityString(R.plurals.notif_sampling_text, 0, 0))
             .setContentIntent(openApp)
             .setOngoing(true)
             .setSilent(true)
@@ -230,21 +241,13 @@ class SamplingService : Service() {
         fun onTransition(context: Context, isMoving: Boolean) {
             val i = Intent(context, SamplingService::class.java)
                 .putExtra(EXTRA_IS_MOVING, isMoving)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(i)
-            } else {
-                context.startService(i)
-            }
+            context.startForegroundService(i)
         }
 
         fun start(context: Context) {
             val i = Intent(context, SamplingService::class.java)
                 .putExtra(EXTRA_IS_MOVING, true)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(i)
-            } else {
-                context.startService(i)
-            }
+            context.startForegroundService(i)
         }
 
         fun stop(context: Context) {

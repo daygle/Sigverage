@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,7 +56,6 @@ import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.ui.theme.NetworkColors
 import org.osmdroid.views.MapView
-import java.util.Locale
 
 /**
  * Full-bleed coverage map with all controls floating **on** the map
@@ -93,10 +93,10 @@ fun CoverageMapScreen(
     isSampling: Boolean,
     onCapture: () -> Unit,
     onStopSampling: () -> Unit,
+    modifier: Modifier = Modifier,
     onZoomIn: () -> Unit = {},
     onZoomOut: () -> Unit = {},
     onRecenter: () -> Unit = {},
-    modifier: Modifier = Modifier,
 ) {
     var showFilterSheet by rememberSaveable { mutableStateOf(false) }
     val allOperators = remember(readings) {
@@ -355,6 +355,7 @@ private fun FilterSheet(
     onToggleOperator: (String) -> Unit,
     allOperators: List<String>,
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -409,7 +410,7 @@ private fun FilterSheet(
                         onClick = { onToggleOperator(operator) },
                         label = {
                             Text(operator.replaceFirstChar {
-                                if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString()
+                                if (it.isLowerCase()) it.titlecase(locale) else it.toString()
                             })
                         },
                         colors = FilterChipDefaults.filterChipColors(

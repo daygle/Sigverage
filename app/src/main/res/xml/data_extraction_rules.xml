@@ -6,7 +6,6 @@
         the non-sensitive osmdroid tile-cache prefs are cloud-backed.
     -->
     <cloud-backup>
-        <exclude domain="database" path="signals.db" />
         <include domain="sharedpref" path="osmdroid.xml" />
     </cloud-backup>
     <!--

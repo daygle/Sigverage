@@ -1,6 +1,7 @@
 package com.sigverage.app.ui
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -74,6 +75,7 @@ import com.sigverage.app.R
  * grant result and adjust the Done copy accordingly.
  */
 @Composable
+@SuppressLint("InlinedApi")
 fun OnboardingScreen(viewModel: MainViewModel) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
     // True once any permission was denied. Survives rotation. Drives the

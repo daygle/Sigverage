@@ -4,7 +4,6 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
 import org.osmdroid.config.Configuration
 
 /**
@@ -37,18 +36,16 @@ class SigverageApp : Application() {
             "Sigverage/${BuildConfig.VERSION_NAME} (${packageName})"
 
         // (2) The foreground service channel.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            val channel = NotificationChannel(
-                CHANNEL_SAMPLING,
-                getString(R.string.notif_channel_sampling),
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = getString(R.string.notif_channel_sampling_desc)
-                setShowBadge(false)
-            }
-            nm.createNotificationChannel(channel)
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = NotificationChannel(
+            CHANNEL_SAMPLING,
+            getString(R.string.notif_channel_sampling),
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = getString(R.string.notif_channel_sampling_desc)
+            setShowBadge(false)
         }
+        nm.createNotificationChannel(channel)
     }
 
     companion object {

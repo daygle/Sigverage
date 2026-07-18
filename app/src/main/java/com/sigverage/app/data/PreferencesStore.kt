@@ -2,6 +2,7 @@ package com.sigverage.app.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
 
@@ -28,7 +29,7 @@ class PreferencesStore(context: Context) {
     var retentionDays: Int
         get() = prefs.getInt(KEY_RETENTION_DAYS, DEFAULT_RETENTION_DAYS)
         set(value) {
-            prefs.edit().putInt(KEY_RETENTION_DAYS, value.coerceAtLeast(0)).apply()
+            prefs.edit { putInt(KEY_RETENTION_DAYS, value.coerceAtLeast(0)) }
         }
 
     /**
@@ -39,7 +40,7 @@ class PreferencesStore(context: Context) {
     var themeMode: ThemeMode
         get() = ThemeMode.fromString(prefs.getString(KEY_THEME_MODE, null))
         set(value) {
-            prefs.edit().putString(KEY_THEME_MODE, value.name).apply()
+            prefs.edit { putString(KEY_THEME_MODE, value.name) }
         }
 
     /**
@@ -52,7 +53,7 @@ class PreferencesStore(context: Context) {
     var dynamicColorEnabled: Boolean
         get() = prefs.getBoolean(KEY_DYNAMIC_COLOR_ENABLED, DEFAULT_DYNAMIC_COLOR_ENABLED)
         set(value) {
-            prefs.edit().putBoolean(KEY_DYNAMIC_COLOR_ENABLED, value).apply()
+            prefs.edit { putBoolean(KEY_DYNAMIC_COLOR_ENABLED, value) }
         }
 
     /**
@@ -64,7 +65,7 @@ class PreferencesStore(context: Context) {
     var onboardingCompleted: Boolean
         get() = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, DEFAULT_ONBOARDING_COMPLETED)
         set(value) {
-            prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, value).apply()
+            prefs.edit { putBoolean(KEY_ONBOARDING_COMPLETED, value) }
         }
 
     /**
@@ -86,7 +87,7 @@ class PreferencesStore(context: Context) {
     var autoRecordEnabled: Boolean
         get() = prefs.getBoolean(KEY_AUTO_RECORD_ENABLED, DEFAULT_AUTO_RECORD_ENABLED)
         set(value) {
-            prefs.edit().putBoolean(KEY_AUTO_RECORD_ENABLED, value).apply()
+            prefs.edit { putBoolean(KEY_AUTO_RECORD_ENABLED, value) }
         }
 
     /**
@@ -98,7 +99,7 @@ class PreferencesStore(context: Context) {
     var samplingMode: SamplingMode
         get() = SamplingMode.fromString(prefs.getString(KEY_SAMPLING_MODE, null))
         set(value) {
-            prefs.edit().putString(KEY_SAMPLING_MODE, value.name).apply()
+            prefs.edit { putString(KEY_SAMPLING_MODE, value.name) }
         }
 
     companion object {

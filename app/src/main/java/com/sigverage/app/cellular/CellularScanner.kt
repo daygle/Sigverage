@@ -25,6 +25,7 @@ import com.sigverage.app.model.SignalReading
  * on API 30+; on older devices we conservatively report LTE.
  */
 @SuppressLint("MissingPermission")
+@Suppress("DEPRECATION")
 class CellularScanner(private val context: Context) {
 
     private val telephonyManager: TelephonyManager by lazy {
@@ -67,6 +68,7 @@ class CellularScanner(private val context: Context) {
             primary.cellSignalStrength.rsrq.takeIf { it != Int.MAX_VALUE }
         } else null
         val rssnr = if (primary is android.telephony.CellInfoLte) {
+            @Suppress("DEPRECATION")
             primary.cellSignalStrength.rssnr.takeIf { it != Int.MAX_VALUE }
         } else null
 
@@ -102,14 +104,18 @@ class CellularScanner(private val context: Context) {
                 } else {
                     NetworkType.LTE
                 }
-            is android.telephony.CellInfoNr -> NetworkType.FiveG
-            is android.telephony.CellInfoWcdma -> NetworkType.HSPA
-            is android.telephony.CellInfoGsm ->
-                if (dataType == TelephonyManager.NETWORK_TYPE_EDGE) NetworkType.EDGE
-                else NetworkType.GSM
             is android.telephony.CellInfoCdma -> NetworkType.CDMA
             else -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                    primary is android.telephony.CellInfoNr
+                ) {
+                    NetworkType.FiveG
+                } else if (primary is android.telephony.CellInfoWcdma) {
+                    NetworkType.HSPA
+                } else if (primary is android.telephony.CellInfoGsm) {
+                    if (dataType == TelephonyManager.NETWORK_TYPE_EDGE) NetworkType.EDGE
+                    else NetworkType.GSM
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
                     primary is android.telephony.CellInfoTdscdma
                 ) {
                     NetworkType.HSPA
@@ -135,13 +141,19 @@ class CellularScanner(private val context: Context) {
 
     /** Unified dBm estimate across all cell types (CellSignalStrength.dbm, API 23+). */
     private fun signalDbmOf(info: CellInfo): Int? {
-        val s: CellSignalStrength = when (info) {
-            is android.telephony.CellInfoLte -> info.cellSignalStrength
-            is android.telephony.CellInfoNr -> info.cellSignalStrength
-            is android.telephony.CellInfoWcdma -> info.cellSignalStrength
-            is android.telephony.CellInfoGsm -> info.cellSignalStrength
-            is android.telephony.CellInfoCdma -> info.cellSignalStrength
-            else -> tdscdmaStrength(info) ?: return null
+        val s: CellSignalStrength = when {
+            info is android.telephony.CellInfoLte -> info.cellSignalStrength
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && info is android.telephony.CellInfoNr -> info.cellSignalStrength
+            info is android.telephony.CellInfoWcdma -> info.cellSignalStrength
+            info is android.telephony.CellInfoGsm -> info.cellSignalStrength
+            info is android.telephony.CellInfoCdma -> info.cellSignalStrength
+            else -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    tdscdmaStrength(info) ?: return null
+                } else {
+                    return null
+                }
+            }
         }
         // Ignore uninitialised values reported by some OEMs.
         return s.dbm.takeIf { it != Int.MAX_VALUE && it > -150 && it < 0 }
@@ -151,39 +163,75 @@ class CellularScanner(private val context: Context) {
     private fun tdscdmaStrength(info: CellInfo): CellSignalStrength? =
         (info as? android.telephony.CellInfoTdscdma)?.cellSignalStrength
 
-    private fun extractMcc(info: CellInfo): Int? = when (info) {
-        is android.telephony.CellInfoLte -> info.cellIdentity.mccString?.toIntOrNull()
-            ?.takeIf { it in 0..999 }
-        is android.telephony.CellInfoNr ->
+    private fun extractMcc(info: CellInfo): Int? = when {
+        info is android.telephony.CellInfoLte -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.cellIdentity.mccString
+            } else {
+                @Suppress("DEPRECATION")
+                info.cellIdentity.mcc.takeIf { it != Int.MAX_VALUE }?.toString()
+            }?.toIntOrNull()?.takeIf { it in 0..999 }
+        }
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && info is android.telephony.CellInfoNr ->
             (info.cellIdentity as? android.telephony.CellIdentityNr)?.mccString?.toIntOrNull()
                 ?.takeIf { it in 0..999 }
-        is android.telephony.CellInfoWcdma -> info.cellIdentity.mccString?.toIntOrNull()
-            ?.takeIf { it in 0..999 }
-        is android.telephony.CellInfoGsm -> info.cellIdentity.mccString?.toIntOrNull()
-            ?.takeIf { it in 0..999 }
+        info is android.telephony.CellInfoWcdma -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.cellIdentity.mccString
+            } else {
+                @Suppress("DEPRECATION")
+                info.cellIdentity.mcc.takeIf { it != Int.MAX_VALUE }?.toString()
+            }?.toIntOrNull()?.takeIf { it in 0..999 }
+        }
+        info is android.telephony.CellInfoGsm -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.cellIdentity.mccString
+            } else {
+                @Suppress("DEPRECATION")
+                info.cellIdentity.mcc.takeIf { it != Int.MAX_VALUE }?.toString()
+            }?.toIntOrNull()?.takeIf { it in 0..999 }
+        }
         else -> null
     }
 
-    private fun extractMnc(info: CellInfo): Int? = when (info) {
-        is android.telephony.CellInfoLte -> info.cellIdentity.mncString?.toIntOrNull()
-            ?.takeIf { it in 0..999 }
-        is android.telephony.CellInfoNr ->
+    private fun extractMnc(info: CellInfo): Int? = when {
+        info is android.telephony.CellInfoLte -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.cellIdentity.mncString
+            } else {
+                @Suppress("DEPRECATION")
+                info.cellIdentity.mnc.takeIf { it != Int.MAX_VALUE }?.toString()
+            }?.toIntOrNull()?.takeIf { it in 0..999 }
+        }
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && info is android.telephony.CellInfoNr ->
             (info.cellIdentity as? android.telephony.CellIdentityNr)?.mncString?.toIntOrNull()
                 ?.takeIf { it in 0..999 }
-        is android.telephony.CellInfoWcdma -> info.cellIdentity.mncString?.toIntOrNull()
-            ?.takeIf { it in 0..999 }
-        is android.telephony.CellInfoGsm -> info.cellIdentity.mncString?.toIntOrNull()
-            ?.takeIf { it in 0..999 }
+        info is android.telephony.CellInfoWcdma -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.cellIdentity.mncString
+            } else {
+                @Suppress("DEPRECATION")
+                info.cellIdentity.mnc.takeIf { it != Int.MAX_VALUE }?.toString()
+            }?.toIntOrNull()?.takeIf { it in 0..999 }
+        }
+        info is android.telephony.CellInfoGsm -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.cellIdentity.mncString
+            } else {
+                @Suppress("DEPRECATION")
+                info.cellIdentity.mnc.takeIf { it != Int.MAX_VALUE }?.toString()
+            }?.toIntOrNull()?.takeIf { it in 0..999 }
+        }
         else -> null
     }
 
-    private fun extractCellId(info: CellInfo): Long? = when (info) {
-        is android.telephony.CellInfoLte -> info.cellIdentity.ci.toLong()
-        is android.telephony.CellInfoNr ->
+    private fun extractCellId(info: CellInfo): Long? = when {
+        info is android.telephony.CellInfoLte -> info.cellIdentity.ci.toLong()
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && info is android.telephony.CellInfoNr ->
             (info.cellIdentity as? android.telephony.CellIdentityNr)?.nci
-        is android.telephony.CellInfoWcdma -> info.cellIdentity.cid.toLong()
-        is android.telephony.CellInfoGsm -> info.cellIdentity.cid.toLong()
-        is android.telephony.CellInfoCdma -> info.cellIdentity.basestationId.toLong()
+        info is android.telephony.CellInfoWcdma -> info.cellIdentity.cid.toLong()
+        info is android.telephony.CellInfoGsm -> info.cellIdentity.cid.toLong()
+        info is android.telephony.CellInfoCdma -> info.cellIdentity.basestationId.toLong()
         else -> null
     }
 }

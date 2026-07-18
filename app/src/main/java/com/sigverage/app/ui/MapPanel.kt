@@ -6,7 +6,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import com.sigverage.app.R
 import com.sigverage.app.coverage.CoverageGridOverlay
 import com.sigverage.app.coverage.CoverageMapScreen
@@ -64,6 +66,7 @@ fun MapPanel(
     focusEvents: Flow<Pair<Double, Double>> = emptyFlow(),
 ) {
     val context = LocalContext.current
+    val msgNoFix = stringResource(R.string.map_recenter_no_fix)
 
     val mapView = remember {
         MapView(context).apply {
@@ -90,14 +93,11 @@ fun MapPanel(
         MyLocationNewOverlay(locationProvider, mapView).apply {
             val indicator = ContextCompat.getDrawable(context, R.drawable.ic_my_location_indicator)
             if (indicator != null) {
-                val bitmap = android.graphics.Bitmap.createBitmap(
-                    indicator.intrinsicWidth.coerceAtLeast(1),
-                    indicator.intrinsicHeight.coerceAtLeast(1),
-                    android.graphics.Bitmap.Config.ARGB_8888
+                val bitmap = indicator.toBitmap(
+                    width = indicator.intrinsicWidth.coerceAtLeast(1),
+                    height = indicator.intrinsicHeight.coerceAtLeast(1),
+                    config = android.graphics.Bitmap.Config.ARGB_8888
                 )
-                val canvas = android.graphics.Canvas(bitmap)
-                indicator.setBounds(0, 0, canvas.width, canvas.height)
-                indicator.draw(canvas)
                 setPersonIcon(bitmap)
             }
             enableMyLocation()
@@ -221,7 +221,7 @@ fun MapPanel(
             } else {
                 Toast.makeText(
                     context,
-                    context.getString(R.string.map_recenter_no_fix),
+                    msgNoFix,
                     Toast.LENGTH_SHORT,
                 ).show()
             }

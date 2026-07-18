@@ -38,12 +38,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sigverage.app.R
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.service.SamplingService
@@ -57,6 +57,11 @@ fun MainScreen(viewModel: MainViewModel) {
     val snackbar = remember { SnackbarHostState() }
     val ui by viewModel.ui.collectAsState()
     val readings by viewModel.readings.collectAsState()
+
+    val msgDeleted = stringResource(R.string.reading_deleted)
+    val actionUndo = stringResource(R.string.undo)
+    val msgNoPermissions = stringResource(R.string.auto_record_no_permissions)
+    val msgStarted = stringResource(R.string.auto_record_started)
 
     var tab by rememberSaveable { mutableStateOf(Tab.Map) }
     var sheetReading by remember { mutableStateOf<SignalReading?>(null) }
@@ -83,8 +88,8 @@ fun MainScreen(viewModel: MainViewModel) {
     LaunchedEffect(Unit) {
         viewModel.undoDeleteEvents.collect { reading ->
             val result = snackbar.showSnackbar(
-                message = ctx.getString(R.string.reading_deleted),
-                actionLabel = ctx.getString(R.string.undo),
+                message = msgDeleted,
+                actionLabel = actionUndo,
                 withDismissAction = true,
                 duration = SnackbarDuration.Short,
             )
@@ -98,15 +103,16 @@ fun MainScreen(viewModel: MainViewModel) {
         if (!ui.autoRecordEnabled || !ui.onboardingCompleted) return@LaunchedEffect
         val missing = missingPermissions(ctx)
         if (missing.isNotEmpty()) {
-            snackbar.showSnackbar(ctx.getString(R.string.auto_record_no_permissions))
+            snackbar.showSnackbar(msgNoPermissions)
             return@LaunchedEffect
         }
         if (ui.isSampling) return@LaunchedEffect
         viewModel.setSampling(true)
         SamplingService.start(ctx)
-        snackbar.showSnackbar(ctx.getString(R.string.auto_record_started))
+        snackbar.showSnackbar(msgStarted)
     }
 
+    @Suppress("DEPRECATION")
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->

@@ -44,7 +44,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,6 +51,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sigverage.app.R
 import com.sigverage.app.permissions.PERMISSIONS_INVENTORY
 import com.sigverage.app.permissions.PermissionItem
@@ -95,6 +95,7 @@ private fun takeSnapshot(context: Context, activity: Activity?): PermissionsSnap
 fun PermissionsSection(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val activity = context as? Activity
+    @Suppress("DEPRECATION")
     val lifecycleOwner = LocalLifecycleOwner.current
 
     var snapshot by remember { mutableStateOf(takeSnapshot(context, activity)) }

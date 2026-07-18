@@ -1,7 +1,10 @@
 package com.sigverage.app.ui
 
+import android.Manifest
 import android.app.Application
+import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sigverage.app.cellular.CellularScanner
@@ -196,6 +199,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 // The only fix we have is too coarse to place on the map;
                 // storing it would drop the reading into the wrong tile.
                 _events.trySend(app.getString(R.string.capture_low_accuracy))
+                return@launch
+            }
+            if (ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
                 return@launch
             }
             val reading = cellular.snapshot(

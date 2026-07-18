@@ -1,6 +1,7 @@
 package com.sigverage.app.permissions
 
 import android.Manifest
+import android.annotation.SuppressLint
 import com.sigverage.app.R
 
 /**
@@ -28,6 +29,7 @@ data class PermissionItem(
  * per-row UI display in the Settings screen. Adding/removing a permission
  * here updates both at once (the manifest is hand-maintained alongside).
  */
+@SuppressLint("InlinedApi")
 val PERMISSIONS_INVENTORY: List<PermissionItem> = listOf(
     PermissionItem(
         key = "fine_location",

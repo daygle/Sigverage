@@ -6,6 +6,5 @@
         location-history database and back up only the non-sensitive osmdroid
         tile-cache prefs, matching the app's local-only promise.
     -->
-    <exclude domain="database" path="signals.db" />
     <include domain="sharedpref" path="osmdroid.xml" />
 </full-backup-content>
