@@ -2,7 +2,10 @@ package com.sigverage.app.ui
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -36,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,7 +48,7 @@ import com.sigverage.app.R
 /**
  * First-launch onboarding screen.
  *
- * Renders a five-step carousel that walks the user through granting the
+ * Renders a six-step carousel that walks the user through granting the
  * runtime permissions the app actually needs to record readings:
  *
  *   1. **Welcome** - explains the value of the app and what data it captures.
@@ -58,17 +62,19 @@ import com.sigverage.app.R
  *      rather than left buried in Settings. It's optional: denying it does
  *      not block recording (the service degrades to continuous sampling), so
  *      a denial here does NOT flip the Done copy to the partial-setup nudge.
- *   5. **Done** - confirmation screen with a button to enter the main app.
+ *   5. **Background Location** - `ACCESS_BACKGROUND_LOCATION`, only on Android
+ *      10+ (API 29); skipped on older devices, where foreground location
+ *      already covers the background case. Android UX guidance requires
+ *      foreground location to be granted first, so this step follows the
+ *      Location step. On Android 11+ (API 30) the platform forbids an in-app
+ *      grant dialog, so the step deep-links to system Settings ("Allow all
+ *      the time"); on Android 10 it uses the runtime dialog. Optional -
+ *      a **Not now** action skips straight to Done, and neither path flips
+ *      the partial-setup copy.
+ *   6. **Done** - confirmation screen with a button to enter the main app.
  *      When the user has denied location or notifications the Done body is
  *      swapped for a "you can finish from Settings → Permissions" nudge so
  *      they aren't quietly left without recording capability.
- *
- * Background location (`ACCESS_BACKGROUND_LOCATION`) is intentionally NOT
- * part of this flow. Android UX guidance is to ask for foreground
- * permissions first, then send the user to system Settings for the
- * "Allow all the time" deep-link. The existing
- * `MainScreen.missingPermissions(...)` flow at FAB-time handles that step
- * once the user has reached the main app.
  *
  * A persistent **Skip** affordance lives at the top-right corner of every
  * step so the user can leave onboarding immediately. Skipping sets
@@ -113,6 +119,26 @@ fun OnboardingScreen(viewModel: MainViewModel) {
     val activityLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { _ ->
+        step = step.next()
+    }
+
+    val context = LocalContext.current
+
+    // Background location is optional too. On Android 10 it can be requested
+    // with a runtime dialog; on Android 11+ the platform refuses an in-app
+    // dialog, so the Background Location step deep-links to system Settings
+    // instead (see below). Both paths just advance to the next step - a
+    // denial or a "no change" return does not flip `anyDenied`.
+    val backgroundPermLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        step = step.next()
+    }
+    val backgroundSettingsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { _ ->
+        // Fires when the user returns from the app's system-settings page,
+        // regardless of what they chose there. Advance so they aren't stuck.
         step = step.next()
     }
 
@@ -166,6 +192,31 @@ fun OnboardingScreen(viewModel: MainViewModel) {
                     activityLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
                 },
             )
+            OnboardingStep.BackgroundLocation -> OnboardingPage(
+                icon = Icons.Filled.LocationOn,
+                title = stringResource(R.string.onboarding_background_title),
+                body = stringResource(R.string.onboarding_background_body),
+                // On Android 11+ the grant can only be completed in system
+                // Settings, so the primary action opens it; on Android 10 the
+                // runtime dialog still works.
+                cta = stringResource(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        R.string.onboarding_background_open_settings
+                    } else {
+                        R.string.onboarding_background_grant
+                    }
+                ),
+                onContinue = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        backgroundSettingsLauncher.launch(appDetailsSettingsIntent(context.packageName))
+                    } else {
+                        backgroundPermLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                    }
+                },
+                // Optional: let the user move on without granting it.
+                secondaryCta = stringResource(R.string.onboarding_background_skip),
+                onSecondary = { step = step.next() },
+            )
             OnboardingStep.Done -> OnboardingPage(
                 icon = Icons.Filled.LocationOn,
                 title = stringResource(R.string.onboarding_done_title),
@@ -187,14 +238,15 @@ fun OnboardingScreen(viewModel: MainViewModel) {
  *
  * Notifications is skipped entirely on devices older than Android 13
  * (API 33) because the underlying permission is auto-granted there.
- * Activity Recognition is skipped on devices older than Android 10
- * (API 29), where it isn't a runtime permission.
+ * Activity Recognition and Background Location are skipped on devices older
+ * than Android 10 (API 29), where neither is a separate runtime permission.
  */
 private enum class OnboardingStep {
     Welcome,
     Location,
     Notifications,
     ActivityRecognition,
+    BackgroundLocation,
     Done,
     ;
 
@@ -206,13 +258,17 @@ private enum class OnboardingStep {
             afterNotifications()
         }
         Notifications -> afterNotifications()
-        ActivityRecognition -> Done
+        // Both API 29+ steps; ActivityRecognition is only ever reached on
+        // Android 10+, so BackgroundLocation is always applicable next.
+        ActivityRecognition -> BackgroundLocation
+        BackgroundLocation -> Done
         Done -> Done
     }
 
     /**
-     * The step that follows Notifications: Activity Recognition on Android
-     * 10+ (where it's a runtime permission), otherwise straight to Done.
+     * The step that follows Notifications: on Android 10+ the pair of API 29
+     * runtime steps (Activity Recognition then Background Location),
+     * otherwise straight to Done.
      */
     private fun afterNotifications(): OnboardingStep =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -222,6 +278,18 @@ private enum class OnboardingStep {
         }
 }
 
+/**
+ * Intent that opens this app's system-settings details page, where the user
+ * can flip location access to "Allow all the time". Used for the Background
+ * Location step on Android 11+, where the platform disallows an in-app grant
+ * dialog for `ACCESS_BACKGROUND_LOCATION`.
+ */
+private fun appDetailsSettingsIntent(packageName: String): Intent =
+    Intent(
+        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+        Uri.fromParts("package", packageName, null),
+    )
+
 @Composable
 private fun OnboardingPage(
     icon: ImageVector,
@@ -229,6 +297,8 @@ private fun OnboardingPage(
     body: String,
     cta: String,
     onContinue: () -> Unit,
+    secondaryCta: String? = null,
+    onSecondary: (() -> Unit)? = null,
 ) {
     Column(
         modifier = Modifier
@@ -273,6 +343,17 @@ private fun OnboardingPage(
                 .heightIn(min = 56.dp),
         ) {
             Text(cta, style = MaterialTheme.typography.titleMedium)
+        }
+        if (secondaryCta != null && onSecondary != null) {
+            Spacer(Modifier.height(8.dp))
+            TextButton(
+                onClick = onSecondary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+            ) {
+                Text(secondaryCta, style = MaterialTheme.typography.titleMedium)
+            }
         }
         Spacer(Modifier.height(24.dp))
     }

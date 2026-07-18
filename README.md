@@ -113,7 +113,7 @@ Markdown placeholders (leave them commented until you push images):
 - **Delete with undo**: deleting a reading (from a card, the detail sheet, or elsewhere) shows an **Undo** snackbar that restores it; wired through the ViewModel's `undoDeleteEvents` channel.
 - **Jump-to-reading**: **Show on map** switches to the Map tab and recenters on that reading via a `focusEvents` flow.
 - **Settings tab** with drill-out pages for **Permissions & Access** (App Permissions + Background Access) and Schedules, plus in-place dialogs for theme, battery usage, and retention.
-- **Onboarding flow** on first launch: a carousel that requests location, notifications (Android 13+) and activity recognition (Android 10+) before dropping into the app. Activity recognition is optional - denying it doesn't block recording - and any skipped grant can still be completed later from *Settings → Permissions & Access*.
+- **Onboarding flow** on first launch: a carousel that requests location, notifications (Android 13+), activity recognition (Android 10+) and background location (Android 10+) before dropping into the app. The activity-recognition and background-location steps are optional (a **Not now** action skips them); because Android 11+ forbids an in-app background-location dialog, that step deep-links to system Settings for "Allow all the time". Any skipped grant can still be completed later from *Settings → Permissions & Access*.
 
 ### 🔐 Privacy posture
 - No analytics SDK.
@@ -348,7 +348,7 @@ Every permission is justified by a concrete feature, and the manifest comments n
 | ---------- | ------------ | ------------- | ------- |
 | `ACCESS_FINE_LOCATION` | GPS pin for every reading (lat/lng). | All API levels | Requested on first launch via `RequestMultiplePermissions`. |
 | `ACCESS_COARSE_LOCATION` | Fallback when fine isn't granted (network-based fixes). | All API levels | Same prompt as fine. |
-| `ACCESS_BACKGROUND_LOCATION` | Sampling keeps accumulating while the screen is off. | API 30+: Android routes this to system Settings - it can't be granted from an in-app prompt. | User must explicitly choose "Allow all the time". |
+| `ACCESS_BACKGROUND_LOCATION` | Sampling keeps accumulating while the screen is off. | API 30+: Android routes this to system Settings - it can't be granted from an in-app prompt. | Surfaced as an optional onboarding step (Android 10+) and in Settings → Permissions & Access; on Android 11+ both deep-link to system Settings where the user chooses "Allow all the time". |
 | `POST_NOTIFICATIONS` | Sticky low-priority notification for `SamplingService`. | API 33+ only. | Asked on first launch alongside location. |
 | `INTERNET` / `ACCESS_NETWORK_STATE` | osmdroid tile downloads. | All API levels. | Granted at install (normal permission). |
 | `FOREGROUND_SERVICE` | The sampling service itself. | All API levels. | Granted at install. |

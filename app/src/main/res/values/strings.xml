@@ -203,6 +203,11 @@
     <string name="onboarding_activity_title">Activity Detection</string>
     <string name="onboarding_activity_body">Sigverage records only while you are on the move and pauses when you are still, saving battery. Allow activity detection so it can tell the difference. This is optional - without it, recording still works but runs continuously.</string>
     <string name="onboarding_activity_grant">Allow activity detection</string>
+    <string name="onboarding_background_title">Background Location</string>
+    <string name="onboarding_background_body">To keep building your coverage map while the screen is off or the app is in the background, Sigverage needs “Allow all the time” location access. This is optional - you can set it up now or later from Settings.</string>
+    <string name="onboarding_background_grant">Allow background location</string>
+    <string name="onboarding_background_open_settings">Open location settings</string>
+    <string name="onboarding_background_skip">Not now</string>
     <string name="onboarding_done_title">All set</string>
     <string name="onboarding_done_body">Sigverage is ready. Tap below to open the map. You can update these permissions any time from Settings → Permissions.</string>
     <string name="onboarding_done_body_partial">Some permissions weren\'t granted yet - Sigverage can\'t fully record without location, and Android won\'t keep sampling alive without notifications. Tap below to open the app and finish granting permissions from Settings → Permissions.</string>
