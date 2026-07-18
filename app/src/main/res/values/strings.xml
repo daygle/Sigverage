@@ -56,7 +56,7 @@
     <string name="detail_mcc_mnc_value">%1$d / %2$d</string>
     <string name="detail_cell_id">Cell ID</string>
     <string name="detail_recorded">Recorded</string>
-    <string name="detail_lat_lng">Lat / Lng</string>
+    <string name="detail_lat_lng">Latitude / Longitude</string>
     <string name="detail_lat_lng_value">%1$.6f, %2$.6f</string>
     <string name="detail_close">Close</string>
 
