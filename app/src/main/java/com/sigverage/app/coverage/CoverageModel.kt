@@ -27,9 +27,25 @@ data class NetworkAggregate(
     val sumDbm: Int,
     val countDbm: Int,
     val lastTimestamp: Long,
+    /**
+     * Weakest (most-negative) and strongest (least-negative) dBm observed in
+     * this cell for this network. Sentinel values ([Int.MAX_VALUE] /
+     * [Int.MIN_VALUE]) are placeholders used only while `countDbm == 0`; read
+     * [worstDbm] / [bestDbm] instead, which return null in that case.
+     */
+    val minDbm: Int = Int.MAX_VALUE,
+    val maxDbm: Int = Int.MIN_VALUE,
 ) {
     val meanDbm: Int
         get() = if (countDbm == 0) Int.MIN_VALUE else sumDbm / countDbm
+
+    /** Strongest (least-negative) reading, or null when none carried a dBm. */
+    val bestDbm: Int?
+        get() = if (countDbm == 0) null else maxDbm
+
+    /** Weakest (most-negative) reading, or null when none carried a dBm. */
+    val worstDbm: Int?
+        get() = if (countDbm == 0) null else minDbm
 }
 
 /** Aggregation for one tile, subdivided by network. */
@@ -198,6 +214,8 @@ private class MutableAgg {
     var sumDbm = 0
     var countDbm = 0
     var lastTimestamp = 0L
+    var minDbm = Int.MAX_VALUE
+    var maxDbm = Int.MIN_VALUE
 
     fun add(r: SignalReading) {
         count++
@@ -205,9 +223,11 @@ private class MutableAgg {
         if (d != null) {
             sumDbm += d
             countDbm++
+            if (d < minDbm) minDbm = d
+            if (d > maxDbm) maxDbm = d
         }
         if (r.timestamp > lastTimestamp) lastTimestamp = r.timestamp
     }
 
-    fun build() = NetworkAggregate(count, sumDbm, countDbm, lastTimestamp)
+    fun build() = NetworkAggregate(count, sumDbm, countDbm, lastTimestamp, minDbm, maxDbm)
 }

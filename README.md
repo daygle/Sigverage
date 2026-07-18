@@ -106,7 +106,7 @@ Markdown placeholders (leave them commented until you push images):
 ### 🧭 UI scaffold
 - **Bottom navigation** between Map, List, and Settings views.
 - **Immersive map tab**: the map runs edge-to-edge with no app bar; every control floats on the map itself - a top filter bar and a bottom-right control stack of **recenter → zoom-in → zoom-out** small FABs. osmdroid's built-in zoom buttons are disabled so these are the only zoom controls. Sampling is started and stopped from the Settings page.
-- **Tap a coverage square** to open a details sheet: the tapped cell is highlighted and the sheet shows its centre coordinate, the dominant network, a per-network breakdown of reading counts and mean signal, and the operators seen there.
+- **Tap a coverage square** to open a details sheet: the tapped cell is highlighted and the sheet shows its centre coordinate, the dominant network, a per-network breakdown of reading counts, mean signal and best/worst readings seen, and the operators seen there.
 - **Top app bar** (List / Settings root only, never on the immersive Map): app title only. No other clutter.
 - **Floating filter bar** on the map: quick network toggles plus a **Filters** pill that opens the full network + operator filter modal sheet.
 - **Compose `SnackbarHost`** in the outer `Scaffold` - survives configuration changes via a one-shot `Channel<String>` from the ViewModel.
@@ -372,7 +372,7 @@ Every permission is justified by a concrete feature, and the manifest comments n
 The bottom navigation has three tabs. The first two (Map / List) show your data; the third (Settings) is where every knob lives.
 
 ### 🗺️ Map | 📋 List
-- **Map**: coverage boxes on OpenStreetMap. Floating filter chips at the top; on-map control stack (recenter / zoom) at the bottom-right. Tap a coverage square to open its details sheet (dominant network, per-network counts and mean signal, operators). *Snackbar* sits in the outer Scaffold so messages reach you even when you drag the map around.
+- **Map**: coverage boxes on OpenStreetMap. Floating filter chips at the top; on-map control stack (recenter / zoom) at the bottom-right. Tap a coverage square to open its details sheet (dominant network, per-network counts, mean signal and best/worst readings, operators). *Snackbar* sits in the outer Scaffold so messages reach you even when you drag the map around.
 - **List**: every reading, most-recent first, each card showing network badge, operator, a colour-coded dBm chip and coordinates. Inline **Show on map** and **Delete** buttons per card; tap the card → bottom sheet with the full reading (signal dBm, LTE RSRP/RSRQ/SNR, MCC/MNC/cell ID, operator, provider, accuracy, timestamp, lat/lng) plus Show on map / Delete / Close. Deleting shows an **Undo** snackbar.
 
 ### ⚙️ Settings
