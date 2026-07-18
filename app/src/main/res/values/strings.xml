@@ -23,6 +23,7 @@
     <string name="tile_details_operators_label">Operators</string>
     <string name="tile_details_no_signal">No signal value</string>
     <string name="tile_details_dbm">%1$d dBm</string>
+    <string name="tile_details_best_worst">Best %1$d · Worst %2$d dBm</string>
     <plurals name="tile_details_readings">
         <item quantity="one">%1$d reading</item>
         <item quantity="other">%1$d readings</item>

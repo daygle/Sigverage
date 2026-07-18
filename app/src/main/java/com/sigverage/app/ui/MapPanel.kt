@@ -284,6 +284,8 @@ private fun buildTileDetails(
                 type = type,
                 count = agg.count,
                 meanDbm = agg.meanDbm.takeIf { it != Int.MIN_VALUE },
+                bestDbm = agg.bestDbm,
+                worstDbm = agg.worstDbm,
             )
         }
     return TileDetails(

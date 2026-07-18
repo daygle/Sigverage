@@ -59,13 +59,18 @@ import org.osmdroid.views.MapView
 
 /**
  * Per-network row inside a selected tile's details sheet: how many readings
- * that network had in the cell and its mean signal ([meanDbm] is null when no
- * reading in the cell carried a usable dBm value).
+ * that network had in the cell, its mean signal, and the best/worst readings
+ * seen. [meanDbm], [bestDbm] and [worstDbm] are null when no reading in the
+ * cell carried a usable dBm value.
  */
 data class TileNetworkStat(
     val type: NetworkType,
     val count: Int,
     val meanDbm: Int?,
+    /** Strongest (least-negative) reading seen; null when none carried a dBm. */
+    val bestDbm: Int?,
+    /** Weakest (most-negative) reading seen; null when none carried a dBm. */
+    val worstDbm: Int?,
 )
 
 /**
@@ -279,38 +284,55 @@ private fun TileDetailsSheet(details: TileDetails) {
         )
         Spacer(Modifier.height(4.dp))
         details.networks.forEach { stat ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                NetworkDot(stat.type)
-                Spacer(Modifier.size(8.dp))
-                Text(
-                    text = stat.type.label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = if (stat.meanDbm != null) {
-                        stringResource(R.string.tile_details_dbm, stat.meanDbm)
-                    } else {
-                        stringResource(R.string.tile_details_no_signal)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.size(12.dp))
-                Text(
-                    text = pluralStringResource(
-                        R.plurals.tile_details_readings,
-                        stat.count,
-                        stat.count,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Column(modifier = Modifier.padding(vertical = 6.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    NetworkDot(stat.type)
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        text = stat.type.label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = if (stat.meanDbm != null) {
+                            stringResource(R.string.tile_details_dbm, stat.meanDbm)
+                        } else {
+                            stringResource(R.string.tile_details_no_signal)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.size(12.dp))
+                    Text(
+                        text = pluralStringResource(
+                            R.plurals.tile_details_readings,
+                            stat.count,
+                            stat.count,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                // Best/worst range, aligned under the label (past the 12dp dot
+                // + 8dp gap). Only shown when there is an actual spread - a
+                // single reading has best == worst == mean, already displayed.
+                if (stat.bestDbm != null && stat.worstDbm != null &&
+                    stat.bestDbm != stat.worstDbm
+                ) {
+                    Text(
+                        text = stringResource(
+                            R.string.tile_details_best_worst,
+                            stat.bestDbm,
+                            stat.worstDbm,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 20.dp, top = 2.dp),
+                    )
+                }
             }
         }
 
