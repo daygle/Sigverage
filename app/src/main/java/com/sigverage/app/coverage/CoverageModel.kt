@@ -76,7 +76,7 @@ enum class SignalBucket(val alpha: Float) {
     Strong(0.60f),
     Ok(0.40f),
     Weak(0.22f),
-    Unknown(0.35f),
+    Unknown(0.50f),
 }
 
 /** Mercator slippy-tile coordinate of a lat/lng at zoom [zoom]. */

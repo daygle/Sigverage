@@ -16,10 +16,10 @@
     <string name="map_recenter_no_fix">No location fix yet - move to an open area and try again.</string>
 
     <!-- Tile (coverage square) details sheet -->
-    <string name="tile_details_title">Cell details</string>
+    <string name="tile_details_title">Cell Details</string>
     <string name="tile_details_center">Center: %1$s, %2$s</string>
     <string name="tile_details_dominant">Strongest network: %1$s</string>
-    <string name="tile_details_networks_label">Networks in this cell</string>
+    <string name="tile_details_networks_label">Networks in This Cell</string>
     <string name="tile_details_operators_label">Operators</string>
     <string name="tile_details_no_signal">No signal value</string>
     <string name="tile_details_dbm">%1$d dBm</string>
@@ -119,15 +119,15 @@
     <string name="settings_section_data">Data</string>
 
     <!-- Default map filters -->
-    <string name="settings_map_filters_title">Default map filters</string>
+    <string name="settings_map_filters_title">Default Map Filters</string>
     <string name="settings_map_filters_subtitle">Choose which networks and operators the map loads with.</string>
     <string name="settings_map_filters_page_hint">The map opens with these filters. You can still change them live on the map — those changes are temporary and reset here next time you open the map.</string>
     <string name="settings_map_filters_networks_header">Networks</string>
     <string name="settings_map_filters_operators_header">Operators</string>
     <string name="settings_map_filters_operators_hint">No operators selected means all operators are shown.</string>
     <string name="settings_map_filters_operators_empty">Operators appear here once you\'ve recorded some readings.</string>
-    <string name="settings_map_filters_all_networks">All networks</string>
-    <string name="settings_map_filters_all_operators">All operators</string>
+    <string name="settings_map_filters_all_networks">All Networks</string>
+    <string name="settings_map_filters_all_operators">All Operators</string>
     <string name="settings_map_filters_summary">%1$s · %2$s</string>
     <string name="settings_retention_title">Auto-Expire Readings</string>
     <string name="settings_retention_subtitle">Older readings are removed automatically.</string>
@@ -145,9 +145,22 @@
     <!-- Theme picker -->
     <string name="settings_theme_title">Theme</string>
     <string name="settings_theme_subtitle">Choose how the app looks.</string>
+    <string name="settings_time_format_title">Time Format</string>
+    <string name="settings_time_format_subtitle">Choose how times are displayed.</string>
+    <string name="settings_date_format_title">Date Format</string>
+    <string name="settings_date_format_subtitle">Choose how dates are displayed.</string>
     <string name="theme_system">Follow System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+
+    <!-- Date/Time formats -->
+    <string name="datetime_system">Follow System</string>
+    <string name="time_12h">12-Hour</string>
+    <string name="time_24h">24-Hour</string>
+    <string name="date_pattern_day_month_year_slash">DD/MM/YYYY</string>
+    <string name="date_pattern_month_day_year_slash">MM/DD/YYYY</string>
+    <string name="date_pattern_year_month_day_dash">YYYY-MM-DD</string>
+    <string name="date_pattern_day_month_year_text">DD MMM YYYY</string>
 
     <!-- Dynamic colour toggle (Android 12+) -->
     <string name="settings_dynamic_color_title">Dynamic Colour</string>

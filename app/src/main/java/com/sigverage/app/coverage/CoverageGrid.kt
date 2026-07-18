@@ -236,7 +236,7 @@ class CoverageGridOverlay(
             pickDominant(cell, allowed) != null
         if (hit) {
             selectedTile = tile
-            onTileTap?.invoke(tile, cell!!)
+            onTileTap?.invoke(tile, cell)
         } else {
             if (selectedTile == null) return false
             selectedTile = null
@@ -370,18 +370,17 @@ class CoverageGridOverlay(
 
         // ---- Slot grid geometry (private to companion) ----
 
-        /** Skip corner grid below this tile size - it simply doesn't fit. */
-        private const val MIN_TILE_DP_FOR_GRID = 22f
+        private const val MIN_TILE_DP_FOR_GRID = 28f
 
         private const val SLOT_COLS = 4
         private const val SLOT_ROWS = 2
         /** Distance from one slot centre to the next. */
-        private const val SLOT_PITCH_DP = 6.5f
+        private const val SLOT_PITCH_DP = 9.0f
         /** Implicit gap = pitch - 2 * radius. */
-        private const val SLOT_RADIUS_DP = 2.5f
+        private const val SLOT_RADIUS_DP = 3.5f
         private const val SLOT_GAP_DP = 1.5f
         /** Distance from the tile edge to the closest slot centre. */
-        private const val SLOT_MARGIN_DP = 2f
+        private const val SLOT_MARGIN_DP = 2.5f
         private const val STROKE_WIDTH_DP = 0.75f
         /** Stroke width of the white selection outline (halo adds ~2dp more). */
         private const val SELECT_STROKE_WIDTH_DP = 2f
@@ -389,10 +388,10 @@ class CoverageGridOverlay(
         // ---- Mean-dBm corner label geometry ----
 
         /** Skip the label below this tile size - it can't fit "-140" cleanly. */
-        private const val MIN_TILE_DP_FOR_LABEL = 30f
-        private const val LABEL_TEXT_SIZE_DP = 9f
+        private const val MIN_TILE_DP_FOR_LABEL = 36f
+        private const val LABEL_TEXT_SIZE_DP = 12f
         /** Distance from the tile's top-left corner to the label. */
-        private const val LABEL_MARGIN_DP = 2.5f
+        private const val LABEL_MARGIN_DP = 3f
         /** Dark halo stroke width under the white glyphs. */
         private const val LABEL_HALO_WIDTH_DP = 2f
 

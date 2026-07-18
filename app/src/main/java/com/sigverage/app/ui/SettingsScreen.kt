@@ -51,6 +51,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -74,10 +75,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.BuildConfig
 import com.sigverage.app.R
+import com.sigverage.app.model.DateFormat
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
+import com.sigverage.app.model.TimeFormat
 import com.sigverage.app.ui.theme.NetworkColors
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -112,6 +115,8 @@ fun SettingsScreen(
     var showRetentionDialog by remember { mutableStateOf(false) }
     var confirmDeleteAll by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var showTimeFormatDialog by remember { mutableStateOf(false) }
+    var showDateFormatDialog by remember { mutableStateOf(false) }
     var showSamplingModeDialog by remember { mutableStateOf(false) }
     var showScheduleDialog by remember { mutableStateOf(false) }
     var editingSchedule by remember { mutableStateOf<RecordingSchedule?>(null) }
@@ -227,6 +232,20 @@ fun SettingsScreen(
                     onClick = { showThemeDialog = true },
                 )
                 CardDivider()
+                SettingsRow(
+                    title = stringResource(R.string.settings_time_format_title),
+                    subtitle = stringResource(R.string.settings_time_format_subtitle),
+                    value = timeFormatLabelFor(ui.timeFormat),
+                    onClick = { showTimeFormatDialog = true },
+                )
+                CardDivider()
+                SettingsRow(
+                    title = stringResource(R.string.settings_date_format_title),
+                    subtitle = stringResource(R.string.settings_date_format_subtitle),
+                    value = dateFormatLabelFor(ui.dateFormat),
+                    onClick = { showDateFormatDialog = true },
+                )
+                CardDivider()
                 SwitchRow(
                     title = stringResource(R.string.settings_dynamic_color_title),
                     subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
@@ -337,6 +356,26 @@ fun SettingsScreen(
             onPick = { mode ->
                 viewModel.setThemeMode(mode)
                 showThemeDialog = false
+            },
+        )
+    }
+    if (showTimeFormatDialog) {
+        TimeFormatDialog(
+            current = ui.timeFormat,
+            onDismiss = { showTimeFormatDialog = false },
+            onPick = { format ->
+                viewModel.setTimeFormat(format)
+                showTimeFormatDialog = false
+            },
+        )
+    }
+    if (showDateFormatDialog) {
+        DateFormatDialog(
+            current = ui.dateFormat,
+            onDismiss = { showDateFormatDialog = false },
+            onPick = { format ->
+                viewModel.setDateFormat(format)
+                showDateFormatDialog = false
             },
         )
     }
@@ -564,10 +603,26 @@ private fun AboutRow(
 }
 
 @Composable
-private fun themeLabelFor(mode: ThemeMode): String = when (mode) {
+fun themeLabelFor(mode: ThemeMode): String = when (mode) {
     ThemeMode.System -> stringResource(R.string.theme_system)
     ThemeMode.Light -> stringResource(R.string.theme_light)
     ThemeMode.Dark -> stringResource(R.string.theme_dark)
+}
+
+@Composable
+fun timeFormatLabelFor(format: TimeFormat): String = when (format) {
+    TimeFormat.System -> stringResource(R.string.datetime_system)
+    TimeFormat.TwelveHour -> stringResource(R.string.time_12h)
+    TimeFormat.TwentyFourHour -> stringResource(R.string.time_24h)
+}
+
+@Composable
+fun dateFormatLabelFor(format: DateFormat): String = when (format) {
+    DateFormat.System -> stringResource(R.string.datetime_system)
+    DateFormat.DayMonthYearSlash -> stringResource(R.string.date_pattern_day_month_year_slash)
+    DateFormat.MonthDayYearSlash -> stringResource(R.string.date_pattern_month_day_year_slash)
+    DateFormat.YearMonthDayDash -> stringResource(R.string.date_pattern_year_month_day_dash)
+    DateFormat.DayMonthYearText -> stringResource(R.string.date_pattern_day_month_year_text)
 }
 
 private data class ReliabilityStatus(

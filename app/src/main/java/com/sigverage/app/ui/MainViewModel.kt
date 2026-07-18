@@ -15,11 +15,13 @@ import com.sigverage.app.data.PreferencesStore
 import com.sigverage.app.data.SignalRepository
 import com.sigverage.app.location.FixSample
 import com.sigverage.app.location.LocationTracker
+import com.sigverage.app.model.DateFormat
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.model.ThemeMode
+import com.sigverage.app.model.TimeFormat
 import com.sigverage.app.service.SamplingService
 import com.sigverage.app.service.ScheduleManager
 import kotlinx.coroutines.Dispatchers
@@ -100,6 +102,10 @@ data class HomeUiState(
      * Settings row reflects the persisted choice.
      */
     val samplingMode: SamplingMode = SamplingMode.Default,
+    /** Preferred time format for UI display. */
+    val timeFormat: TimeFormat = TimeFormat.System,
+    /** Preferred date format for UI display. */
+    val dateFormat: DateFormat = DateFormat.System,
 )
 
 /**
@@ -191,6 +197,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             autoRecordEnabled = prefs.autoRecordEnabled,
             // Battery-vs-accuracy sampling mode. Default Auto.
             samplingMode = prefs.samplingMode,
+            // Date and time formats.
+            timeFormat = prefs.timeFormat,
+            dateFormat = prefs.dateFormat,
             // Persisted default map filters, plus the active filters seeded
             // from them so the very first Map open is already filtered.
             defaultNetworkFilter = prefs.defaultNetworkFilter,
@@ -420,6 +429,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setThemeMode(mode: ThemeMode) {
         prefs.themeMode = mode
         _ui.value = _ui.value.copy(themeMode = mode)
+    }
+
+    /** Update the user's preferred time format and re-emit. */
+    fun setTimeFormat(format: TimeFormat) {
+        prefs.timeFormat = format
+        _ui.value = _ui.value.copy(timeFormat = format)
+    }
+
+    /** Update the user's preferred date format and re-emit. */
+    fun setDateFormat(format: DateFormat) {
+        prefs.dateFormat = format
+        _ui.value = _ui.value.copy(dateFormat = format)
     }
 
     // ---- Schedule operations ----

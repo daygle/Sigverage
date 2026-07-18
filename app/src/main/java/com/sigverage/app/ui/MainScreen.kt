@@ -189,6 +189,8 @@ fun MainScreen(viewModel: MainViewModel) {
                 )
                 Tab.List -> ListPanel(
                     readings = readings,
+                    timeFormat = ui.timeFormat,
+                    dateFormat = ui.dateFormat,
                     onClick = { sheetReading = it },
                     onDelete = viewModel::deleteReading,
                     onFocusMap = jumpToReading,
@@ -205,6 +207,8 @@ fun MainScreen(viewModel: MainViewModel) {
     sheetReading?.let { reading ->
         DetailsSheet(
             reading = reading,
+            timeFormat = ui.timeFormat,
+            dateFormat = ui.dateFormat,
             onDismiss = { sheetReading = null },
             onDelete = {
                 viewModel.deleteReading(reading)

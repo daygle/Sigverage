@@ -53,7 +53,7 @@ val NetworkColors: Map<NetworkType, Color> = mapOf(
     NetworkType.GSM to Color(0xFFA855F7),
     NetworkType.EDGE to Color(0xFF7C3AED),         // EDGE ≈ CDMA-deep-purple in static
     NetworkType.CDMA to SignalRed,
-    NetworkType.Unknown to Color(0xFF94A3B8)
+    NetworkType.Unknown to Slate700
 )
 
 /**

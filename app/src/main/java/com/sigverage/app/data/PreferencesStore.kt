@@ -3,9 +3,11 @@ package com.sigverage.app.data
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.sigverage.app.model.DateFormat
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
+import com.sigverage.app.model.TimeFormat
 
 /**
  * On-device key-value store for user preferences.
@@ -137,6 +139,20 @@ class PreferencesStore(context: Context) {
             prefs.edit { putStringSet(KEY_DEFAULT_OPERATOR_FILTER, value.toSet()) }
         }
 
+    /** Preferred time format for UI display. */
+    var timeFormat: TimeFormat
+        get() = TimeFormat.fromString(prefs.getString(KEY_TIME_FORMAT, null))
+        set(value) {
+            prefs.edit { putString(KEY_TIME_FORMAT, value.name) }
+        }
+
+    /** Preferred date format for UI display. */
+    var dateFormat: DateFormat
+        get() = DateFormat.fromString(prefs.getString(KEY_DATE_FORMAT, null))
+        set(value) {
+            prefs.edit { putString(KEY_DATE_FORMAT, value.name) }
+        }
+
     companion object {
         private const val PREFS_NAME = "sigverage_prefs"
         private const val KEY_RETENTION_DAYS = "retention_days"
@@ -154,6 +170,8 @@ class PreferencesStore(context: Context) {
         private const val KEY_SAMPLING_MODE = "sampling_mode"
         private const val KEY_DEFAULT_NETWORK_FILTER = "default_network_filter"
         private const val KEY_DEFAULT_OPERATOR_FILTER = "default_operator_filter"
+        private const val KEY_TIME_FORMAT = "time_format"
+        private const val KEY_DATE_FORMAT = "date_format"
 
         /** First launch defaults to showing the onboarding screen. */
         const val DEFAULT_ONBOARDING_COMPLETED = false

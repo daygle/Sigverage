@@ -18,7 +18,7 @@ enum class NetworkType(val label: String, val shortLabel: String) {
     GSM("GPRS (2G)", "2G"),
     EDGE("EDGE (2.5G)", "E"),
     CDMA("CDMA", "1X"),
-    Unknown("Other", "?")
+    Unknown("No Service", "None")
 }
 
 /**

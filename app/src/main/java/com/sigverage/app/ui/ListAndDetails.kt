@@ -47,8 +47,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.R
+import com.sigverage.app.model.DateFormat
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
+import com.sigverage.app.model.TimeFormat
+import com.sigverage.app.model.getUiDateTimeFormatter
 import com.sigverage.app.ui.theme.NetworkColors
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -58,6 +61,8 @@ import java.util.Locale
 @Composable
 fun ListPanel(
     readings: List<SignalReading>,
+    timeFormat: TimeFormat,
+    dateFormat: DateFormat,
     onClick: (SignalReading) -> Unit,
     onDelete: (SignalReading) -> Unit,
     onFocusMap: (SignalReading) -> Unit,
@@ -84,7 +89,9 @@ fun ListPanel(
         return
     }
 
-    val fmt = remember { SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()) }
+    val fmt = remember(timeFormat, dateFormat) {
+        getUiDateTimeFormatter(timeFormat, dateFormat)
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -251,13 +258,17 @@ fun NetworkBadge(network: NetworkType) {
 @Composable
 fun DetailsSheet(
     reading: SignalReading,
+    timeFormat: TimeFormat,
+    dateFormat: DateFormat,
     onDismiss: () -> Unit,
     onDelete: () -> Unit,
     onShowOnMap: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
-    val fmt = remember { SimpleDateFormat("dd MMM yyyy, HH:mm:ss", Locale.getDefault()) }
+    val fmt = remember(timeFormat, dateFormat) {
+        getUiDateTimeFormatter(timeFormat, dateFormat, includeSeconds = true)
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
