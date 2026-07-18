@@ -70,6 +70,13 @@ fun MainScreen(viewModel: MainViewModel) {
         }
     }
 
+    // Opening the Map tab reapplies the user's saved default filters, so any
+    // temporary chip overrides from the last visit are discarded. Keyed on
+    // `tab` so it re-runs each time the user returns to the map.
+    LaunchedEffect(tab) {
+        if (tab == Tab.Map) viewModel.applyDefaultMapFilters()
+    }
+
     LaunchedEffect(Unit) {
         viewModel.events.collect { message ->
             snackbar.showSnackbar(message)

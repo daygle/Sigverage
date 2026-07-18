@@ -42,10 +42,27 @@ data class HomeUiState(
     val isSampling: Boolean = false,
     val lastFix: FixSample? = null,
     val latestReading: SignalReading? = null,
-    /** Networks currently displayed by the coverage grid. Defaults to all. */
+    /**
+     * Networks currently displayed by the coverage grid. This is the *active*
+     * (possibly temporarily overridden) filter; it is reset to
+     * [defaultNetworkFilter] every time the Map tab is opened.
+     */
     val coverageFilter: Set<NetworkType> = NetworkType.entries.toSet(),
-    /** Operators currently displayed by the coverage grid. Empty = show all. */
+    /**
+     * Operators currently displayed by the coverage grid. Empty = show all.
+     * Active filter; reset to [defaultOperatorFilter] on each Map open.
+     */
     val operatorFilter: Set<String> = emptySet(),
+    /**
+     * Persisted default networks the map loads with (configured in Settings).
+     * On-map chip toggles change [coverageFilter] only, not this.
+     */
+    val defaultNetworkFilter: Set<NetworkType> = NetworkType.entries.toSet(),
+    /**
+     * Persisted default operators the map loads with (configured in Settings).
+     * Empty = all operators. On-map chip toggles change [operatorFilter] only.
+     */
+    val defaultOperatorFilter: Set<String> = emptySet(),
     /** Retention in days; `0` means "forever" (the default - opt-in expiry). */
     val retentionDays: Int = PreferencesStore.DEFAULT_RETENTION_DAYS,
     /** Light/dark theme override (default: follow OS via [ThemeMode.System]). */
@@ -174,6 +191,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             autoRecordEnabled = prefs.autoRecordEnabled,
             // Battery-vs-accuracy sampling mode. Default Auto.
             samplingMode = prefs.samplingMode,
+            // Persisted default map filters, plus the active filters seeded
+            // from them so the very first Map open is already filtered.
+            defaultNetworkFilter = prefs.defaultNetworkFilter,
+            defaultOperatorFilter = prefs.defaultOperatorFilter,
+            coverageFilter = prefs.defaultNetworkFilter,
+            operatorFilter = prefs.defaultOperatorFilter,
         )
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -339,6 +362,52 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             val next = current.operatorFilter.toMutableSet()
             if (!next.add(operator)) next.remove(operator)
             current.copy(operatorFilter = next)
+        }
+    }
+
+    /**
+     * Reset the *active* map filters to the user's persisted defaults. Called
+     * whenever the Map tab is opened, so any temporary on-map chip overrides
+     * from the previous visit are discarded in favour of the Settings default.
+     */
+    fun applyDefaultMapFilters() {
+        _ui.value = _ui.value.let { current ->
+            current.copy(
+                coverageFilter = current.defaultNetworkFilter,
+                operatorFilter = current.defaultOperatorFilter,
+            )
+        }
+    }
+
+    /**
+     * Toggle [type] in the persisted *default* network filter (Settings). The
+     * last enabled network cannot be removed - a default of "no networks"
+     * would blank the map on every open - so a no-op toggle-off is ignored.
+     */
+    fun toggleDefaultNetwork(type: NetworkType) {
+        _ui.value = _ui.value.let { current ->
+            val next = current.defaultNetworkFilter.toMutableSet()
+            if (type in next) {
+                if (next.size == 1) return@let current // keep at least one
+                next.remove(type)
+            } else {
+                next.add(type)
+            }
+            prefs.defaultNetworkFilter = next
+            current.copy(defaultNetworkFilter = next)
+        }
+    }
+
+    /**
+     * Toggle [operator] in the persisted *default* operator filter (Settings).
+     * An empty set means "all operators".
+     */
+    fun toggleDefaultOperator(operator: String) {
+        _ui.value = _ui.value.let { current ->
+            val next = current.defaultOperatorFilter.toMutableSet()
+            if (!next.add(operator)) next.remove(operator)
+            prefs.defaultOperatorFilter = next
+            current.copy(defaultOperatorFilter = next)
         }
     }
 

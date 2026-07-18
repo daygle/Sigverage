@@ -10,9 +10,13 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,15 +26,18 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
@@ -38,6 +45,8 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,9 +74,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.BuildConfig
 import com.sigverage.app.R
+import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
+import com.sigverage.app.ui.theme.NetworkColors
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -78,7 +89,7 @@ import kotlinx.coroutines.launch
  * to [MainScreen] so it can hide the app bar and bottom navigation while a
  * sub-page is on screen, letting the sub-page own the whole screen.
  */
-enum class SettingsSubPage { None, Permissions, Schedules }
+enum class SettingsSubPage { None, Permissions, Schedules, MapFilters }
 
 /**
  * Modern card-based Settings screen, reachable via the bottom NavigationBar tab.
@@ -137,6 +148,19 @@ fun SettingsScreen(
             onEdit = { sched -> editingSchedule = sched; showScheduleDialog = true },
             onDelete = { viewModel.deleteSchedule(it) },
             onToggleEnabled = { viewModel.toggleScheduleEnabled(it) },
+        )
+    } else if (subPage == SettingsSubPage.MapFilters) {
+        BackHandler { onSubPageChange(SettingsSubPage.None) }
+        val operators = remember(readings) {
+            readings.mapNotNull { it.operatorName }.filter { it.isNotBlank() }.distinct().sorted()
+        }
+        MapFiltersPage(
+            selectedNetworks = ui.defaultNetworkFilter,
+            onToggleNetwork = viewModel::toggleDefaultNetwork,
+            operators = operators,
+            selectedOperators = ui.defaultOperatorFilter,
+            onToggleOperator = viewModel::toggleDefaultOperator,
+            onBack = { onSubPageChange(SettingsSubPage.None) },
         )
     } else {
         val scroll = rememberScrollState()
@@ -208,6 +232,19 @@ fun SettingsScreen(
                     subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
                     checked = ui.dynamicColorEnabled,
                     onCheckedChange = viewModel::setDynamicColorEnabled,
+                )
+            }
+
+            // -- Map section --
+            SettingsCard(
+                headerIcon = Icons.Default.Map,
+                headerTitle = stringResource(R.string.settings_section_map),
+            ) {
+                SettingsRow(
+                    title = stringResource(R.string.settings_map_filters_title),
+                    subtitle = stringResource(R.string.settings_map_filters_subtitle),
+                    value = mapFilterSummary(ui.defaultNetworkFilter, ui.defaultOperatorFilter),
+                    onClick = { onSubPageChange(SettingsSubPage.MapFilters) },
                 )
             }
 
@@ -574,6 +611,166 @@ private fun openExactAlarmSettings(context: Context) {
             )
         }
     }
+}
+
+/**
+ * One-line summary of the saved default map filters, shown on the Settings
+ * root row - e.g. "5G, LTE · Vodafone" or "All networks · All operators".
+ */
+@Composable
+private fun mapFilterSummary(
+    networks: Set<NetworkType>,
+    operators: Set<String>,
+): String {
+    val netPart = if (networks.size == NetworkType.entries.size) {
+        stringResource(R.string.settings_map_filters_all_networks)
+    } else {
+        NetworkType.entries.filter { it in networks }.map { it.shortLabel }.distinct().joinToString()
+    }
+    val opPart = if (operators.isEmpty()) {
+        stringResource(R.string.settings_map_filters_all_operators)
+    } else {
+        operators.sorted().joinToString()
+    }
+    return stringResource(R.string.settings_map_filters_summary, netPart, opPart)
+}
+
+/**
+ * Settings drill-out for the persisted default map filters: which networks and
+ * operators the coverage map loads with. Editing these writes straight to
+ * [PreferencesStore]; the live map picks them up the next time the Map tab is
+ * opened (temporary on-map chip overrides are discarded then).
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun MapFiltersPage(
+    selectedNetworks: Set<NetworkType>,
+    onToggleNetwork: (NetworkType) -> Unit,
+    operators: List<String>,
+    selectedOperators: Set<String>,
+    onToggleOperator: (String) -> Unit,
+    onBack: () -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_map_filters_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.settings_permissions_back),
+                        )
+                    }
+                },
+            )
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            SettingsCard(
+                headerIcon = Icons.Default.Map,
+                headerTitle = stringResource(R.string.settings_map_filters_title),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_map_filters_page_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                )
+
+                MapFilterSubLabel(stringResource(R.string.settings_map_filters_networks_header))
+                FlowRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    NetworkType.entries.forEach { type ->
+                        val selected = type in selectedNetworks
+                        FilterChip(
+                            selected = selected,
+                            onClick = { onToggleNetwork(type) },
+                            label = { Text(type.label) },
+                            leadingIcon = {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(
+                                            NetworkColors[type] ?: MaterialTheme.colorScheme.outline,
+                                            CircleShape,
+                                        )
+                                )
+                            },
+                        )
+                    }
+                }
+
+                CardDivider()
+                MapFilterSubLabel(stringResource(R.string.settings_map_filters_operators_header))
+                if (operators.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.settings_map_filters_operators_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.settings_map_filters_operators_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+                    FlowRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp)
+                            .padding(top = 8.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        operators.forEach { operator ->
+                            val selected = operator in selectedOperators
+                            FilterChip(
+                                selected = selected,
+                                onClick = { onToggleOperator(operator) },
+                                label = { Text(operator) },
+                                leadingIcon = if (selected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(FilterChipDefaults.IconSize),
+                                        )
+                                    }
+                                } else {
+                                    null
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun MapFilterSubLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+    )
 }
 
 @Composable
