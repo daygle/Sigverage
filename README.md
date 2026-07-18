@@ -12,24 +12,23 @@
 
 ## Table of contents
 
-1. [TL;DR](#tldr)
-2. [Screenshots](#screenshots)
-3. [Features](#features)
-4. [Tech stack](#tech-stack)
-5. [Architecture](#architecture)
-6. [Project layout](#project-layout)
-7. [How the coverage map encodes two dimensions](#how-the-coverage-map-encodes-two-dimensions)
-8. [Building](#building)
-9. [Permissions rationale](#permissions-rationale)
-10. [Settings tour](#settings-tour)
-11. [OpenStreetMap tile policy](#openstreetmap-tile-policy)
-12. [Cellular-reading caveats](#cellular-reading-caveats)
-13. [Roadmap](#roadmap)
-14. [License](#license)
+1. [Summary](#summary)
+2. [Features](#features)
+3. [Tech stack](#tech-stack)
+4. [Architecture](#architecture)
+5. [Project layout](#project-layout)
+6. [How the coverage map encodes two dimensions](#how-the-coverage-map-encodes-two-dimensions)
+7. [Building](#building)
+8. [Permissions rationale](#permissions-rationale)
+9. [Settings tour](#settings-tour)
+10. [OpenStreetMap tile policy](#openstreetmap-tile-policy)
+11. [Cellular-reading caveats](#cellular-reading-caveats)
+12. [Roadmap](#roadmap)
+13. [License](#license)
 
 ---
 
-## TL;DR
+## Summary
 
 Sigverage runs on your phone, records a `SignalReading` (network type, signal dBm, GPS fix, timestamp, MCC/MNC/cell ID, operator name where available) and aggregates your readings into a coverage overlay on top of OpenStreetMap. **Everything stays on the device.** There is no account, no backend, no telemetry, no remote sync. You can export to CSV from *Settings → Data* and the retention policy is configurable from *Settings → Data → Auto-expire*.
 
@@ -40,30 +39,6 @@ The map paints a small filled **box per Mercator tile** at a fixed storage zoom 
 **Recording schedules** let you define time windows (e.g. Mon-Fri 09:00-17:00) when sampling should run automatically, using AlarmManager with exact alarms that survive reboots.
 
 ---
-
-## Screenshots
-
-Drop real device captures into `./docs/screenshots/` and uncomment the lines below - GitHub will render them on the repo page.
-
-```text
-docs/screenshots/
-├── 01-map-coverage.png         ← map view: boxed coverage overlay on OSM
-├── 02-filter-chips.png         ← filter chips, mid-toggle
-├── 04-settings-appearance.png  ← Settings → Appearance: theme + dynamic colour
-├── 05-data-retention.png       ← Settings → Data: auto-expire + delete-all
-├── 06-list-and-detail.png      ← List tab with row tap → bottom sheet
-└── 07-permissions.png          ← Settings → Permissions & Access with all granted
-```
-
-Markdown placeholders (leave them commented until you push images):
-
-```markdown
-<!-- ![Coverage overlay](docs/screenshots/01-map-coverage.png) -->
-<!-- ![Settings → Appearance](docs/screenshots/04-settings-appearance.png) -->
-```
-
----
-
 ## Features
 
 ### 📡 Recording
