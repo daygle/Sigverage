@@ -51,12 +51,16 @@ data class TileBounds(
     val eastLng: Double,
 )
 
-/** Strength bucket used to kick alpha on the box. */
+/**
+ * Strength bucket used to kick alpha on the box. Alphas are kept low so the
+ * coverage squares stay clearly translucent and the underlying map (streets,
+ * labels, landmarks) remains readable through them.
+ */
 enum class SignalBucket(val alpha: Float) {
-    Strong(0.95f),
-    Ok(0.62f),
-    Weak(0.34f),
-    Unknown(0.55f),
+    Strong(0.60f),
+    Ok(0.40f),
+    Weak(0.22f),
+    Unknown(0.35f),
 }
 
 /** Mercator slippy-tile coordinate of a lat/lng at zoom [zoom]. */

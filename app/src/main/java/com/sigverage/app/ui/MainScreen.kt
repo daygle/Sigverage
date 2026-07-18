@@ -1,8 +1,5 @@
 package com.sigverage.app.ui
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,12 +7,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Map
-import androidx.compose.material.icons.filled.PauseCircle
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -35,12 +29,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -101,7 +92,7 @@ fun MainScreen(viewModel: MainViewModel) {
 
     LaunchedEffect(ui.autoRecordEnabled, ui.onboardingCompleted) {
         if (!ui.autoRecordEnabled || !ui.onboardingCompleted) return@LaunchedEffect
-        val missing = missingPermissions(ctx)
+        val missing = viewModel.missingSamplingPermissions(ctx)
         if (missing.isNotEmpty()) {
             snackbar.showSnackbar(msgNoPermissions)
             return@LaunchedEffect
@@ -119,7 +110,7 @@ fun MainScreen(viewModel: MainViewModel) {
             if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
             val current = viewModel.ui.value
             if (!current.autoRecordEnabled || !current.onboardingCompleted) return@LifecycleEventObserver
-            if (missingPermissions(ctx).isNotEmpty()) return@LifecycleEventObserver
+            if (viewModel.missingSamplingPermissions(ctx).isNotEmpty()) return@LifecycleEventObserver
             if (current.isSampling) return@LifecycleEventObserver
             viewModel.setSampling(true)
             SamplingService.start(ctx)
@@ -128,33 +119,17 @@ fun MainScreen(viewModel: MainViewModel) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    val stopSampling: () -> Unit = {
-        viewModel.setSampling(false)
-        SamplingService.stop(ctx)
-    }
-
     Scaffold(
         topBar = {
             // The Map tab is immersive: the map runs edge-to-edge and its
-            // controls (capture, pause, filters, zoom) float on the map
-            // itself, so no app bar is drawn there. A Settings drill-out owns
-            // the whole screen via its own Scaffold, so no app bar there
-            // either. Otherwise the title bar shows, with the pause action
-            // available while sampling.
+            // controls (filters, zoom) float on the map itself, so no app bar
+            // is drawn there. A Settings drill-out owns the whole screen via
+            // its own Scaffold, so no app bar there either. Otherwise a plain
+            // title bar shows - recording is started/stopped from the Settings
+            // page, so the bar carries no pause action.
             if (tab != Tab.Map && !settingsSubPageActive) {
                 TopAppBar(
                     title = { Text(stringResource(R.string.app_name)) },
-                    actions = {
-                        if (ui.isSampling) {
-                            IconButton(onClick = stopSampling) {
-                                Icon(
-                                    imageVector = Icons.Default.PauseCircle,
-                                    contentDescription = stringResource(R.string.stop_sampling),
-                                    tint = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
                 )
             }
         },
@@ -201,9 +176,6 @@ fun MainScreen(viewModel: MainViewModel) {
                     lastFix = ui.lastFix,
                     coverageFilter = ui.coverageFilter,
                     onToggleFilter = viewModel::toggleCoverageFilter,
-                    isSampling = ui.isSampling,
-                    onCapture = { viewModel.captureNow() },
-                    onStopSampling = stopSampling,
                     operatorFilter = ui.operatorFilter,
                     onToggleOperatorFilter = viewModel::toggleOperatorFilter,
                     focusEvents = viewModel.focusEvents,
@@ -234,29 +206,4 @@ fun MainScreen(viewModel: MainViewModel) {
             onShowOnMap = { jumpToReading(reading) },
         )
     }
-}
-
-private fun missingPermissions(ctx: android.content.Context): List<String> {
-    val missing = mutableListOf<String>()
-    val fine = Manifest.permission.ACCESS_FINE_LOCATION
-    if (ContextCompat.checkSelfPermission(ctx, fine) != PackageManager.PERMISSION_GRANTED) {
-        missing += fine
-    }
-    val coarse = Manifest.permission.ACCESS_COARSE_LOCATION
-    if (ContextCompat.checkSelfPermission(ctx, coarse) != PackageManager.PERMISSION_GRANTED) {
-        missing += coarse
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        val notif = Manifest.permission.POST_NOTIFICATIONS
-        if (ContextCompat.checkSelfPermission(ctx, notif) != PackageManager.PERMISSION_GRANTED) {
-            missing += notif
-        }
-    }
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        val bg = Manifest.permission.ACCESS_BACKGROUND_LOCATION
-        if (ContextCompat.checkSelfPermission(ctx, bg) != PackageManager.PERMISSION_GRANTED) {
-            missing += bg
-        }
-    }
-    return missing
 }

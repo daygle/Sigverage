@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Point
 import android.graphics.Rect
+import android.view.MotionEvent
 import androidx.compose.ui.graphics.toArgb
 import com.sigverage.app.model.NetworkType
 import org.osmdroid.util.GeoPoint
@@ -50,6 +51,21 @@ class CoverageGridOverlay(
     private var allowed: Set<NetworkType> = NetworkType.entries.toSet()
     private var allowedOperators: Set<String> = emptySet() // empty = show all
 
+    /** Currently selected (tapped) tile, highlighted in [draw]. */
+    private var selectedTile: TileId? = null
+
+    /**
+     * Invoked when the user taps a drawn tile, with that tile's id and the
+     * stats behind it. The host uses it to open a details sheet. Only tiles
+     * that are actually painted (pass the network + operator filters) fire
+     * this; a tap on empty map or a filtered-out tile fires
+     * [onSelectionCleared] instead.
+     */
+    var onTileTap: ((TileId, CellStats) -> Unit)? = null
+
+    /** Invoked when a tap lands on no drawn tile, so the host can dismiss. */
+    var onSelectionCleared: (() -> Unit)? = null
+
     /**
      * Network → colour map. Defaults to the static [com.sigverage.app.ui.theme.NetworkColors]
      * fallback so the overlay still draws correctly if the host forgets to
@@ -67,6 +83,16 @@ class CoverageGridOverlay(
         color = Color.argb(56, 0, 0, 0)
     }
     private val slotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
+    // Two-layer selection outline: a dark halo under a white stroke so the
+    // highlight stays visible over any tile colour or map background.
+    private val selectHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = Color.argb(160, 0, 0, 0)
+    }
+    private val selectPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = Color.WHITE
+    }
     private val tlGeo = GeoPoint(0.0, 0.0)
     private val brGeo = GeoPoint(0.0, 0.0)
     private val tlPt = Point()
@@ -83,6 +109,11 @@ class CoverageGridOverlay(
 
     fun setAllowedOperators(newAllowed: Set<String>) {
         allowedOperators = newAllowed
+    }
+
+    /** Set (or clear, with `null`) the highlighted tile. */
+    fun setSelectedTile(tile: TileId?) {
+        selectedTile = tile
     }
 
     /** Inject the live palette produced by `rememberNetworkColors()`. */
@@ -112,6 +143,8 @@ class CoverageGridOverlay(
 
         val density = mapView.context.resources.displayMetrics.density
         strokePaint.strokeWidth = STROKE_WIDTH_DP * density
+        selectHaloPaint.strokeWidth = SELECT_STROKE_WIDTH_DP * density + 2f * density
+        selectPaint.strokeWidth = SELECT_STROKE_WIDTH_DP * density
 
         for ((tile, cellStats) in stats) {
             if (tile.zoom != storageZoom) continue
@@ -147,7 +180,39 @@ class CoverageGridOverlay(
 
             // Layer 2: corner slot grid (Option 2 multi-network encoding).
             drawSlotGrid(canvas, density, tileRect, cellStats)
+
+            // Layer 3: selection highlight for the tapped tile.
+            if (tile == selectedTile) {
+                canvas.drawRect(tileRect, selectHaloPaint)
+                canvas.drawRect(tileRect, selectPaint)
+            }
         }
+    }
+
+    /**
+     * Tap-to-select: map the tap to its storage-zoom tile, and if that tile
+     * is currently drawn (present in [stats] and passing the network +
+     * operator filters), select it and notify [onTileTap]. A tap on empty
+     * map or a filtered-out tile clears the selection via [onSelectionCleared].
+     */
+    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+        if (stats.isEmpty()) return false
+        val geo = mapView.projection.fromPixels(e.x.toInt(), e.y.toInt())
+        val tile = latLngToTile(geo.latitude, geo.longitude, storageZoom)
+        val cell = stats[tile]
+        val hit = cell != null &&
+            (allowedOperators.isEmpty() || cell.operators.any { it in allowedOperators }) &&
+            pickDominant(cell, allowed) != null
+        if (hit) {
+            selectedTile = tile
+            onTileTap?.invoke(tile, cell!!)
+        } else {
+            if (selectedTile == null) return false
+            selectedTile = null
+            onSelectionCleared?.invoke()
+        }
+        mapView.invalidate()
+        return true
     }
 
     /**
@@ -232,6 +297,8 @@ class CoverageGridOverlay(
         /** Distance from the tile edge to the closest slot centre. */
         private const val SLOT_MARGIN_DP = 2f
         private const val STROKE_WIDTH_DP = 0.75f
+        /** Stroke width of the white selection outline (halo adds ~2dp more). */
+        private const val SELECT_STROKE_WIDTH_DP = 2f
 
         /**
          * Slot layout: top row holds the four modern networks, bottom row

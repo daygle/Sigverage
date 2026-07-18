@@ -4,15 +4,24 @@ import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.sigverage.app.R
+import com.sigverage.app.coverage.CellStats
 import com.sigverage.app.coverage.CoverageGridOverlay
 import com.sigverage.app.coverage.CoverageMapScreen
+import com.sigverage.app.coverage.TileDetails
+import com.sigverage.app.coverage.TileId
+import com.sigverage.app.coverage.TileNetworkStat
 import com.sigverage.app.coverage.aggregate
+import com.sigverage.app.coverage.pickDominant
+import com.sigverage.app.coverage.tileBounds
 import com.sigverage.app.location.FixSample
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
@@ -21,6 +30,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.ScaleBarOverlay
 import org.osmdroid.views.overlay.compass.CompassOverlay
@@ -47,10 +57,11 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
  *
  * The map's controls all float directly on the map surface in
  * [CoverageMapScreen]: a top filter bar (quick network toggles + a
- * "Filters" pill that opens the full network/operator sheet), a
- * bottom-centre "Capture here" FAB (plus a pause button while sampling),
- * and bottom-right zoom/recenter FABs. The quick network toggles sit on
- * the map with no scrim, so toggling one previews the coverage grid live.
+ * "Filters" pill that opens the full network/operator sheet) and
+ * bottom-right zoom/recenter FABs. Recording is driven from the Settings
+ * page, so the map carries no capture control. The quick network toggles
+ * sit on the map with no scrim, so toggling one previews the coverage
+ * grid live.
  */
 @Composable
 fun MapPanel(
@@ -58,9 +69,6 @@ fun MapPanel(
     lastFix: FixSample?,
     coverageFilter: Set<NetworkType>,
     onToggleFilter: (NetworkType) -> Unit,
-    isSampling: Boolean,
-    onCapture: () -> Unit,
-    onStopSampling: () -> Unit,
     operatorFilter: Set<String> = emptySet(),
     onToggleOperatorFilter: (String) -> Unit = {},
     focusEvents: Flow<Pair<Double, Double>> = emptyFlow(),
@@ -72,6 +80,10 @@ fun MapPanel(
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(true)
+            // Hide osmdroid's built-in (bottom-centre) zoom buttons; the app
+            // provides its own zoom FABs in the bottom-right control stack, so
+            // the built-ins would just be a duplicate set of controls.
+            zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
             isHorizontalMapRepetitionEnabled = false
             isVerticalMapRepetitionEnabled = false
             // Start at the storage zoom so the user opens to the granularity
@@ -105,6 +117,11 @@ fun MapPanel(
     }
     val coverageOverlay = remember { CoverageGridOverlay() }
 
+    // The tile the user tapped (raw stats). Held as the raw (id, stats) pair
+    // so the display model is rebuilt with the *current* network filter during
+    // recomposition instead of capturing a stale filter in the tap callback.
+    var selectedTile by remember { mutableStateOf<Pair<TileId, CellStats>?>(null) }
+
     // Scale bar: a modern-map staple that lets the user gauge the real-world
     // size of each coverage tile at the current zoom. Nautical/imperial off;
     // metric matches the tile-size docs on CoverageGridOverlay.
@@ -127,6 +144,12 @@ fun MapPanel(
     val networkColors = rememberNetworkColors()
 
     DisposableEffect(Unit) {
+        // Tap a drawn tile -> remember it (opens the details sheet); tap empty
+        // map -> clear. These only touch Compose state, so no filter is
+        // captured stale here.
+        coverageOverlay.onTileTap = { tile, cell -> selectedTile = tile to cell }
+        coverageOverlay.onSelectionCleared = { selectedTile = null }
+
         // Coverage grid is drawn below the location overlay so the
         // "you-are-here" dot sits clearly on top.
         mapView.overlays.add(coverageOverlay)
@@ -136,6 +159,8 @@ fun MapPanel(
         mapView.onResume()
 
         onDispose {
+            coverageOverlay.onTileTap = null
+            coverageOverlay.onSelectionCleared = null
             compassOverlay.disableCompass()
             mapView.overlays.remove(compassOverlay)
             mapView.overlays.remove(scaleBarOverlay)
@@ -195,9 +220,15 @@ fun MapPanel(
         mapView.invalidate()
     }
 
+    // Build the details display model for the tapped tile with the *current*
+    // network filter, so the "dominant" network matches what is drawn.
+    val tileDetails = selectedTile?.let { (tile, cell) ->
+        buildTileDetails(tile, cell, coverageFilter)
+    }
+
     // [CoverageMapScreen] consumes the same `mapView` we just configured,
     // mounts it full-bleed, and overlays every control (filter bar,
-    // capture/pause, zoom/recenter) directly on the map surface.
+    // zoom/recenter) directly on the map surface.
     CoverageMapScreen(
         mapView = mapView,
         readings = readings,
@@ -205,9 +236,6 @@ fun MapPanel(
         onToggleFilter = onToggleFilter,
         operatorFilter = operatorFilter,
         onToggleOperatorFilter = onToggleOperatorFilter,
-        isSampling = isSampling,
-        onCapture = onCapture,
-        onStopSampling = onStopSampling,
         onZoomIn = { mapView.controller.zoomIn() },
         onZoomOut = { mapView.controller.zoomOut() },
         onRecenter = {
@@ -226,6 +254,45 @@ fun MapPanel(
                 ).show()
             }
         },
+        tileDetails = tileDetails,
+        onDismissTileDetails = {
+            selectedTile = null
+            coverageOverlay.setSelectedTile(null)
+            mapView.invalidate()
+        },
+    )
+}
+
+/**
+ * Turn a tapped tile's raw [CellStats] into the [TileDetails] display model.
+ *
+ * The dominant network is resolved with the current [allowed] filter so it
+ * matches the painted fill, while the per-network breakdown lists every
+ * network recorded in the cell (sorted by reading count) regardless of
+ * filter, so the sheet gives the full picture of what was seen there.
+ */
+private fun buildTileDetails(
+    tile: TileId,
+    cell: CellStats,
+    allowed: Set<NetworkType>,
+): TileDetails {
+    val bounds = tileBounds(tile)
+    val networks = cell.perNetwork.entries
+        .sortedByDescending { it.value.count }
+        .map { (type, agg) ->
+            TileNetworkStat(
+                type = type,
+                count = agg.count,
+                meanDbm = agg.meanDbm.takeIf { it != Int.MIN_VALUE },
+            )
+        }
+    return TileDetails(
+        centerLat = (bounds.northLat + bounds.southLat) / 2.0,
+        centerLng = (bounds.westLng + bounds.eastLng) / 2.0,
+        dominant = pickDominant(cell, allowed)?.first,
+        networks = networks,
+        operators = cell.operators.sorted(),
+        totalReadings = cell.perNetwork.values.sumOf { it.count },
     )
 }
 
