@@ -23,8 +23,7 @@
 9. [Settings tour](#settings-tour)
 10. [OpenStreetMap tile policy](#openstreetmap-tile-policy)
 11. [Cellular-reading caveats](#cellular-reading-caveats)
-12. [Roadmap](#roadmap)
-13. [License](#license)
+12. [License](#license)
 
 ---
 
@@ -39,6 +38,7 @@ The map paints a small filled **box per Mercator tile** at a fixed storage zoom 
 **Recording schedules** let you define time windows (e.g. Mon-Fri 09:00-17:00) when sampling should run automatically, using AlarmManager with exact alarms that survive reboots.
 
 ---
+
 ## Features
 
 ### 📡 Recording
@@ -391,20 +391,6 @@ If you change the tile source, do it in `MapPanel.MapView`'s `setTileSource(Tile
 - **CDMA-only devices** (older US carriers) return very little cell identity. The UI degrades gracefully to generic `dBm` and the *Other* colour.
 - **First fix inside a building** can take a few seconds. The status banner says "Waiting for GPS fix…" until one arrives.
 - **Sim cards without a data plan** still report cell identity but may report `"UNKNOWN"` `dataNetworkType`. We classify those as `Unknown`.
-
----
-
-## Roadmap
-
-**Shipped:** coverage grid + network filter chips + **operator filter** · **activity-based sampling** (records only while moving) · **adaptive battery / sampling modes** · **recording schedules** (day-of-week + time windows via `AlarmManager`) · **background-reliability toggles** (battery-optimisation + exact-alarm deep-links) · **TTL retention** · **fixed 50 m cell size** · **theme picker** · **dynamic colour** · card-based list UI with **show-on-map** + **delete-with-undo** · **Settings redesign** · multi-network slot grid · live network palette · onboarding flow · CSV export.
-
-**Next up:**
-
-- Heatmap / cluster overlay for hundreds of cells per region — the current overlay scales comfortably to ~thousands; pushing it into the tens-of-thousands will need quad-tree culling.
-- Wi-Fi scanning alongside cellular (Android 9+ throttles `WifiManager.startScan`; needs workarounds).
-- GPX / KML export alongside CSV — the geometry is already in the data model, just a serializer.
-- Route replay: animate a polyline through every reading in chronological order.
-- Live signal-vs-speed chart while the user is moving.
 
 ---
 
