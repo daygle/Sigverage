@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,7 +44,7 @@ import com.sigverage.app.R
 /**
  * First-launch onboarding screen.
  *
- * Renders a four-step carousel that walks the user through granting the
+ * Renders a five-step carousel that walks the user through granting the
  * runtime permissions the app actually needs to record readings:
  *
  *   1. **Welcome** - explains the value of the app and what data it captures.
@@ -51,8 +52,14 @@ import com.sigverage.app.R
  *      requested together (one system dialog).
  *   3. **Notifications** - `POST_NOTIFICATIONS`, only on Android 13+;
  *      skipped on older devices.
- *   4. **Done** - confirmation screen with a button to enter the main app.
- *      When the user has denied any of the previous steps the Done body is
+ *   4. **Activity Recognition** - `ACTIVITY_RECOGNITION`, only on Android 10+
+ *      (API 29, where it became a runtime permission); skipped on older
+ *      devices. Powers movement-based sampling, so it's requested up-front
+ *      rather than left buried in Settings. It's optional: denying it does
+ *      not block recording (the service degrades to continuous sampling), so
+ *      a denial here does NOT flip the Done copy to the partial-setup nudge.
+ *   5. **Done** - confirmation screen with a button to enter the main app.
+ *      When the user has denied location or notifications the Done body is
  *      swapped for a "you can finish from Settings → Permissions" nudge so
  *      they aren't quietly left without recording capability.
  *
@@ -100,6 +107,15 @@ fun OnboardingScreen(viewModel: MainViewModel) {
         step = step.next()
     }
 
+    // Activity recognition is optional - the sampling service degrades to
+    // continuous recording when it's missing - so a denial here does not
+    // flip `anyDenied`; we simply advance to the Done page either way.
+    val activityLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        step = step.next()
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         TextButton(
             onClick = viewModel::completeOnboarding,
@@ -141,6 +157,15 @@ fun OnboardingScreen(viewModel: MainViewModel) {
                     notificationsLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 },
             )
+            OnboardingStep.ActivityRecognition -> OnboardingPage(
+                icon = Icons.Filled.Sensors,
+                title = stringResource(R.string.onboarding_activity_title),
+                body = stringResource(R.string.onboarding_activity_body),
+                cta = stringResource(R.string.onboarding_activity_grant),
+                onContinue = {
+                    activityLauncher.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+                },
+            )
             OnboardingStep.Done -> OnboardingPage(
                 icon = Icons.Filled.LocationOn,
                 title = stringResource(R.string.onboarding_done_title),
@@ -162,11 +187,14 @@ fun OnboardingScreen(viewModel: MainViewModel) {
  *
  * Notifications is skipped entirely on devices older than Android 13
  * (API 33) because the underlying permission is auto-granted there.
+ * Activity Recognition is skipped on devices older than Android 10
+ * (API 29), where it isn't a runtime permission.
  */
 private enum class OnboardingStep {
     Welcome,
     Location,
     Notifications,
+    ActivityRecognition,
     Done,
     ;
 
@@ -175,11 +203,23 @@ private enum class OnboardingStep {
         Location -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Notifications
         } else {
-            Done
+            afterNotifications()
         }
-        Notifications -> Done
+        Notifications -> afterNotifications()
+        ActivityRecognition -> Done
         Done -> Done
     }
+
+    /**
+     * The step that follows Notifications: Activity Recognition on Android
+     * 10+ (where it's a runtime permission), otherwise straight to Done.
+     */
+    private fun afterNotifications(): OnboardingStep =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ActivityRecognition
+        } else {
+            Done
+        }
 }
 
 @Composable

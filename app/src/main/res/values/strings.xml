@@ -200,6 +200,9 @@
     <string name="onboarding_notifications_title">Notifications</string>
     <string name="onboarding_notifications_body">Sigverage posts a small persistent notification while sampling so Android keeps the service running in the background. You can silence it later from Settings.</string>
     <string name="onboarding_notifications_grant">Allow notifications</string>
+    <string name="onboarding_activity_title">Activity Detection</string>
+    <string name="onboarding_activity_body">Sigverage records only while you are on the move and pauses when you are still, saving battery. Allow activity detection so it can tell the difference. This is optional - without it, recording still works but runs continuously.</string>
+    <string name="onboarding_activity_grant">Allow activity detection</string>
     <string name="onboarding_done_title">All set</string>
     <string name="onboarding_done_body">Sigverage is ready. Tap below to open the map. You can update these permissions any time from Settings → Permissions.</string>
     <string name="onboarding_done_body_partial">Some permissions weren\'t granted yet - Sigverage can\'t fully record without location, and Android won\'t keep sampling alive without notifications. Tap below to open the app and finish granting permissions from Settings → Permissions.</string>
