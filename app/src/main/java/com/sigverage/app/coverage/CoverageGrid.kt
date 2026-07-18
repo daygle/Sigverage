@@ -15,7 +15,7 @@ import org.osmdroid.views.overlay.Overlay
 /**
  * osmdroid `Overlay` that paints the coverage grid.
  *
- * Each tile draws two visual layers:
+ * Each tile draws three visual layers:
  *
  *  1. **Dominant box** - the dominant network's full HSL-hybrid fill
  *     (hue = network colour, alpha = mean dBm bucket). This is the
@@ -27,6 +27,12 @@ import org.osmdroid.views.overlay.Overlay
  *     user has the corresponding chip enabled. Slot positions are fixed so
  *     the legend is stable across the map: top row holds the four modern
  *     networks, bottom row holds fallbacks.
+ *
+ *  3. **Mean-dBm label** - the dominant network's mean signal, printed as a
+ *     small white-on-halo number in the top-left corner. It is the exact
+ *     value behind the fill's opacity bucket, so a square reads as
+ *     hue = network, opacity = strength band, number = mean dBm. Suppressed
+ *     when the cell has no usable signal value or the tile is too small.
  *
  * Performance contract:
  *   - **Zero allocations inside `draw()`.** One `Paint` per role, a single
@@ -93,6 +99,22 @@ class CoverageGridOverlay(
         style = Paint.Style.STROKE
         color = Color.WHITE
     }
+    // Mean-dBm corner label: white glyphs over a dark halo so the number
+    // stays legible on any tile colour or map background. Same two-layer
+    // trick as the selection outline.
+    private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.WHITE
+        textAlign = Paint.Align.LEFT
+    }
+    private val labelHaloPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        color = Color.argb(180, 0, 0, 0)
+        textAlign = Paint.Align.LEFT
+    }
+    // Scratch buffer for rendering the mean dBm without allocating a String
+    // per tile per frame. Widest value is "-140" - 4 chars - so 8 is ample.
+    private val numBuf = CharArray(8)
     private val tlGeo = GeoPoint(0.0, 0.0)
     private val brGeo = GeoPoint(0.0, 0.0)
     private val tlPt = Point()
@@ -145,6 +167,9 @@ class CoverageGridOverlay(
         strokePaint.strokeWidth = STROKE_WIDTH_DP * density
         selectHaloPaint.strokeWidth = SELECT_STROKE_WIDTH_DP * density + 2f * density
         selectPaint.strokeWidth = SELECT_STROKE_WIDTH_DP * density
+        labelPaint.textSize = LABEL_TEXT_SIZE_DP * density
+        labelHaloPaint.textSize = LABEL_TEXT_SIZE_DP * density
+        labelHaloPaint.strokeWidth = LABEL_HALO_WIDTH_DP * density
 
         for ((tile, cellStats) in stats) {
             if (tile.zoom != storageZoom) continue
@@ -181,7 +206,13 @@ class CoverageGridOverlay(
             // Layer 2: corner slot grid (Option 2 multi-network encoding).
             drawSlotGrid(canvas, density, tileRect, cellStats)
 
-            // Layer 3: selection highlight for the tapped tile.
+            // Layer 3: dominant network's mean dBm, printed in the top-left
+            // corner. This is the exact number behind the fill's opacity
+            // bucket, so the square becomes self-describing (hue = network,
+            // opacity = strength band, number = mean signal).
+            drawMeanLabel(canvas, density, tileRect, pick.second.meanDbm)
+
+            // Layer 4: selection highlight for the tapped tile.
             if (tile == selectedTile) {
                 canvas.drawRect(tileRect, selectHaloPaint)
                 canvas.drawRect(tileRect, selectPaint)
@@ -256,6 +287,61 @@ class CoverageGridOverlay(
         }
     }
 
+    /**
+     * Print [meanDbm] (the dominant network's mean signal) in the top-left
+     * corner of `tileRect` - a white number over a dark halo. Skipped when
+     * the cell has no usable signal value ([Int.MIN_VALUE]) or the tile is
+     * too small to fit the label cleanly.
+     */
+    private fun drawMeanLabel(
+        canvas: Canvas,
+        density: Float,
+        tileRect: Rect,
+        meanDbm: Int,
+    ) {
+        if (meanDbm == Int.MIN_VALUE) return
+        val tileMinDp = minOf(tileRect.width(), tileRect.height()).toFloat() / density
+        if (tileMinDp < MIN_TILE_DP_FOR_LABEL) return
+
+        val count = formatInt(meanDbm)
+        val marginPx = LABEL_MARGIN_DP * density
+        val x = tileRect.left + marginPx
+        // Baseline sits one text-size below the top edge (+ margin), so the
+        // glyph tops clear the tile's top stroke.
+        val y = tileRect.top + marginPx + labelPaint.textSize
+        canvas.drawText(numBuf, 0, count, x, y, labelHaloPaint)
+        canvas.drawText(numBuf, 0, count, x, y, labelPaint)
+    }
+
+    /**
+     * Render [value] into [numBuf] as decimal digits (with a leading '-' for
+     * negatives) and return the character count. Allocation-free so it is
+     * safe to call for every tile inside `draw()`; dBm values comfortably fit
+     * the 8-char buffer.
+     */
+    private fun formatInt(value: Int): Int {
+        if (value == 0) {
+            numBuf[0] = '0'
+            return 1
+        }
+        val neg = value < 0
+        var n = if (neg) -value else value
+        var digits = 0
+        var tmp = n
+        while (tmp > 0) {
+            digits++
+            tmp /= 10
+        }
+        val count = digits + if (neg) 1 else 0
+        var idx = count - 1
+        while (n > 0) {
+            numBuf[idx--] = ('0' + (n % 10))
+            n /= 10
+        }
+        if (neg) numBuf[0] = '-'
+        return count
+    }
+
     companion object {
         /** Fixed storage zoom - the single source of truth for coverage
          *  cell size. Z=20 in Web-Mercator gives ~38 m tiles at the equator
@@ -299,6 +385,16 @@ class CoverageGridOverlay(
         private const val STROKE_WIDTH_DP = 0.75f
         /** Stroke width of the white selection outline (halo adds ~2dp more). */
         private const val SELECT_STROKE_WIDTH_DP = 2f
+
+        // ---- Mean-dBm corner label geometry ----
+
+        /** Skip the label below this tile size - it can't fit "-140" cleanly. */
+        private const val MIN_TILE_DP_FOR_LABEL = 30f
+        private const val LABEL_TEXT_SIZE_DP = 9f
+        /** Distance from the tile's top-left corner to the label. */
+        private const val LABEL_MARGIN_DP = 2.5f
+        /** Dark halo stroke width under the white glyphs. */
+        private const val LABEL_HALO_WIDTH_DP = 2f
 
         /**
          * Slot layout: top row holds the four modern networks, bottom row

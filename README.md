@@ -265,10 +265,11 @@ You have two categorical × continuous dimensions to show: **which network** (ca
 | Network    | Box **fill colour hue**                           | Pre-attentive grouping - the eye chunks colour regions faster than shape or text. |
 | Strength   | Box **fill alpha** (0.60 Strong → 0.22 Weak)      | Alpha survives being shrunk down; the hue identity stays usable everywhere. Kept translucent so the map underneath stays readable through the squares. |
 | Secondary networks present | 2×4 **corner slot grid** in the bottom-right corner | Slot positions are fixed: row 0 has the modern nets, row 1 has fallbacks.       |
+| Mean signal (exact) | Small **number in the top-left corner** | The dominant network's mean dBm - the precise value behind the opacity bucket, for when the band isn't specific enough. |
 
-Each tile aggregates its readings into `CellStats.perNetwork: Map<NetworkType, NetworkAggregate>`. A single dominant network is then picked via `pickDominant()` (highest count; tiebreakers: more recent → stronger mean dBm). The corner grid still exposes the *non-dominant* networks that were present in the same tile - so you can read *"mostly LTE, with patches of 5G"* at a glance.
+Each tile aggregates its readings into `CellStats.perNetwork: Map<NetworkType, NetworkAggregate>`. A single dominant network is then picked via `pickDominant()` (highest count; tiebreakers: more recent → stronger mean dBm). The corner grid still exposes the *non-dominant* networks that were present in the same tile - so you can read *"mostly LTE, with patches of 5G"* at a glance. The top-left number prints that dominant network's mean dBm (drawn allocation-free straight from the aggregate), so hue = network, opacity = strength band, number = mean signal.
 
-A tile below ~22 dp either dimension suppresses the corner grid (rare at the default zoom 20 - kept as a safety net for when the user pans the map far enough).
+A tile below ~22 dp either dimension suppresses the corner grid (rare at the default zoom 20 - kept as a safety net for when the user pans the map far enough); the mean-dBm number needs a little more room and is suppressed below ~30 dp.
 
 The network filter chips (on the floating bar and in the "Filters" modal sheet) hide/reveal **both** encodings: turning 5G off removes 5G from the dominant pick *and* greys out its slot across every tile. Operator filter chips additionally hide tiles that have no readings from the selected carriers.
 
