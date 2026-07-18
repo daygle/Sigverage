@@ -113,7 +113,7 @@ Markdown placeholders (leave them commented until you push images):
 - **Delete with undo**: deleting a reading (from a card, the detail sheet, or elsewhere) shows an **Undo** snackbar that restores it; wired through the ViewModel's `undoDeleteEvents` channel.
 - **Jump-to-reading**: **Show on map** switches to the Map tab and recenters on that reading via a `focusEvents` flow.
 - **Settings tab** with drill-out pages for **Permissions & Access** (App Permissions + Background Access) and Schedules, plus in-place dialogs for theme, battery usage, and retention.
-- **Onboarding flow** on first launch guiding users through required permissions.
+- **Onboarding flow** on first launch: a carousel that requests location, notifications (Android 13+), activity recognition (Android 10+) and background location (Android 10+) before dropping into the app. The activity-recognition and background-location steps are optional (a **Not now** action skips them); because Android 11+ forbids an in-app background-location dialog, that step deep-links to system Settings for "Allow all the time". Any skipped grant can still be completed later from *Settings → Permissions & Access*.
 
 ### 🔐 Privacy posture
 - No analytics SDK.
@@ -348,12 +348,12 @@ Every permission is justified by a concrete feature, and the manifest comments n
 | ---------- | ------------ | ------------- | ------- |
 | `ACCESS_FINE_LOCATION` | GPS pin for every reading (lat/lng). | All API levels | Requested on first launch via `RequestMultiplePermissions`. |
 | `ACCESS_COARSE_LOCATION` | Fallback when fine isn't granted (network-based fixes). | All API levels | Same prompt as fine. |
-| `ACCESS_BACKGROUND_LOCATION` | Sampling keeps accumulating while the screen is off. | API 30+: Android routes this to system Settings - it can't be granted from an in-app prompt. | User must explicitly choose "Allow all the time". |
+| `ACCESS_BACKGROUND_LOCATION` | Sampling keeps accumulating while the screen is off. | API 30+: Android routes this to system Settings - it can't be granted from an in-app prompt. | Surfaced as an optional onboarding step (Android 10+) and in Settings → Permissions & Access; on Android 11+ both deep-link to system Settings where the user chooses "Allow all the time". |
 | `POST_NOTIFICATIONS` | Sticky low-priority notification for `SamplingService`. | API 33+ only. | Asked on first launch alongside location. |
 | `INTERNET` / `ACCESS_NETWORK_STATE` | osmdroid tile downloads. | All API levels. | Granted at install (normal permission). |
 | `FOREGROUND_SERVICE` | The sampling service itself. | All API levels. | Granted at install. |
 | `FOREGROUND_SERVICE_LOCATION` | Typed FGS for Android 14. | Required on API 34. | Granted at install. |
-| `ACTIVITY_RECOGNITION` | Detect movement for activity-based sampling. | API 29+. | Requested in Settings → Permissions & Access. |
+| `ACTIVITY_RECOGNITION` | Detect movement for activity-based sampling. | API 29+. | Requested during onboarding (Android 10+) and from Settings → Permissions & Access. |
 | `RECEIVE_BOOT_COMPLETED` | Re-register schedule alarms after device reboot. | All API levels. | Granted at install. |
 | `SCHEDULE_EXACT_ALARM` | Schedule exact alarms for recording schedules. | API 31+. | Granted at install; can be revoked by the user, and re-granted from *Settings → Permissions & Access → Background Access → Exact Schedule Timing*. |
 | `READ_PHONE_STATE` (`maxSdkVersion=27`) | `allCellInfo` on API 24–27. Capped at 27 in the manifest because APIs 28+ no longer require it for cell info. | API ≤ 27 only. | Granted at install on those devices. |
