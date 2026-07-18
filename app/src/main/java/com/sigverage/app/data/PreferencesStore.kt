@@ -3,6 +3,7 @@ package com.sigverage.app.data
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
 
@@ -102,6 +103,40 @@ class PreferencesStore(context: Context) {
             prefs.edit { putString(KEY_SAMPLING_MODE, value.name) }
         }
 
+    /**
+     * Default set of network types the coverage map loads with. Persisted as
+     * a set of [NetworkType.name]s. When the key was never set, defaults to
+     * *all* networks (the historical behaviour). An explicitly-empty stored
+     * set would blank the map on every open, so it is treated as "all" too;
+     * the Settings UI additionally prevents removing the last network.
+     *
+     * Unknown names (e.g. an enum constant removed in a future version) are
+     * dropped on read rather than crashing.
+     */
+    var defaultNetworkFilter: Set<NetworkType>
+        get() {
+            val stored = prefs.getStringSet(KEY_DEFAULT_NETWORK_FILTER, null)
+                ?: return NetworkType.entries.toSet()
+            val parsed = stored.mapNotNullTo(HashSet()) { name ->
+                NetworkType.entries.firstOrNull { it.name == name }
+            }
+            return parsed.ifEmpty { NetworkType.entries.toSet() }
+        }
+        set(value) {
+            prefs.edit { putStringSet(KEY_DEFAULT_NETWORK_FILTER, value.mapTo(HashSet()) { it.name }) }
+        }
+
+    /**
+     * Default set of operator names the coverage map loads with. Persisted as
+     * a set of raw operator strings. Empty (the default) means "show all
+     * operators", matching the live map's operator-filter semantics.
+     */
+    var defaultOperatorFilter: Set<String>
+        get() = prefs.getStringSet(KEY_DEFAULT_OPERATOR_FILTER, emptySet())?.toSet() ?: emptySet()
+        set(value) {
+            prefs.edit { putStringSet(KEY_DEFAULT_OPERATOR_FILTER, value.toSet()) }
+        }
+
     companion object {
         private const val PREFS_NAME = "sigverage_prefs"
         private const val KEY_RETENTION_DAYS = "retention_days"
@@ -117,6 +152,8 @@ class PreferencesStore(context: Context) {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed_v1"
         private const val KEY_AUTO_RECORD_ENABLED = "auto_record_enabled_v1"
         private const val KEY_SAMPLING_MODE = "sampling_mode"
+        private const val KEY_DEFAULT_NETWORK_FILTER = "default_network_filter"
+        private const val KEY_DEFAULT_OPERATOR_FILTER = "default_operator_filter"
 
         /** First launch defaults to showing the onboarding screen. */
         const val DEFAULT_ONBOARDING_COMPLETED = false

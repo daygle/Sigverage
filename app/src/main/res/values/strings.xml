@@ -115,7 +115,20 @@
     <!-- Settings screen: section headers + row labels -->
     <string name="settings_section_recording">Recording</string>
     <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_section_map">Map</string>
     <string name="settings_section_data">Data</string>
+
+    <!-- Default map filters -->
+    <string name="settings_map_filters_title">Default map filters</string>
+    <string name="settings_map_filters_subtitle">Choose which networks and operators the map loads with.</string>
+    <string name="settings_map_filters_page_hint">The map opens with these filters. You can still change them live on the map — those changes are temporary and reset here next time you open the map.</string>
+    <string name="settings_map_filters_networks_header">Networks</string>
+    <string name="settings_map_filters_operators_header">Operators</string>
+    <string name="settings_map_filters_operators_hint">No operators selected means all operators are shown.</string>
+    <string name="settings_map_filters_operators_empty">Operators appear here once you\'ve recorded some readings.</string>
+    <string name="settings_map_filters_all_networks">All networks</string>
+    <string name="settings_map_filters_all_operators">All operators</string>
+    <string name="settings_map_filters_summary">%1$s · %2$s</string>
     <string name="settings_retention_title">Auto-Expire Readings</string>
     <string name="settings_retention_subtitle">Older readings are removed automatically.</string>
     <string name="settings_delete_all_title">Delete All Readings</string>

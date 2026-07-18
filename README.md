@@ -158,7 +158,7 @@ MainActivity
                   │    │    ├── MyLocationNewOverlay     ── modern custom location indicator
                   │    │    └── CoverageMapScreen       ── full-bleed map + floating filter bar + on-map control stack (recenter / zoom) + ModalBottomSheet filters + tile-details sheet
                   │    ├── ListPanel  ── LazyColumn with Card-based reading items (show-on-map + delete) + details bottom sheet
-                  │    └── SettingsScreen ── Recording / Appearance / Data / Permissions & Access / About
+                  │    └── SettingsScreen ── Recording / Appearance / Map / Data / Permissions & Access / About
                   │         ├── SchedulesPage (drill-out: add/edit/delete/toggle schedules)
                   │         ├── ScheduleDialog (day chips + time pickers)
                   │         ├── PermissionsAccessPage (drill-out: App Permissions + Background Access reliability toggles)
@@ -243,7 +243,7 @@ Two deliberate separation-of-concerns choices worth noting:
                 ├── MapPanel.kt               (osmdroid + CoverageGridOverlay + chips + operator filter + focus events)
                 ├── ListAndDetails.kt         (Card-based list w/ show-on-map + delete + detail bottom sheet)
                 ├── OnboardingScreen.kt       (first-launch permission walkthrough)
-                ├── SettingsScreen.kt         (Recording / Appearance / Data / Permissions & Access / About + Background Access toggles)
+                ├── SettingsScreen.kt         (Recording / Appearance / Map / Data / Permissions & Access / About + Background Access toggles)
                 ├── SchedulesPage.kt          (drill-out: add/edit/delete/toggle recording schedules)
                 ├── ScheduleDialog.kt         (day chips + time pickers)
                 ├── TimePickerDialog.kt       (start/end time picker for schedules)
@@ -265,10 +265,11 @@ You have two categorical × continuous dimensions to show: **which network** (ca
 | Network    | Box **fill colour hue**                           | Pre-attentive grouping - the eye chunks colour regions faster than shape or text. |
 | Strength   | Box **fill alpha** (0.60 Strong → 0.22 Weak)      | Alpha survives being shrunk down; the hue identity stays usable everywhere. Kept translucent so the map underneath stays readable through the squares. |
 | Secondary networks present | 2×4 **corner slot grid** in the bottom-right corner | Slot positions are fixed: row 0 has the modern nets, row 1 has fallbacks.       |
+| Mean signal (exact) | Small **number in the top-left corner** | The dominant network's mean dBm - the precise value behind the opacity bucket, for when the band isn't specific enough. |
 
-Each tile aggregates its readings into `CellStats.perNetwork: Map<NetworkType, NetworkAggregate>`. A single dominant network is then picked via `pickDominant()` (highest count; tiebreakers: more recent → stronger mean dBm). The corner grid still exposes the *non-dominant* networks that were present in the same tile - so you can read *"mostly LTE, with patches of 5G"* at a glance.
+Each tile aggregates its readings into `CellStats.perNetwork: Map<NetworkType, NetworkAggregate>`. A single dominant network is then picked via `pickDominant()` (highest count; tiebreakers: more recent → stronger mean dBm). The corner grid still exposes the *non-dominant* networks that were present in the same tile - so you can read *"mostly LTE, with patches of 5G"* at a glance. The top-left number prints that dominant network's mean dBm (drawn allocation-free straight from the aggregate), so hue = network, opacity = strength band, number = mean signal.
 
-A tile below ~22 dp either dimension suppresses the corner grid (rare at the default zoom 20 - kept as a safety net for when the user pans the map far enough).
+A tile below ~22 dp either dimension suppresses the corner grid (rare at the default zoom 20 - kept as a safety net for when the user pans the map far enough); the mean-dBm number needs a little more room and is suppressed below ~30 dp.
 
 The network filter chips (on the floating bar and in the "Filters" modal sheet) hide/reveal **both** encodings: turning 5G off removes 5G from the dominant pick *and* greys out its slot across every tile. Operator filter chips additionally hide tiles that have no readings from the selected carriers.
 
@@ -384,6 +385,7 @@ The bottom navigation has three tabs. The first two (Map / List) show your data;
 | **Recording** | Schedules (drill-out) | Taps open a dedicated sub-page where you can add/edit/delete/toggle recording schedules. Each schedule has a name, day-of-week selection, and start/end time (overnight windows supported). Schedules use AlarmManager with exact alarms. |
 | **Appearance** | Theme | *Follow system* / *Light* / *Dark*. |
 | **Appearance** | Dynamic colour | Switch. On Android 12+ uses Material You; off falls back to the slate/sky palette. |
+| **Map** | Default map filters (drill-out) | Pick which networks and operators the coverage map loads with (e.g. *5G only*, *Vodafone only*). Persisted in SharedPreferences. The map opens with these each time; on-map chip toggles are temporary and reset to the saved default on the next Map open. No operators selected = show all. |
 | **Data** | Auto-expire readings | Forever / 30 d / 90 d / 6 mo / 1 y. Persisted in SharedPreferences. Silent sweep on app start. Snackbar feedback on manual change. |
 | **Data** | Export CSV | Export readings to CSV via Storage Access Framework. Shows count (e.g., "Export 42 readings to CSV"). Snackbar feedback on completion. |
 | **Data** | Delete all readings | Confirmation dialog → hard delete of the whole `signal_readings` table. |
