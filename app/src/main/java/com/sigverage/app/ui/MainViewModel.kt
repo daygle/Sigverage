@@ -9,7 +9,6 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.sigverage.app.cellular.CellularScanner
 import com.sigverage.app.R
 import com.sigverage.app.data.PreferencesStore
 import com.sigverage.app.data.SignalRepository
