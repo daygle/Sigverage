@@ -1,8 +1,8 @@
 [versions]
 agp = "9.3.0"
-kotlin = "2.3.10"
-# KSP2 versioning tracks the Kotlin compiler directly (no "-x.y.z" suffix from
-# Kotlin 2.3.0 on) and must match `kotlin` above; KSP1 does not support 2.3+.
+kotlin = "2.4.10"
+# KSP 2.3.x supports Kotlin 2.4.x. KSP2 versioning tracks the Kotlin
+# compiler directly (no "-x.y.z" suffix); KSP1 does not support 2.3+.
 ksp = "2.3.10"
 coreKtx = "1.19.0"
 lifecycle = "2.11.0"

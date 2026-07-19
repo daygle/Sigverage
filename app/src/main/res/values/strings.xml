@@ -95,7 +95,6 @@
 
     <!-- Floating map filter bar -->
     <string name="map_filters">Filters</string>
-    <string name="map_filters_count">Filters (%1$d)</string>
 
     <!-- Filter sheet (Material 3 ModalBottomSheet) -->
     <string name="filter_sheet_summary_all">All networks active (%1$d of %2$d)</string>
