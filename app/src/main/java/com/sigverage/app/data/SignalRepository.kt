@@ -25,6 +25,8 @@ class SignalRepository(
 
     suspend fun add(reading: SignalReading): Long = dao.insert(reading)
 
+    suspend fun addAll(readings: List<SignalReading>) = dao.insertAll(readings)
+
     /**
      * Check whether at least one reading already exists in the coverage tile
      * at [zoom] that contains ([lat], [lng]). Used by smart sampling in

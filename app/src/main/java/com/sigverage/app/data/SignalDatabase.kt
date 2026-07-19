@@ -36,6 +36,9 @@ interface SignalReadingDao {
     @Insert
     suspend fun insert(reading: SignalReading): Long
 
+    @Insert
+    suspend fun insertAll(readings: List<SignalReading>)
+
     @Query("DELETE FROM signal_readings WHERE id = :id")
     suspend fun deleteById(id: Long): Int
 

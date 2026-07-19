@@ -65,6 +65,14 @@
     </plurals>
 
     <!-- Misc -->
+    <string name="import_csv">Import CSV</string>
+    <string name="import_csv_subtitle">Import readings from a CSV file.</string>
+    <string name="import_nothing">No readings found in file</string>
+    <plurals name="import_done">
+        <item quantity="one">Imported %1$d reading</item>
+        <item quantity="other">Imported %1$d readings</item>
+    </plurals>
+    <string name="import_failed">Import failed: %1$s</string>
     <string name="export_nothing">No readings to export</string>
     <plurals name="settings_export_count">
         <item quantity="one">Export %1$d reading to CSV</item>

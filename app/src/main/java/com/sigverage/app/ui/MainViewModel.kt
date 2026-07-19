@@ -523,6 +523,136 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     /**
+     * Read readings from a CSV file at [source] (a Uri supplied by the
+     * Storage Access Framework `ACTION_OPEN_DOCUMENT` flow). Parses the same
+     * format that [exportCsv] produces. Returns the number of rows imported,
+     * `0` for an empty file, or `-1` on failure.
+     *
+     * Handles RFC-4180 quoting (doubled inner quotes, quoted fields with
+     * embedded commas/newlines) and reverses the formula-injection protection
+     * applied by [csvEscape] (strips the leading `'` that guards `=`, `+`,
+     * `-`, `@`).
+     */
+    suspend fun importCsv(source: Uri): Int = withContext(Dispatchers.IO) {
+        runCatching {
+            val app = getApplication<Application>()
+            val stream = app.contentResolver.openInputStream(source)
+                ?: return@runCatching -1
+            val readings = mutableListOf<SignalReading>()
+            stream.use { input ->
+                input.bufferedReader().use { reader ->
+                    // Skip header row.
+                    reader.readLine()
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        val r = parseImportLine(line!!) ?: continue
+                        readings += r
+                    }
+                }
+            }
+            if (readings.isEmpty()) return@runCatching 0
+            repo.addAll(readings)
+            readings.size
+        }.getOrDefault(-1)
+    }
+
+    /**
+     * Parse one RFC-4180 CSV data line into a [SignalReading].
+     * Returns null for malformed lines (too few fields, bad numeric values).
+     *
+     * Expected columns (matching [exportCsv] output):
+     *   timestamp,latitude,longitude,accuracy_m,provider,
+     *   network_type,signal_dbm,rsrp_dbm,rsrq_db,snr_db,
+     *   mcc,mnc,cell_id,operator
+     */
+    private fun parseImportLine(line: String): SignalReading? {
+        val fields = splitCsvLine(line) ?: return null
+        if (fields.size < 14) return null
+
+        val timestamp = fields[0].toLongOrNull() ?: return null
+        val latitude = fields[1].toDoubleOrNull() ?: return null
+        val longitude = fields[2].toDoubleOrNull() ?: return null
+        val accuracy = fields[3].toFloatOrNull() ?: return null
+        val provider = fields[4]
+        val networkType = runCatching {
+            NetworkType.valueOf(fields[5])
+        }.getOrDefault(NetworkType.Unknown)
+        val signalDbm = fields[6].toIntOrNull()
+        val rsrpDbm = fields[7].toIntOrNull()
+        val rsrqDb = fields[8].toIntOrNull()
+        val snrDb = fields[9].toIntOrNull()
+        val mcc = fields[10].toIntOrNull()
+        val mnc = fields[11].toIntOrNull()
+        val cellId = fields[12].toLongOrNull()
+        // Reverse the formula-injection protection applied by csvEscape.
+        val operator = fields[13].let { raw ->
+            if (raw.isBlank()) null
+            else if (raw.startsWith("'")) raw.drop(1).trim().ifBlank { null }
+            else raw.trim().ifBlank { null }
+        }
+
+        return SignalReading(
+            timestamp = timestamp,
+            latitude = latitude,
+            longitude = longitude,
+            accuracyMeters = accuracy,
+            provider = provider,
+            networkType = networkType,
+            signalDbm = signalDbm,
+            rsrpDbm = rsrpDbm,
+            rsrqDb = rsrqDb,
+            snrDb = snrDb,
+            mcc = mcc,
+            mnc = mnc,
+            cellId = cellId,
+            operatorName = operator,
+        )
+    }
+
+    /**
+     * Split a single RFC-4180 CSV line into its field values.
+     * Handles quoted fields (with `""` for embedded quotes) and
+     * returns null if the line is malformed (unclosed quote).
+     */
+    private fun splitCsvLine(line: String): List<String>? {
+        val result = mutableListOf<String>()
+        val current = StringBuilder()
+        var inQuotes = false
+        var i = 0
+        while (i < line.length) {
+            val c = line[i]
+            when {
+                c == '"' && inQuotes -> {
+                    if (i + 1 < line.length && line[i + 1] == '"') {
+                        current.append('"')
+                        i += 2
+                    } else {
+                        inQuotes = false
+                        i++
+                    }
+                }
+                c == '"' && !inQuotes -> {
+                    inQuotes = true
+                    i++
+                }
+                c == ',' && !inQuotes -> {
+                    result += current.toString()
+                    current.clear()
+                    i++
+                }
+                else -> {
+                    current.append(c)
+                    i++
+                }
+            }
+        }
+        // Unclosed quote is a malformed line.
+        if (inQuotes) return null
+        result += current.toString()
+        return result
+    }
+
+    /**
      * Write every reading to a CSV file at [destination] (a Uri supplied by
      * the Storage Access Framework `ACTION_CREATE_DOCUMENT` flow). Returns the
      * number of rows written or `-1` on failure. Designed to be `await`ed from

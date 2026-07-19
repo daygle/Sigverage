@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Map
@@ -121,7 +122,7 @@ fun SettingsScreen(
     var editingSchedule by remember { mutableStateOf<RecordingSchedule?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val csvLauncher = rememberLauncherForActivityResult(
+    val csvExportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv"),
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -132,6 +133,21 @@ fun SettingsScreen(
                 n > 0 -> context.resources.getQuantityString(R.plurals.export_done, n, n)
                 n == 0 -> context.getString(R.string.export_nothing)
                 else -> context.getString(R.string.export_failed, "I/O error")
+            }
+            viewModel.emitEvent(msg)
+        }
+    }
+    val csvImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val n = viewModel.importCsv(uri)
+            @Suppress("LocalContextGetResourceValueCall", "LocalContextResourcesRead")
+            val msg = when {
+                n > 0 -> context.resources.getQuantityString(R.plurals.import_done, n, n)
+                n == 0 -> context.getString(R.string.import_nothing)
+                else -> context.getString(R.string.import_failed, "I/O error")
             }
             viewModel.emitEvent(msg)
         }
@@ -284,6 +300,13 @@ fun SettingsScreen(
                     )
                     CardDivider()
                     SettingsRow(
+                        title = stringResource(R.string.import_csv),
+                        subtitle = stringResource(R.string.import_csv_subtitle),
+                        enabled = true,
+                        onClick = { csvImportLauncher.launch(arrayOf("text/csv", "text/comma-separated-values")) },
+                    )
+                    CardDivider()
+                    SettingsRow(
                         title = stringResource(R.string.export_csv),
                         subtitle = if (readings.isEmpty()) {
                             stringResource(R.string.export_nothing)
@@ -291,7 +314,7 @@ fun SettingsScreen(
                             pluralStringResource(R.plurals.settings_export_count, readings.size, readings.size)
                         },
                         enabled = readings.isNotEmpty(),
-                        onClick = { csvLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
+                        onClick = { csvExportLauncher.launch("sigverage_${System.currentTimeMillis()}.csv") },
                     )
                     CardDivider()
                     SettingsRow(
