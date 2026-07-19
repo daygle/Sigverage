@@ -81,18 +81,7 @@ val NetworkColors: Map<NetworkType, Color> = mapOf(
  * negligible.
  */
 @Composable
-fun rememberNetworkColors(): Map<NetworkType, Color> = androidx.compose.runtime.remember {
-    mapOf(
-        NetworkType.FiveG to Sky500,
-        NetworkType.NR_NSA to Color(0xFFBAE6FD),
-        NetworkType.LTE to SignalGreen,
-        NetworkType.HSPA to SignalAmber,
-        NetworkType.GSM to SignalOrange,
-        NetworkType.EDGE to SignalOrangeDark,
-        NetworkType.CDMA to SignalRed,
-        NetworkType.Unknown to Slate700,
-    )
-}
+fun rememberNetworkColors(): Map<NetworkType, Color> = NetworkColors
 
 private val LightColors = lightColorScheme(
     primary = Sky500,
