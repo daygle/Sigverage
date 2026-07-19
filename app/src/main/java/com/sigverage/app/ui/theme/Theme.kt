@@ -21,6 +21,8 @@ private val Sky400 = Color(0xFF38BDF8)
 private val Sky700 = Color(0xFF0369A1)
 private val SignalGreen = Color(0xFF22C55E)
 private val SignalAmber = Color(0xFFF59E0B)
+private val SignalOrange = Color(0xFFF97316)
+private val SignalOrangeDark = Color(0xFFEA580C)
 private val SignalRed = Color(0xFFEF4444)
 private val Slate900 = Color(0xFF0F172A)
 private val Slate800 = Color(0xFF1E293B)
@@ -29,66 +31,67 @@ private val Slate100 = Color(0xFFF1F5F9)
 private val Slate50 = Color(0xFFFAFAFC)
 
 /**
- * Marker colours for the static slate/sky fallback palette. Use this only
- * from non-Compose contexts (DAOs, ViewModels, plain helpers) where we
- * can't observe the live `ColorScheme`. UI code should always go through
- * [rememberNetworkColors] instead so the marker palette tracks the
- * user's chosen theme.
+ * Distinct colours for each cellular technology, chosen so every network
+ * type gets its own immediately-recognisable hue:
  *
- * Identity mapping (stable across themes):
- *   5G    → palette's primary          (often blue/cool)
- *   NR_NSA→ palette's primaryContainer (softer version)
- *   LTE   → palette's tertiary         (often warm/green)
- *   HSPA  → palette's tertiaryContainer
- *   GSM   → palette's secondary        (typically analogous to primary)
- *   EDGE  → palette's secondaryContainer
- *   CDMA  → palette's error            (red-ish, distinct category)
- *   Unknown→ palette's outline          (neutral, low-saturation)
+ *   5G        → blue
+ *   4G (LTE)  → green
+ *   3G (HSPA) → amber / yellow
+ *   2G (GSM)  → orange
+ *   EDGE      → deeper orange
+ *   CDMA      → red
+ *   Unknown   → neutral gray
+ *
+ * Use this only from non-Compose contexts (DAOs, ViewModels, plain helpers)
+ * where we can't observe the live `ColorScheme`. UI code should always go
+ * through [rememberNetworkColors] instead so the marker palette tracks the
+ * user's chosen theme.
  */
 val NetworkColors: Map<NetworkType, Color> = mapOf(
     NetworkType.FiveG to Sky500,
-    NetworkType.NR_NSA to Color(0xFFE0F2FE),       // primaryContainer in LightColors
+    NetworkType.NR_NSA to Color(0xFFBAE6FD),
     NetworkType.LTE to SignalGreen,
-    NetworkType.HSPA to Color(0xFFA7F3D0),          // secondaryContainer-ish
-    NetworkType.GSM to Color(0xFFA855F7),
-    NetworkType.EDGE to Color(0xFF7C3AED),         // EDGE ≈ CDMA-deep-purple in static
+    NetworkType.HSPA to SignalAmber,
+    NetworkType.GSM to SignalOrange,
+    NetworkType.EDGE to SignalOrangeDark,
     NetworkType.CDMA to SignalRed,
     NetworkType.Unknown to Slate700,
 )
 
 /**
- * Composable that returns the network palette tied to the live [ColorScheme].
+ * Composable that returns the network palette — a fixed set of distinct
+ * colours, one per [NetworkType], chosen so every technology gets its own
+ * immediately-recognisable hue:
  *
- * Each `NetworkType` is bound to a fixed slot in the scheme (primary,
- * primaryContainer, tertiary, …). When the user changes theme or
- * dynamic-colour toggle, the underlying scheme rebuilds and so do these
- * colours - but the *identity* of "5G is the primary slot" stays put, so
- * the legend is meaningful regardless of the active palette.
+ *   5G        → blue
+ *   4G (LTE)  → green
+ *   3G (HSPA) → amber / yellow
+ *   2G (GSM)  → orange
+ *   EDGE      → deeper orange
+ *   CDMA      → red
+ *   Unknown   → neutral gray
  *
- * Identity mapping (stable across themes - same as the static fallback):
- *   5G    → scheme.primary
- *   NR_NSA→ scheme.primaryContainer
- *   LTE   → scheme.tertiary
- *   HSPA  → scheme.tertiaryContainer
- *   GSM   → scheme.secondary
- *   EDGE  → scheme.secondaryContainer
- *   CDMA  → scheme.error
- *   Unknown→ scheme.outline
+ * Unlike the earlier scheme-dependent version, this palette uses
+ * **hardcoded** colours so 3G always looks amber (not green) and 2G always
+ * looks orange (not purple), regardless of the active `ColorScheme` — the
+ * Material You colour slots don't include yellow or orange, so a
+ * scheme-bound mapping could never produce the intended hues for HSPA,
+ * GSM and EDGE. The trade-off is that 5G and 4G lose their scheme-tracking
+ * ability, but in practice the hardcoded blue/green are close enough to
+ * typical Material You primaries/tertiaries that the visual difference is
+ * negligible.
  */
 @Composable
-fun rememberNetworkColors(
-    scheme: androidx.compose.material3.ColorScheme =
-        androidx.compose.material3.MaterialTheme.colorScheme,
-): Map<NetworkType, Color> = androidx.compose.runtime.remember(scheme) {
+fun rememberNetworkColors(): Map<NetworkType, Color> = androidx.compose.runtime.remember {
     mapOf(
-        NetworkType.FiveG to scheme.primary,
-        NetworkType.NR_NSA to scheme.primaryContainer,
-        NetworkType.LTE to scheme.tertiary,
-        NetworkType.HSPA to scheme.tertiaryContainer,
-        NetworkType.GSM to scheme.secondary,
-        NetworkType.EDGE to scheme.secondaryContainer,
-        NetworkType.CDMA to scheme.error,
-        NetworkType.Unknown to scheme.outline,
+        NetworkType.FiveG to Sky500,
+        NetworkType.NR_NSA to Color(0xFFBAE6FD),
+        NetworkType.LTE to SignalGreen,
+        NetworkType.HSPA to SignalAmber,
+        NetworkType.GSM to SignalOrange,
+        NetworkType.EDGE to SignalOrangeDark,
+        NetworkType.CDMA to SignalRed,
+        NetworkType.Unknown to Slate700,
     )
 }
 

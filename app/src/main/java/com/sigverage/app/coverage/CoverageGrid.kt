@@ -15,24 +15,31 @@ import org.osmdroid.views.overlay.Overlay
 /**
  * osmdroid `Overlay` that paints the coverage grid.
  *
- * Each tile draws three visual layers:
+ * Each tile draws five visual layers:
  *
- *  1. **Dominant box** - the dominant network's full HSL-hybrid fill
- *     (hue = network colour, alpha = mean dBm bucket). This is the
- *     "first impression" channel; the user reads territory by hue.
+ *  1. **Segmented fill** - horizontal bands, one per network type, with
+ *     height proportional to reading count. 4G, 5G, and every other
+ *     network present each get their own coloured stripe, so the user sees
+ *     the full mix at a glance. Filtered-out networks are skipped.
  *
- *  2. **Corner slot grid** - a 2×4 fixed-layout grid in the bottom-right
+ *  2. **Outline stroke** - thin dark border around each tile so adjacent
+ *     tiles remain distinct regardless of their fill colours.
+ *
+ *  3. **Corner slot grid** - a 2×4 fixed-layout grid in the bottom-right
  *     of each tile, with one slot per [NetworkType]. Each slot is empty
  *     unless that network has at least one reading in the tile *and* the
  *     user has the corresponding chip enabled. Slot positions are fixed so
  *     the legend is stable across the map: top row holds the four modern
  *     networks, bottom row holds fallbacks.
  *
- *  3. **Mean-dBm label** - the dominant network's mean signal, printed as a
+ *  4. **Mean-dBm label** - the dominant network's mean signal, printed as a
  *     small white-on-halo number in the top-left corner. It is the exact
  *     value behind the fill's opacity bucket, so a square reads as
  *     hue = network, opacity = strength band, number = mean dBm. Suppressed
  *     when the cell has no usable signal value or the tile is too small.
+ *
+ *  5. **Selection highlight** - a two-layer (dark halo + white stroke)
+ *     outline on the tapped tile.
  *
  * Performance contract:
  *   - **Zero allocations inside `draw()`.** One `Paint` per role, a single
@@ -115,6 +122,9 @@ class CoverageGridOverlay(
     // Scratch buffer for rendering the mean dBm without allocating a String
     // per tile per frame. Widest value is "-140" - 4 chars - so 8 is ample.
     private val numBuf = CharArray(8)
+    // Pre-allocated buffer for sorting visible network indices in
+    // drawSegmentedFill. Never allocates inside draw().
+    private val segmentIdxBuf = IntArray(NetworkType.entries.size)
     private val tlGeo = GeoPoint(0.0, 0.0)
     private val brGeo = GeoPoint(0.0, 0.0)
     private val tlPt = Point()
@@ -166,8 +176,6 @@ class CoverageGridOverlay(
             if (allowedOperators.isNotEmpty() && cellStats.operators.none { it in allowedOperators }) continue
 
             val pick = pickDominant(cellStats, allowed) ?: continue
-            val bucket = bucketFor(pick.second.meanDbm)
-            fillPaint.color = colorFor(pick.first, bucket, palette).toArgb()
 
             val bounds = tileBounds(tile)
 
@@ -188,19 +196,25 @@ class CoverageGridOverlay(
             if (right < 0 || bottom < 0 || left > mapW || top > mapH) continue
 
             tileRect.set(left, top, right, bottom)
-            canvas.drawRect(tileRect, fillPaint)
+
+            // Layer 2: stacked horizontal segments, one per network type,
+            // with height proportional to reading count. Every network that
+            // has readings in this tile gets its own coloured band.
+            drawSegmentedFill(canvas, tileRect, cellStats)
+
             canvas.drawRect(tileRect, strokePaint)
 
-            // Layer 2: corner slot grid (Option 2 multi-network encoding).
+            // Layer 3: corner slot grid — small circles in the bottom-right
+            // corner showing every network type present.
             drawSlotGrid(canvas, density, tileRect, cellStats)
 
-            // Layer 3: dominant network's mean dBm, printed in the top-left
+            // Layer 4: dominant network's mean dBm, printed in the top-left
             // corner. This is the exact number behind the fill's opacity
             // bucket, so the square becomes self-describing (hue = network,
             // opacity = strength band, number = mean signal).
             drawMeanLabel(canvas, density, tileRect, pick.second.meanDbm)
 
-            // Layer 4: selection highlight for the tapped tile.
+            // Layer 5: selection highlight for the tapped tile.
             if (tile == selectedTile) {
                 canvas.drawRect(tileRect, selectHaloPaint)
                 canvas.drawRect(tileRect, selectPaint)
@@ -276,6 +290,72 @@ class CoverageGridOverlay(
     }
 
     /**
+     * Fill [tileRect] with stacked horizontal segments, one per
+     * [NetworkType] present in [cellStats], with heights proportional to
+     * each network's reading count. This lets the user see every network
+     * that contributes to the tile at a glance, not just the dominant one.
+     *
+     * Networks are sorted by reading count (most first) so the strongest
+     * network claims the largest visual area at the top of the tile.
+     * Networks filtered out via [allowed] are skipped.
+     *
+     * Allocation-free: reuses [fillPaint] and [segmentIdxBuf] for the actual
+     * drawing and scratch sorting; performs no heap allocations per tile.
+     */
+    private fun drawSegmentedFill(
+        canvas: Canvas,
+        tileRect: Rect,
+        cellStats: CellStats,
+    ) {
+        // Build a list of NetworkType indices that are present and allowed.
+        // Max 8 entries (enum size), so a pre-allocated IntArray is fine.
+        val entries = NetworkType.entries
+        var count = 0
+        var total = 0
+        for (i in entries.indices) {
+            val net = entries[i]
+            if (net !in allowed) continue
+            val agg = cellStats.perNetwork[net] ?: continue
+            segmentIdxBuf[count] = i
+            total += agg.count
+            count++
+        }
+        if (count == 0) return
+
+        // Selection-sort indices by reading count descending.
+        // N ≤ 8, so insertion/selection sort is cheaper than any allocation.
+        for (i in 0 until count - 1) {
+            var best = i
+            for (j in i + 1 until count) {
+                val jCount = cellStats.perNetwork[entries[segmentIdxBuf[j]]]!!.count
+                val bestSoFar = cellStats.perNetwork[entries[segmentIdxBuf[best]]]!!.count
+                if (jCount > bestSoFar) best = j
+            }
+            if (best != i) {
+                val tmp = segmentIdxBuf[i]
+                segmentIdxBuf[i] = segmentIdxBuf[best]
+                segmentIdxBuf[best] = tmp
+            }
+        }
+
+        val totalF = total.toFloat()
+        val left = tileRect.left.toFloat()
+        val right = tileRect.right.toFloat()
+        val tileHeight = tileRect.height().toFloat()
+        var currentTop = tileRect.top.toFloat()
+
+        for (i in 0 until count) {
+            val net = entries[segmentIdxBuf[i]]
+            val agg = cellStats.perNetwork[net]!!
+            val segmentHeight = tileHeight * (agg.count / totalF)
+            val bucket = bucketFor(agg.meanDbm)
+            fillPaint.color = colorFor(net, bucket, palette).toArgb()
+            canvas.drawRect(left, currentTop, right, currentTop + segmentHeight, fillPaint)
+            currentTop += segmentHeight
+        }
+    }
+
+    /**
      * Print [meanDbm] (the dominant network's mean signal) in the top-left
      * corner of `tileRect` - a white number over a dark halo. Skipped when
      * the cell has no usable signal value ([Int.MIN_VALUE]) or the tile is
@@ -334,7 +414,7 @@ class CoverageGridOverlay(
         /** Fixed storage zoom - the single source of truth for coverage
          *  cell size. Z=20 in Web-Mercator gives ~38 m tiles at the equator
          *  and ~27 m east-west at 45° latitude. The user-facing label is
-         *  "50 m cells" - a rounded mid-latitude figure that matches what
+         *  \"50 m cells\" - a rounded mid-latitude figure that matches what
          *  users actually see in the field. **Exact** 50 m would require
          *  a fractional-zoom refactor (the `aggregate()` function and the
          *  `TileId` data class in `com.sigverage.app.coverage.CoverageModel`
