@@ -670,12 +670,13 @@ private fun filterSummaryText(selected: Set<NetworkType>): String {
     val total = NetworkType.entries.size
     val distinctLabels = selected.map { it.shortLabel }.distinct()
     return when (selected.size) {
-        0 -> stringResource(R.string.filter_sheet_summary_none)
-        total -> stringResource(R.string.filter_sheet_summary_all)
+        0 -> stringResource(R.string.filter_sheet_summary_none, total)
+        total -> stringResource(R.string.filter_sheet_summary_all, total, total)
         else -> stringResource(
             R.string.filter_sheet_summary_partial,
             distinctLabels.joinToString(),
             selected.size,
+            total,
         )
     }
 }

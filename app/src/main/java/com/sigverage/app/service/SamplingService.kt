@@ -99,6 +99,7 @@ class SamplingService : Service() {
     override fun onDestroy() {
         unregisterTransitions()
         stopSampling()
+        cellular.cleanup()
         scope.cancel()
         super.onDestroy()
     }

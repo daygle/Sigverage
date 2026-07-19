@@ -6,8 +6,11 @@ import android.content.Context
 import android.os.Build
 import android.telephony.CellInfo
 import android.telephony.CellSignalStrength
+import android.telephony.TelephonyCallback
+import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
 import androidx.annotation.RequiresPermission
+import androidx.core.content.ContextCompat
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
 
@@ -30,6 +33,59 @@ class CellularScanner(private val context: Context) {
 
     private val telephonyManager: TelephonyManager by lazy {
         context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+    }
+
+    /**
+     * Cached [TelephonyDisplayInfo] delivered by the async callback on API 31+.
+     * Updated on each `onDisplayInfoChanged` callback and read by [isNrNsa]
+     * for definitive 5G NSA detection without ever blocking on the radio.
+     * Volatile because the callback fires on the main thread while [isNrNsa]
+     * is read from the sampling coroutine ([Dispatchers.IO]).
+     */
+    @Volatile
+    private var lastDisplayInfo: TelephonyDisplayInfo? = null
+
+    /**
+     * API 31+ callback that caches [TelephonyDisplayInfo] for the definitive
+     * 5G NSA check. Lazily constructed so older devices never build or register
+     * the callback object.
+     */
+    private val displayInfoCallback: TelephonyCallback? by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            object : TelephonyCallback(), TelephonyCallback.DisplayInfoListener {
+                override fun onDisplayInfoChanged(displayInfo: TelephonyDisplayInfo) {
+                    lastDisplayInfo = displayInfo
+                }
+            }
+        } else null
+    }
+
+    init {
+        // Register the async DisplayInfo listener on API 31+ so the scanner
+        // always has the radio's latest 5G NSA override state cached without
+        // polling or blocking.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            runCatching {
+                telephonyManager.registerTelephonyCallback(
+                    ContextCompat.getMainExecutor(context),
+                    displayInfoCallback!!,
+                )
+            }
+        }
+    }
+
+    /**
+     * Release the [TelephonyCallback] registered in [init]. Must be called
+     * when this scanner is no longer needed (e.g. from the owning Service's
+     * `onDestroy`) to prevent leaks of the callback reference.
+     */
+    fun cleanup() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val cb = displayInfoCallback
+            if (cb != null) {
+                runCatching { telephonyManager.unregisterTelephonyCallback(cb) }
+            }
+        }
     }
 
     /**
@@ -122,24 +178,30 @@ class CellularScanner(private val context: Context) {
     /**
      * 5G NSA (enDC) detection.
      *
-     * Two heuristics, best-effort:
+     * Three heuristics, best-effort:
      *
-     * 1. **TelephonyDisplayInfo** (async, API 30+) — the definitive source.
-     *    There is no synchronous getter for
-     *    [android.telephony.TelephonyDisplayInfo] on [TelephonyManager]; the
-     *    override network type is only delivered asynchronously through
-     *    `TelephonyCallback.DisplayInfoListener` (API 31+) or
-     *    `PhoneStateListener#onDisplayInfoChanged` (API 30). Until that
-     *    listener is wired up we fall through to heuristic 2.
+     * 1. **TelephonyDisplayInfo** (API 31+, definitive) — the radio explicitly
+     *    reports the 5G NSA override via the async callback registered in
+     *    [init]. This catches every NSA connection the device knows about.
      *
-     * 2. **dataNetworkType** (synchronous, API 24+) — a pragmatic fallback.
-     *    When the primary cell is LTE but the data bearer reports
-     *    `NETWORK_TYPE_NR`, the device is almost certainly on an NSA
-     *    connection. This is not foolproof (some devices report the anchor
-     *    type instead of NR), but it catches the most common 5G deployments
-     *    today and is strictly better than the previous hard-coded `false`.
+     * 2. **dataNetworkType** (synchronous, API 24+) — pragmatic fallback for
+     *    API 26–30 devices or when the callback hasn't delivered an update
+     *    yet on API 31+. When the primary cell is LTE but the data bearer
+     *    reports `NETWORK_TYPE_NR`, the device is almost certainly on an NSA
+     *    connection.
      */
-    private fun isNrNsa(dataType: Int): Boolean = dataType == TelephonyManager.NETWORK_TYPE_NR
+    private fun isNrNsa(dataType: Int): Boolean {
+        // Heuristic 1: definitive override from the async callback.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val override = lastDisplayInfo?.overrideNetworkType
+            if (override == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA) return true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                override == TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NR_NSA_MMWAVE
+            ) return true
+        }
+        // Heuristic 2: synchronous data bearer type.
+        return dataType == TelephonyManager.NETWORK_TYPE_NR
+    }
 
     /** Unified dBm estimate across all cell types (CellSignalStrength.dbm, API 23+). */
     private fun signalDbmOf(info: CellInfo): Int? {

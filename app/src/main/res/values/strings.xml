@@ -90,9 +90,9 @@
     <string name="map_filters_count">Filters (%1$d)</string>
 
     <!-- Filter sheet (Material 3 ModalBottomSheet) -->
-    <string name="filter_sheet_summary_all">All networks active (8 of 8)</string>
-    <string name="filter_sheet_summary_none">No filters active (0 of 8)</string>
-    <string name="filter_sheet_summary_partial">Filters: %1$s (%2$d of 8 active)</string>
+    <string name="filter_sheet_summary_all">All networks active (%1$d of %2$d)</string>
+    <string name="filter_sheet_summary_none">No filters active (0 of %1$d)</string>
+    <string name="filter_sheet_summary_partial">Filters: %1$s (%2$d of %3$d active)</string>
 
     <!-- Reading retention / auto-expiry -->
     <string name="retention_dialog_title">Auto-Expire Readings</string>
