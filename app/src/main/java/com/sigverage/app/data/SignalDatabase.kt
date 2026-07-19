@@ -2,7 +2,6 @@ package com.sigverage.app.data
 
 import androidx.room.Dao
 import androidx.room.Database
-import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -30,9 +29,6 @@ interface SignalReadingDao {
     @Query("SELECT * FROM signal_readings ORDER BY timestamp DESC")
     fun observeAll(): Flow<List<SignalReading>>
 
-    @Query("SELECT COUNT(*) FROM signal_readings")
-    fun observeCount(): Flow<Int>
-
     @Insert
     suspend fun insert(reading: SignalReading): Long
 
@@ -52,9 +48,6 @@ interface SignalReadingDao {
      */
     @Query("DELETE FROM signal_readings WHERE timestamp < :threshold")
     suspend fun deleteOlderThan(threshold: Long): Int
-
-    @Delete
-    suspend fun delete(reading: SignalReading)
 
     /**
      * Returns true if at least one reading falls within the geographic
