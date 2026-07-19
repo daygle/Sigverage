@@ -252,12 +252,15 @@ fun MainScreen(viewModel: MainViewModel) {
                 )
             }
 
-            // Recording indicator — visible from every tab so the user always
-            // knows whether coverage is being recorded without going to Settings.
-            RecordingIndicator(
-                isRecording = ui.isSampling,
-                modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 8.dp),
-            )
+            // Recording indicator — shown only on the Map tab, positioned in the
+            // bottom-start corner where it won't overlap the floating filter bar
+            // (top-centre) or zoom controls (bottom-end).
+            if (tab == Tab.Map) {
+                RecordingIndicator(
+                    isRecording = ui.isSampling,
+                    modifier = Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 12.dp),
+                )
+            }
         }
     }
 

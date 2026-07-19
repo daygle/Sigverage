@@ -125,10 +125,17 @@ fun MapPanel(
     // Scale bar: a modern-map staple that lets the user gauge the real-world
     // size of each coverage tile at the current zoom. Nautical/imperial off;
     // metric matches the tile-size docs on CoverageGridOverlay.
+    // Positioned at roughly bottom-centre so it doesn't overlap the recording
+    // indicator (bottom-left) or FAB controls (bottom-right). The bar width
+    // changes with zoom, so the centring is approximate — good enough that it
+    // clears both neighbours on typical phone screens.
     val scaleBarOverlay = remember {
+        val screenWidth = mapView.resources.displayMetrics.widthPixels
+        // Estimate bar width ~120 px at most zoom levels.
+        val barWidthEstimate = 120
         ScaleBarOverlay(mapView).apply {
             setAlignBottom(true)
-            setScaleBarOffset(24, 24)
+            setScaleBarOffset((screenWidth - barWidthEstimate) / 2, 24)
         }
     }
     // Compass overlay: shows map orientation and, on tap, resets north-up.
