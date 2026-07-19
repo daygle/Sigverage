@@ -62,7 +62,7 @@ class CoverageGridOverlay(
 
     private var stats: Map<TileId, CellStats> = emptyMap()
     private var allowed: Set<NetworkType> = NetworkType.entries.toSet()
-    private var allowedOperators: Set<String> = emptySet() // empty = show all
+    private var hiddenOperators: Set<String> = emptySet() // empty = nothing hidden, show all
 
     /** Currently selected (tapped) tile, highlighted in [draw]. */
     private var selectedTile: TileId? = null
@@ -139,8 +139,8 @@ class CoverageGridOverlay(
         allowed = newAllowed
     }
 
-    fun setAllowedOperators(newAllowed: Set<String>) {
-        allowedOperators = newAllowed
+    fun setHiddenOperators(newHidden: Set<String>) {
+        hiddenOperators = newHidden
     }
 
     /** Set (or clear, with `null`) the highlighted tile. */
@@ -172,8 +172,8 @@ class CoverageGridOverlay(
         for ((tile, cellStats) in stats) {
             if (tile.zoom != storageZoom) continue
 
-            // Skip tiles that have no readings from allowed operators.
-            if (allowedOperators.isNotEmpty() && cellStats.operators.none { it in allowedOperators }) continue
+            // Skip tiles where any operator has been hidden by the user.
+            if (hiddenOperators.isNotEmpty() && cellStats.operators.any { it in hiddenOperators }) continue
 
             val pick = pickDominant(cellStats, allowed) ?: continue
 
@@ -234,7 +234,7 @@ class CoverageGridOverlay(
         val tile = latLngToTile(geo.latitude, geo.longitude, storageZoom)
         val cell = stats[tile]
         val hit = cell != null &&
-            (allowedOperators.isEmpty() || cell.operators.any { it in allowedOperators }) &&
+            (hiddenOperators.isEmpty() || cell.operators.none { it in hiddenOperators }) &&
             pickDominant(cell, allowed) != null
         if (hit) {
             selectedTile = tile

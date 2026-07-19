@@ -125,17 +125,16 @@ fun MapPanel(
     // Scale bar: a modern-map staple that lets the user gauge the real-world
     // size of each coverage tile at the current zoom. Nautical/imperial off;
     // metric matches the tile-size docs on CoverageGridOverlay.
-    // Positioned at roughly bottom-centre so it doesn't overlap the recording
-    // indicator (bottom-left) or FAB controls (bottom-right). The bar width
-    // changes with zoom, so the centring is approximate — good enough that it
-    // clears both neighbours on typical phone screens.
+    // Positioned at bottom-centre using the map view's actual laid-out width
+    // so it stays centred regardless of zoom level or system insets.
+    // Uses setCentred(true) so the offset is the bar's centre point — no need
+    // to estimate the bar width. The initial position uses display metrics as
+    // a fallback; LaunchedEffect below corrects it once the view is laid out.
     val scaleBarOverlay = remember {
-        val screenWidth = mapView.resources.displayMetrics.widthPixels
-        // Estimate bar width ~120 px at most zoom levels.
-        val barWidthEstimate = 120
+        val metrics = mapView.resources.displayMetrics
         ScaleBarOverlay(mapView).apply {
-            setAlignBottom(true)
-            setScaleBarOffset((screenWidth - barWidthEstimate) / 2, 24)
+            setCentred(true)
+            setScaleBarOffset(metrics.widthPixels / 2, metrics.heightPixels - 80)
         }
     }
     // Compass overlay: shows map orientation and, on tap, resets north-up.
@@ -223,8 +222,21 @@ fun MapPanel(
     }
 
     LaunchedEffect(operatorFilter) {
-        coverageOverlay.setAllowedOperators(operatorFilter)
-        mapView.invalidate()
+                coverageOverlay.setHiddenOperators(operatorFilter)
+                mapView.invalidate()
+    }
+
+    // Correct the scale bar position once the map view is laid out, using its
+    // actual rendered width and height instead of the display-metrics estimate.
+    LaunchedEffect(Unit) {
+        mapView.post {
+            val w = mapView.width
+            val h = mapView.height
+            if (w > 0 && h > 0) {
+                scaleBarOverlay.setScaleBarOffset(w / 2, h - 40)
+                mapView.invalidate()
+            }
+        }
     }
 
     // Build the details display model for the tapped tile with the *current*
