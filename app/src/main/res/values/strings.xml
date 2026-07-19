@@ -166,8 +166,8 @@
 
     <!-- Manual recording toggle / status (Settings → Recording) -->
     <string name="settings_recording_title">Recording</string>
-    <string name="settings_recording_running">Running - sampling coverage now.</string>
-    <string name="settings_recording_stopped">Stopped. Turn on to start recording coverage.</string>
+    <string name="settings_recording_subtitle">Start or stop coverage recording.</string>
+    <string name="recording_status">Recording</string>
 
     <!-- Auto-record on launch toggle (Settings → Recording) -->
     <string name="settings_auto_record_title">Auto-Record on Launch</string>

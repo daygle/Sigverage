@@ -192,16 +192,9 @@ fun SettingsScreen(
                     headerIcon = Icons.Default.Schedule,
                     headerTitle = stringResource(R.string.settings_section_recording),
                 ) {
-                    // Manual recording control + live status. Replaces the pause
-                    // action that used to sit in the top app bar - recording is
-                    // now started and stopped here, and the subtitle reflects
-                    // whether sampling is currently running.
                     SwitchRow(
                         title = stringResource(R.string.settings_recording_title),
-                        subtitle = stringResource(
-                            if (ui.isSampling) R.string.settings_recording_running
-                            else R.string.settings_recording_stopped
-                        ),
+                        subtitle = stringResource(R.string.settings_recording_subtitle),
                         checked = ui.isSampling,
                         onCheckedChange = { start ->
                             if (start) viewModel.startSampling() else viewModel.stopSampling()

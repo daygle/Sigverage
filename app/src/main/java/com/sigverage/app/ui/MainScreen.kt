@@ -1,9 +1,16 @@
 package com.sigverage.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Map
@@ -18,6 +25,8 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -28,15 +37,57 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sigverage.app.R
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.service.SamplingService
+
+/**
+ * A small floating pill that shows a green dot and "Recording" text when
+ * coverage recording is active. Visible from every tab so the user always
+ * knows the current recording state without navigating to Settings.
+ *
+ * [modifier] should position this within a [Box] (e.g. via `Modifier.align`).
+ */
+@Composable
+private fun RecordingIndicator(
+    isRecording: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    if (!isRecording) return
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.92f),
+        tonalElevation = 2.dp,
+        shadowElevation = 2.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(Color(0xFF22C55E), CircleShape)
+            )
+            Spacer(Modifier.width(5.dp))
+            Text(
+                text = stringResource(R.string.recording_status),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
+        }
+    }
+}
 
 private enum class Tab { Map, List, Settings }
 
@@ -200,6 +251,13 @@ fun MainScreen(viewModel: MainViewModel) {
                     onSubPageChange = { settingsSubPage = it },
                 )
             }
+
+            // Recording indicator — visible from every tab so the user always
+            // knows whether coverage is being recorded without going to Settings.
+            RecordingIndicator(
+                isRecording = ui.isSampling,
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 8.dp, end = 8.dp),
+            )
         }
     }
 
