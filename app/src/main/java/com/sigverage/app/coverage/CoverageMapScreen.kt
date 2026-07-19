@@ -672,8 +672,9 @@ private fun filterSummaryText(selected: Set<NetworkType>): String {
     return when (selected.size) {
         0 -> stringResource(R.string.filter_sheet_summary_none, total)
         total -> stringResource(R.string.filter_sheet_summary_all, total, total)
-        else -> stringResource(
-            R.string.filter_sheet_summary_partial,
+        else -> pluralStringResource(
+            R.plurals.filter_sheet_summary_partial,
+            selected.size,
             distinctLabels.joinToString(),
             selected.size,
             total,

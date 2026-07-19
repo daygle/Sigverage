@@ -92,7 +92,10 @@
     <!-- Filter sheet (Material 3 ModalBottomSheet) -->
     <string name="filter_sheet_summary_all">All networks active (%1$d of %2$d)</string>
     <string name="filter_sheet_summary_none">No filters active (0 of %1$d)</string>
-    <string name="filter_sheet_summary_partial">Filters: %1$s (%2$d of %3$d active)</string>
+    <plurals name="filter_sheet_summary_partial">
+        <item quantity="one">Filters: %1$s (%2$d of %3$d active)</item>
+        <item quantity="other">Filters: %1$s (%2$d of %3$d active)</item>
+    </plurals>
 
     <!-- Reading retention / auto-expiry -->
     <string name="retention_dialog_title">Auto-Expire Readings</string>

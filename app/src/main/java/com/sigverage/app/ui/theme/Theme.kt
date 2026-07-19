@@ -43,9 +43,8 @@ private val Slate50 = Color(0xFFFAFAFC)
  *   Unknown   → neutral gray
  *
  * Use this only from non-Compose contexts (DAOs, ViewModels, plain helpers)
- * where we can't observe the live `ColorScheme`. UI code should always go
- * through [rememberNetworkColors] instead so the marker palette tracks the
- * user's chosen theme.
+ * where we can't call [rememberNetworkColors]. Both maps return identical
+ * colours — the choice is just whether you need a `@Composable` scope or not.
  */
 val NetworkColors: Map<NetworkType, Color> = mapOf(
     NetworkType.FiveG to Sky500,

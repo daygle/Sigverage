@@ -189,9 +189,9 @@ fun bucketFor(meanDbm: Int): SignalBucket = when {
  *
  * [palette] defaults to the static [NetworkColors] fallback so non-Compose
  * callers (DAOs, ViewModels, tests) keep working unchanged. Compose
- * callers should pass the result of `rememberNetworkColors()` so the
- * network hues track the live `ColorScheme` and the legend stays stable
- * across light/dark/dynamic-colour changes.
+ * callers should pass the result of `rememberNetworkColors()` for
+ * consistency; both maps return identical colours since the palette is
+ * now hardcoded to guarantee the intended hues for every network type.
  */
 fun colorFor(
     network: NetworkType,
