@@ -116,7 +116,7 @@
     <!-- Default map filters -->
     <string name="settings_map_filters_title">Default Map Filters</string>
     <string name="settings_map_filters_subtitle">Choose which networks and operators the map loads with.</string>
-    <string name="settings_map_filters_page_hint">The map opens with these filters. You can still change them live on the map — those changes are temporary and reset here next time you open the map.</string>
+    <string name="settings_map_filters_page_hint">The map opens with these filters. You can still change them live on the map - those changes are temporary and reset here next time you open the map.</string>
     <string name="settings_map_filters_networks_header">Networks</string>
     <string name="settings_map_filters_operators_header">Operators</string>
     <string name="settings_map_filters_operators_hint">No operators selected means all operators are shown.</string>

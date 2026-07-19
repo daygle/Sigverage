@@ -180,11 +180,11 @@ class CellularScanner(private val context: Context) {
      *
      * Three heuristics, best-effort:
      *
-     * 1. **TelephonyDisplayInfo** (API 31+, definitive) — the radio explicitly
+     * 1. **TelephonyDisplayInfo** (API 31+, definitive) - the radio explicitly
      *    reports the 5G NSA override via the async callback registered in
      *    [init]. This catches every NSA connection the device knows about.
      *
-     * 2. **dataNetworkType** (synchronous, API 24+) — pragmatic fallback for
+     * 2. **dataNetworkType** (synchronous, API 24+) - pragmatic fallback for
      *    API 26–30 devices or when the callback hasn't delivered an update
      *    yet on API 31+. When the primary cell is LTE but the data bearer
      *    reports `NETWORK_TYPE_NR`, the device is almost certainly on an NSA
