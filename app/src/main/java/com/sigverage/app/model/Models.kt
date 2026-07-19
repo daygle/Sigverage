@@ -13,8 +13,8 @@ import androidx.room.TypeConverter
 enum class NetworkType(val label: String, val shortLabel: String) {
     FiveG("5G NR", "5G"),
     NR_NSA("5G NSA", "5G"),
-    LTE("LTE (4G)", "LTE"),
-    HSPA("HSPA (3G)", "3G"),
+    LTE("4G", "4G"),
+    HSPA("3G", "3G"),
     GSM("GPRS (2G)", "2G"),
     EDGE("EDGE (2.5G)", "E"),
     CDMA("CDMA", "1X"),

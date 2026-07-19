@@ -92,7 +92,7 @@ class CellularScanner(private val context: Context) {
         if (primary == null) return NetworkType.Unknown
         return when (primary) {
             is android.telephony.CellInfoLte ->
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && isNrNsa()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && isNrNsa(dataType)) {
                     NetworkType.NR_NSA
                 } else {
                     NetworkType.LTE
@@ -122,15 +122,24 @@ class CellularScanner(private val context: Context) {
     /**
      * 5G NSA (enDC) detection.
      *
-     * There is no synchronous getter for [android.telephony.TelephonyDisplayInfo]
-     * on [TelephonyManager]; the override network type is only delivered
-     * asynchronously through `TelephonyCallback.DisplayInfoListener` (API 31+)
-     * or `PhoneStateListener#onDisplayInfoChanged` (API 30). Until that
-     * listener is wired up we conservatively report the LTE anchor instead of
-     * guessing, so NSA cells are classified as [NetworkType.LTE] rather than
-     * mislabelled.
+     * Two heuristics, best-effort:
+     *
+     * 1. **TelephonyDisplayInfo** (async, API 30+) — the definitive source.
+     *    There is no synchronous getter for
+     *    [android.telephony.TelephonyDisplayInfo] on [TelephonyManager]; the
+     *    override network type is only delivered asynchronously through
+     *    `TelephonyCallback.DisplayInfoListener` (API 31+) or
+     *    `PhoneStateListener#onDisplayInfoChanged` (API 30). Until that
+     *    listener is wired up we fall through to heuristic 2.
+     *
+     * 2. **dataNetworkType** (synchronous, API 24+) — a pragmatic fallback.
+     *    When the primary cell is LTE but the data bearer reports
+     *    `NETWORK_TYPE_NR`, the device is almost certainly on an NSA
+     *    connection. This is not foolproof (some devices report the anchor
+     *    type instead of NR), but it catches the most common 5G deployments
+     *    today and is strictly better than the previous hard-coded `false`.
      */
-    private fun isNrNsa(): Boolean = false
+    private fun isNrNsa(dataType: Int): Boolean = dataType == TelephonyManager.NETWORK_TYPE_NR
 
     /** Unified dBm estimate across all cell types (CellSignalStrength.dbm, API 23+). */
     private fun signalDbmOf(info: CellInfo): Int? {
