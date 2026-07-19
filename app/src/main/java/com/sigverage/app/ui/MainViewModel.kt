@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -204,7 +205,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         )
 
         viewModelScope.launch(Dispatchers.IO) {
-            _ui.value = _ui.value.copy(lastFix = location.lastKnown())
+            // Prefer a cached location (instant), but if none is available
+            // request a single fresh GPS fix so the map can centre on the
+            // user's actual position when it first opens instead of the
+            // hardcoded fallback.
+            var fix = location.lastKnown()
+            if (fix == null) {
+                // Give GPS up to 10 seconds to return a fix; if it doesn't,
+                // the map stays at its default centre and the user can tap
+                // the recenter button or wait for a tracking fix.
+                fix = withTimeoutOrNull(10_000L) { location.currentFix() }
+            }
+            if (fix != null) {
+                _ui.value = _ui.value.copy(lastFix = fix)
+            }
         }
     }
 
