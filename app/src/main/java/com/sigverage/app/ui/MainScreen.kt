@@ -48,6 +48,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sigverage.app.R
 import com.sigverage.app.model.SignalReading
+import com.sigverage.app.ui.theme.appTopBarColors
 import com.sigverage.app.service.SamplingService
 
 /**
@@ -187,6 +188,7 @@ fun MainScreen(viewModel: MainViewModel) {
             if (tab != Tab.Map && !settingsSubPageActive) {
                 TopAppBar(
                     title = { Text(stringResource(R.string.app_name)) },
+                    colors = appTopBarColors(),
                 )
             }
         },
