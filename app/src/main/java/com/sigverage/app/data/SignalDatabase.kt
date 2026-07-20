@@ -48,15 +48,6 @@ interface SignalReadingDao {
      */
     @Query("DELETE FROM signal_readings WHERE timestamp < :threshold")
     suspend fun deleteOlderThan(threshold: Long): Int
-
-    /**
-     * Returns true if at least one reading falls within the geographic
-     * bounding box defined by [northLat], [westLng], [southLat], [eastLng].
-     * Used by smart sampling to avoid redundant recordings in the same
-     * coverage tile.
-     */
-    @Query("SELECT EXISTS(SELECT 1 FROM signal_readings WHERE latitude BETWEEN :southLat AND :northLat AND longitude BETWEEN :westLng AND :eastLng LIMIT 1)")
-    suspend fun existsInBounds(northLat: Double, westLng: Double, southLat: Double, eastLng: Double): Boolean
 }
 
 /**

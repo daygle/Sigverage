@@ -33,7 +33,7 @@ Sigverage runs on your phone, records a `SignalReading` (network type, signal dB
 
 The map paints a small filled **box per Mercator tile** at a fixed storage zoom of Z=20 (~38 m tiles at the equator; ~50 m at mid-latitudes - labelled as "50 m cells" in the UI). Each box's **hue** indicates which network dominates, and its **alpha** indicates mean strength. A fixed 2×4 **corner slot grid** in the bottom-right of every box lets readers instantly see which *other* networks were also present at that location. Filter chips in a bottom sheet hide / reveal each network family. **Operator filter** chips let you show only readings from a specific carrier.
 
-**Activity-based sampling** uses the Activity Recognition Transition API to record only when you are moving - the service pauses when you are still, saving battery. A **Battery Usage** setting (Automatic / Power Saver / Balanced / High Accuracy) further trades GPS fix frequency against power. **Smart sampling** skips redundant recordings: once a reading exists in a ~50 m cell, the background service won't record again until you leave and return to that cell.
+**Activity-based sampling** uses the Activity Recognition Transition API to record only when you are moving - the service pauses when you are still, saving battery. A **Battery Usage** setting (Automatic / Power Saver / Balanced / High Accuracy) further trades GPS fix frequency against power. **Smart sampling** skips redundant recordings: while you stay inside one ~50 m cell only a single reading is taken, but leaving and returning to that cell records again. Repeat visits accumulate and their strengths are averaged together on the map.
 
 **Recording schedules** let you define time windows (e.g. Mon-Fri 09:00-17:00) when sampling should run automatically, using AlarmManager with exact alarms that survive reboots.
 
@@ -48,7 +48,7 @@ The map paints a small filled **box per Mercator tile** at a fixed storage zoom 
 - **Auto-record on launch** (opt-in, *Settings → Recording*): when enabled, sampling starts automatically the moment you open the app. If location permissions are missing, a one-shot snackbar surfaces explaining how to fix it.
 - **Recording schedules** (*Settings → Recording → Schedules*): define time windows (day-of-week + start/end time, including overnight windows) when sampling should run automatically. Uses AlarmManager with exact alarms that survive reboots via `BootReceiver`.
 - **Background reliability controls** (*Settings → Permissions & Access → Background Access*): deep-links to the OS **battery-optimisation exemption** ("Run Reliably in Background") and, on Android 12+, the **exact-alarm** grant ("Exact Schedule Timing"), each showing its live status so long recordings and schedules aren't paused by the system.
-- **Smart sampling**: background service skips recording if a reading already exists in the current ~50 m coverage cell (zoom 20).
+- **Smart sampling**: while the device stays inside one ~50 m coverage cell (zoom 20) the background service records a single reading; leaving and returning to a cell records again, so repeat visits accumulate and are averaged on the map.
 - **Recording control**: sampling is started and stopped from *Settings → Recording*, where a **Recording** switch shows the live running/stopped status. There are no recording controls on the map or in the top app bar.
 - **Network operator** (carrier name) is recorded and displayed prominently in both the list view and details sheet.
 - **CellularScanner** picks the strongest registered cell and classifies it:
@@ -152,7 +152,7 @@ SamplingService (foregroundServiceType=location)   ── ServiceCompat.startFor
    ├── Activity Recognition transitions   ── start/stop on movement detection
    ├── LocationTracker   ── LocationManager callbackFlow
    ├── CellularScanner   ── TelephonyManager.allCellInfo snapshot at every tick
-   └── Smart sampling    ── skips recording if current ~50 m cell already has a reading
+   └── Smart sampling    ── one reading per ~50 m cell per visit; re-records on leave & return
                                  ↓
                         SignalRepository.add(reading)
 
