@@ -154,7 +154,7 @@ class LocationTracker(private val context: Context) {
             .setMinUpdateDistanceMeters(effective.minDistanceMeters)
             .build()
         val listener = LocationListenerCompat { location -> trySend(location.toFix()) }
-        runCatching {
+        val registered = runCatching {
             LocationManagerCompat.requestLocationUpdates(
                 manager,
                 provider,
@@ -162,8 +162,15 @@ class LocationTracker(private val context: Context) {
                 ContextCompat.getMainExecutor(context),
                 listener,
             )
+        }.isSuccess
+        // If registration threw (e.g. permission revoked between the check and
+        // the call), close the flow so the collector completes instead of
+        // waiting forever on a stream that will never emit.
+        if (!registered) close()
+        awaitClose {
+            // Only tear down updates we actually registered.
+            if (registered) LocationManagerCompat.removeUpdates(manager, listener)
         }
-        awaitClose { LocationManagerCompat.removeUpdates(manager, listener) }
     }
 
     /**

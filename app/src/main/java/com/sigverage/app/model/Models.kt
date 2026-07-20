@@ -30,10 +30,9 @@ enum class NetworkType(val label: String, val shortLabel: String) {
  */
 @Entity(
     tableName = "signal_readings",
-    // Composite index on the coordinate columns so the smart-sampling
-    // bounding-box lookup (SignalReadingDao.existsInBounds, run on every
-    // fix while recording) is an index range-scan instead of a full table
-    // scan as the readings table grows.
+    // Composite index on the coordinate columns so geographic range lookups
+    // over readings stay index range-scans instead of full table scans as the
+    // readings table grows.
     indices = [Index(value = ["latitude", "longitude"])],
 )
 data class SignalReading(

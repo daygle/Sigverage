@@ -22,6 +22,8 @@ import com.sigverage.app.R
 import com.sigverage.app.SigverageApp
 import com.sigverage.app.cellular.CellularScanner
 import com.sigverage.app.coverage.CoverageGridOverlay
+import com.sigverage.app.coverage.TileId
+import com.sigverage.app.coverage.latLngToTile
 import com.sigverage.app.data.PreferencesStore
 import com.sigverage.app.data.SignalRepository
 import com.sigverage.app.location.LocationTracker
@@ -43,8 +45,10 @@ import kotlinx.coroutines.launch
  * updates. When the device becomes still, the receiver sends false and
  * the location stream is paused, saving battery.
  *
- * The smart-sampling tile check (skip if current cell already has a
- * reading) is retained as a second layer of deduplication.
+ * A second smart-sampling layer records only one reading per ~50 m
+ * coverage cell while the device stays inside it; leaving and returning
+ * to a cell records again, so revisits accumulate and are averaged on the
+ * map. See [lastRecordedTile].
  *
  * On Android 14 (API 34) a typed foreground service must be promoted
  * within ~5 seconds of `startForegroundService(...)`. We promote on
@@ -59,6 +63,19 @@ class SamplingService : Service() {
     private lateinit var prefs: PreferencesStore
     private var locationJob: Job? = null
     private var transitionsRegistered = false
+
+    /**
+     * Coverage tile of the most recent reading we recorded, tracked in memory
+     * for the "leave and return" smart-sampling rule. While the device stays
+     * inside one cell we record a single reading; once a fix lands in a
+     * *different* tile this is updated, so re-entering the original cell later
+     * records again (and those readings are averaged together on the map).
+     *
+     * Deliberately not a database lookup: a persisted cell would be skipped
+     * forever, which is why revisiting a location never produced a second
+     * reading. Reset when sampling stops so each moving burst starts clean.
+     */
+    private var lastRecordedTile: TileId? = null
 
     private val transitionPendingIntent: PendingIntent by lazy {
         val intent = TransitionReceiver.buildIntent(this)
@@ -119,13 +136,14 @@ class SamplingService : Service() {
                 // wrong tile. Another fix will arrive shortly while moving.
                 if (!fix.isAccurateEnough()) return@collectLatest
 
-                // Smart sampling: skip if a reading already exists in
-                // the current coverage tile (~50 m cell at zoom 20).
-                val alreadyCovered = repo.hasReadingInTile(
+                // Smart sampling: while we stay inside one ~50 m cell (zoom 20)
+                // record a single reading. Leaving for another cell and coming
+                // back records again, so revisits accumulate and get averaged.
+                val tile = latLngToTile(
                     fix.latitude, fix.longitude,
                     CoverageGridOverlay.DEFAULT_STORAGE_ZOOM
                 )
-                if (alreadyCovered) return@collectLatest
+                if (tile == lastRecordedTile) return@collectLatest
 
                 if (ContextCompat.checkSelfPermission(this@SamplingService, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                     return@collectLatest
@@ -138,6 +156,7 @@ class SamplingService : Service() {
                     accuracyMeters = fix.accuracyMeters
                 )
                 repo.add(reading)
+                lastRecordedTile = tile
             }
         }
     }
@@ -145,6 +164,9 @@ class SamplingService : Service() {
     private fun stopSampling() {
         locationJob?.cancel()
         locationJob = null
+        // Forget the current cell: becoming still ends this pass, so the next
+        // moving burst should record wherever it resumes, even the same cell.
+        lastRecordedTile = null
     }
 
     private fun registerTransitions() {

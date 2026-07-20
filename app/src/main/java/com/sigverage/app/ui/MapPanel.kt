@@ -58,8 +58,9 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
  * The map's controls all float directly on the map surface in
  * [CoverageMapScreen]: a top filter bar (quick network toggles + a
  * "Filters" pill that opens the full network/operator sheet) and
- * bottom-right zoom/recenter FABs. Recording is driven from the Settings
- * page, so the map carries no capture control. The quick network toggles
+ * bottom-right recenter / capture-here / zoom FABs. Recording start/stop is
+ * driven from the Settings page; the "Capture here" FAB records a single
+ * on-demand reading at the current location. The quick network toggles
  * sit on the map with no scrim, so toggling one previews the coverage
  * grid live.
  */
@@ -71,6 +72,7 @@ fun MapPanel(
     onToggleFilter: (NetworkType) -> Unit,
     operatorFilter: Set<String> = emptySet(),
     onToggleOperatorFilter: (String) -> Unit = {},
+    onCapture: () -> Unit = {},
     focusEvents: Flow<Pair<Double, Double>> = emptyFlow(),
 ) {
     val context = LocalContext.current
@@ -257,6 +259,7 @@ fun MapPanel(
         onToggleOperatorFilter = onToggleOperatorFilter,
         onZoomIn = { mapView.controller.zoomIn() },
         onZoomOut = { mapView.controller.zoomOut() },
+        onCapture = onCapture,
         onRecenter = {
             // Prefer the live blue-dot fix from the location overlay; fall
             // back to the last recorded fix so the button still works before

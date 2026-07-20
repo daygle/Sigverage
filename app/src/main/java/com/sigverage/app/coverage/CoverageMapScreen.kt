@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -98,10 +99,10 @@ data class TileDetails(
  *  - **Top:** a "Filters" pill that opens the full [FilterSheet] (networks
  *    + operators). A single compact button rather than a bar of quick-toggles,
  *    so all filter state is managed in one place.
- *  - **Bottom-end:** recenter / zoom-in / zoom-out
- *    [SmallFloatingActionButton]s. Recording (start/stop and one-off
- *    captures) is driven entirely from the Settings page, so the map
- *    carries no recording controls.
+ *  - **Bottom-end:** recenter / capture-here / zoom-in / zoom-out
+ *    [SmallFloatingActionButton]s. Recording *start/stop* is driven from the
+ *    Settings page; the "Capture here" button records a single on-demand
+ *    reading at the current location and sits between recenter and zoom-in.
  *
  * The **full** filter set (networks + operators) lives in a [ModalBottomSheet]
  * opened by the "Filters" pill, keeping the map surface clean and all filter
@@ -120,6 +121,7 @@ fun CoverageMapScreen(
     onZoomIn: () -> Unit = {},
     onZoomOut: () -> Unit = {},
     onRecenter: () -> Unit = {},
+    onCapture: () -> Unit = {},
     tileDetails: TileDetails? = null,
     onDismissTileDetails: () -> Unit = {},
 ) {
@@ -155,6 +157,7 @@ fun CoverageMapScreen(
             onZoomIn = onZoomIn,
             onZoomOut = onZoomOut,
             onRecenter = onRecenter,
+            onCapture = onCapture,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(16.dp),
@@ -392,14 +395,16 @@ private fun FloatingFilterBar(
  * overlaid on the map's bottom-right corner (the platform-conventional
  * spot). These replace osmdroid's dated built-in zoom buttons with
  * touch-target-sized, theme-aware FABs that match the rest of the app.
- * Recording is driven from the Settings page, so no capture control lives
- * here.
+ * The "Capture here" action sits between recenter and zoom-in, styled with
+ * the tertiary container so it reads as the primary map action; recording
+ * start/stop still lives on the Settings page.
  */
 @Composable
 private fun MapControls(
     onZoomIn: () -> Unit,
     onZoomOut: () -> Unit,
     onRecenter: () -> Unit,
+    onCapture: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -415,6 +420,18 @@ private fun MapControls(
             Icon(
                 imageVector = Icons.Default.MyLocation,
                 contentDescription = stringResource(R.string.map_recenter),
+            )
+        }
+        // Manual "capture here" between recenter and the zoom controls, tinted
+        // to stand out from the plain zoom FABs as the primary map action.
+        SmallFloatingActionButton(
+            onClick = onCapture,
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Sensors,
+                contentDescription = stringResource(R.string.map_capture_here),
             )
         }
         SmallFloatingActionButton(onClick = onZoomIn) {

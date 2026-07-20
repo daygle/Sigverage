@@ -14,6 +14,11 @@
     <string name="map_zoom_out">Zoom out</string>
     <string name="map_recenter">Center on my location</string>
     <string name="map_recenter_no_fix">No location fix yet - move to an open area and try again.</string>
+    <string name="map_capture_here">Capture reading here</string>
+    <!-- Manual capture: on-map "Capture here" button, handled by MainViewModel.captureNow -->
+    <string name="capture_snackbar">Captured reading (#%1$d)</string>
+    <string name="capture_no_location">No location fix yet - move to an open area and try again.</string>
+    <string name="capture_low_accuracy">Location is too imprecise right now - move to an open area and try again.</string>
 
     <!-- Tile (coverage square) details sheet -->
     <string name="tile_details_title">Cell Details</string>

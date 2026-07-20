@@ -26,17 +26,6 @@ class SignalRepository(
 
     suspend fun addAll(readings: List<SignalReading>) = dao.insertAll(readings)
 
-    /**
-     * Check whether at least one reading already exists in the coverage tile
-     * at [zoom] that contains ([lat], [lng]). Used by smart sampling in
-     * [com.sigverage.app.service.SamplingService] to avoid redundant
-     * recordings in the same ~50 m cell.
-     */
-    suspend fun hasReadingInTile(lat: Double, lng: Double, zoom: Int): Boolean {
-        val tile = com.sigverage.app.coverage.latLngToTile(lat, lng, zoom)
-        val bounds = com.sigverage.app.coverage.tileBounds(tile)
-        return dao.existsInBounds(bounds.northLat, bounds.westLng, bounds.southLat, bounds.eastLng)
-    }
     suspend fun delete(id: Long) = dao.deleteById(id)
     suspend fun deleteAll() = dao.deleteAll()
 

@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.sigverage.app.R
+import com.sigverage.app.cellular.CellularScanner
 import com.sigverage.app.data.PreferencesStore
 import com.sigverage.app.data.SignalRepository
 import com.sigverage.app.location.FixSample
@@ -130,6 +131,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = SignalRepository.get(app)
     private val location = LocationTracker(app)
+    private val cellular = CellularScanner(app)
     private val prefs = PreferencesStore(app)
 
     /**
@@ -169,6 +171,54 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun emitEvent(message: String) {
         _events.trySend(message)
+    }
+
+    /**
+     * Capture a single reading at the device's current location, on demand.
+     *
+     * Backs the map's "Capture here" button. Requests a fresh single fix (not
+     * the possibly-stale last-known cache) so the reading reflects where the
+     * user is now, then reports the outcome via [events]. The radio is powered
+     * only for the one fix. Unlike background sampling this bypasses the
+     * per-cell smart-sampling gate: an explicit tap always records.
+     */
+    fun captureNow() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val app = getApplication<Application>()
+            val fix = location.currentFix()
+            if (fix == null) {
+                // No fix available: tell the user instead of silently doing
+                // nothing while the UI implies a reading was captured.
+                _events.trySend(app.getString(R.string.capture_no_location))
+                return@launch
+            }
+            if (!fix.isAccurateEnough()) {
+                // The only fix we have is too coarse to place on the map;
+                // storing it would drop the reading into the wrong tile.
+                _events.trySend(app.getString(R.string.capture_low_accuracy))
+                return@launch
+            }
+            if (ContextCompat.checkSelfPermission(app, Manifest.permission.ACCESS_FINE_LOCATION) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                return@launch
+            }
+            val reading = cellular.snapshot(
+                provider = fix.provider,
+                latitude = fix.latitude,
+                longitude = fix.longitude,
+                accuracyMeters = fix.accuracyMeters,
+            )
+            repo.add(reading)
+            _ui.value = _ui.value.copy(lastFix = fix, latestReading = reading)
+            _events.trySend(app.getString(R.string.capture_snackbar, readings.value.size + 1))
+        }
+    }
+
+    /** Release the cellular scanner's telephony callback when the VM dies. */
+    override fun onCleared() {
+        cellular.cleanup()
+        super.onCleared()
     }
 
     val readings: StateFlow<List<SignalReading>> = repo.observeReadings()
