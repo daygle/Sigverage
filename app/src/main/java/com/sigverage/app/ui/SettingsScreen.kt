@@ -83,6 +83,7 @@ import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
 import com.sigverage.app.model.TimeFormat
+import com.sigverage.app.ui.theme.appTopBarColors
 import com.sigverage.app.ui.theme.rememberNetworkColors
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -762,6 +763,7 @@ private fun NetworkColorsPage(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_network_colors_title)) },
+                colors = appTopBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -893,6 +895,7 @@ private fun MapFiltersPage(
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_map_filters_title)) },
+                colors = appTopBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -1052,6 +1055,7 @@ private fun PermissionsAccessPage(onBack: () -> Unit) {
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_permissions_title)) },
+                colors = appTopBarColors(),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(

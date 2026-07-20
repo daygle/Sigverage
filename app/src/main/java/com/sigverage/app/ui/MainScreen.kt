@@ -48,6 +48,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.sigverage.app.R
 import com.sigverage.app.model.SignalReading
+import com.sigverage.app.ui.theme.appTopBarColors
 import com.sigverage.app.service.SamplingService
 
 /**
@@ -186,7 +187,19 @@ fun MainScreen(viewModel: MainViewModel) {
             // page, so the bar carries no pause action.
             if (tab != Tab.Map && !settingsSubPageActive) {
                 TopAppBar(
-                    title = { Text(stringResource(R.string.app_name)) },
+                    title = {
+                        Text(
+                            stringResource(
+                                when (tab) {
+                                    Tab.List -> R.string.tab_list
+                                    Tab.Settings -> R.string.tab_settings
+                                    // Map draws no app bar, but the when must be exhaustive.
+                                    Tab.Map -> R.string.app_name
+                                }
+                            )
+                        )
+                    },
+                    colors = appTopBarColors(),
                 )
             }
         },
