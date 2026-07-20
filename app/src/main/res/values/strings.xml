@@ -266,8 +266,12 @@
     <string name="onboarding_background_title">Background Location</string>
     <string name="onboarding_background_body">To keep building your coverage map while the screen is off or the app is in the background, Sigverage needs “Allow all the time” location access. This is optional - you can set it up now or later from Settings.</string>
     <string name="onboarding_background_grant">Allow background location</string>
-    <string name="onboarding_background_open_settings">Open location settings</string>
     <string name="onboarding_background_skip">Not now</string>
+    <string name="onboarding_background_dialog_title">Allow background location?</string>
+    <string name="onboarding_background_dialog_body">Sigverage records coverage while the screen is off or the app is in the background. Choose “Allow all the time” to enable this.</string>
+    <string name="onboarding_background_dialog_body_settings">Sigverage records coverage while the screen is off or the app is in the background. Tap Allow, then choose “Allow all the time” on the location settings screen that opens.</string>
+    <string name="onboarding_background_dialog_allow">Allow</string>
+    <string name="onboarding_background_dialog_deny">Not now</string>
     <string name="onboarding_done_title">All set</string>
     <string name="onboarding_done_body">Sigverage is ready. Tap below to open the map. You can update these permissions any time from Settings → Permissions.</string>
     <string name="onboarding_done_body_partial">Some permissions weren\'t granted yet - Sigverage can\'t fully record without location, and Android won\'t keep sampling alive without notifications. Tap below to open the app and finish granting permissions from Settings → Permissions.</string>

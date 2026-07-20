@@ -197,6 +197,7 @@ private val PRESETS: List<Color> = listOf(
     Color(0xFFF59E0B), // amber
     Color(0xFFEAB308), // yellow
     Color(0xFF22C55E), // green
+    Color(0xFF15803D), // dark green
     Color(0xFF10B981), // emerald
     Color(0xFF06B6D4), // cyan
     Color(0xFF0EA5E9), // sky
