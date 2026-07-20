@@ -67,6 +67,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
@@ -81,7 +83,7 @@ import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.ThemeMode
 import com.sigverage.app.model.TimeFormat
-import com.sigverage.app.ui.theme.NetworkColors
+import com.sigverage.app.ui.theme.rememberNetworkColors
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -92,7 +94,7 @@ import kotlinx.coroutines.launch
  * to [MainScreen] so it can hide the app bar and bottom navigation while a
  * sub-page is on screen, letting the sub-page own the whole screen.
  */
-enum class SettingsSubPage { None, Permissions, Schedules, MapFilters }
+enum class SettingsSubPage { None, Permissions, Schedules, MapFilters, NetworkColors }
 
 /**
  * Modern card-based Settings screen, reachable via the bottom NavigationBar tab.
@@ -173,6 +175,16 @@ fun SettingsScreen(
                 },
                 onDelete = { viewModel.deleteSchedule(it) },
                 onToggleEnabled = { viewModel.toggleScheduleEnabled(it) },
+            )
+        }
+        SettingsSubPage.NetworkColors -> {
+            BackHandler { onSubPageChange(SettingsSubPage.None) }
+            NetworkColorsPage(
+                colors = ui.networkColors,
+                onPickColor = viewModel::setNetworkColor,
+                onResetColor = viewModel::resetNetworkColor,
+                onResetAll = viewModel::resetAllNetworkColors,
+                onBack = { onSubPageChange(SettingsSubPage.None) },
             )
         }
         SettingsSubPage.MapFilters -> {
@@ -271,6 +283,12 @@ fun SettingsScreen(
                         subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
                         checked = ui.dynamicColorEnabled,
                         onCheckedChange = viewModel::setDynamicColorEnabled,
+                    )
+                    CardDivider()
+                    SettingsRow(
+                        title = stringResource(R.string.settings_network_colors_title),
+                        subtitle = stringResource(R.string.settings_network_colors_subtitle),
+                        onClick = { onSubPageChange(SettingsSubPage.NetworkColors) },
                     )
                 }
 
@@ -724,6 +742,138 @@ private fun mapFilterSummary(
 }
 
 /**
+ * Settings drill-out for per-network colours. Lists every [NetworkType] with a
+ * swatch of its current colour; tapping a row opens [NetworkColorDialog] to
+ * recolour it. Edits are persisted immediately and flow through the app's
+ * `LocalNetworkColors`, so the map, legend, chips and badges repaint at once.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NetworkColorsPage(
+    colors: Map<NetworkType, Color>,
+    onPickColor: (NetworkType, Color) -> Unit,
+    onResetColor: (NetworkType) -> Unit,
+    onResetAll: () -> Unit,
+    onBack: () -> Unit,
+) {
+    var editing by remember { mutableStateOf<NetworkType?>(null) }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.settings_network_colors_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.settings_permissions_back),
+                        )
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            SettingsCard(
+                headerIcon = Icons.Default.Palette,
+                headerTitle = stringResource(R.string.settings_network_colors_title),
+            ) {
+                Text(
+                    text = stringResource(R.string.settings_network_colors_page_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                )
+                NetworkType.entries.forEachIndexed { index, type ->
+                    if (index > 0) CardDivider()
+                    NetworkColorRow(
+                        type = type,
+                        color = colors[type] ?: MaterialTheme.colorScheme.outline,
+                        onClick = { editing = type },
+                    )
+                }
+                CardDivider()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = onResetAll) {
+                        Text(stringResource(R.string.settings_network_colors_reset_all))
+                    }
+                }
+            }
+        }
+    }
+
+    editing?.let { type ->
+        NetworkColorDialog(
+            type = type,
+            initial = colors[type] ?: Color.Gray,
+            onDismiss = { editing = null },
+            onConfirm = { color ->
+                onPickColor(type, color)
+                editing = null
+            },
+            onReset = {
+                onResetColor(type)
+                editing = null
+            },
+        )
+    }
+}
+
+/** One tappable row in [NetworkColorsPage]: a colour swatch plus the network label. */
+@Composable
+private fun NetworkColorRow(
+    type: NetworkType,
+    color: Color,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .background(color, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = type.shortLabel,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = if (color.luminance() > 0.5f) Color.Black else Color.White,
+            )
+        }
+        Spacer(Modifier.width(16.dp))
+        Text(
+            text = type.label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+/**
  * Settings drill-out for the persisted default map filters: which networks and
  * operators the coverage map loads with. Editing these writes straight to
  * [com.sigverage.app.data.PreferencesStore]; the live map picks them up the next
@@ -774,6 +924,7 @@ private fun MapFiltersPage(
                 )
 
                 MapFilterSubLabel(stringResource(R.string.settings_map_filters_networks_header))
+                val palette = rememberNetworkColors()
                 FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -792,7 +943,7 @@ private fun MapFiltersPage(
                                     modifier = Modifier
                                         .size(12.dp)
                                         .background(
-                                            NetworkColors[type] ?: MaterialTheme.colorScheme.outline,
+                                            palette[type] ?: MaterialTheme.colorScheme.outline,
                                             CircleShape,
                                         ),
                                 )

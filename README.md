@@ -63,7 +63,7 @@ The map paints a small filled **box per Mercator tile** at a fixed storage zoom 
 - **Decoupled zoom axes**: visible map zoom (pinch gestures) is independent of the fixed coverage storage zoom - you can pinch to street level while the coverage grid keeps building at 50 m cells.
 - **Operator filter**: filter the coverage grid by network operator (carrier). Operator chips live in the "Filters" modal sheet below the network type chips, derived dynamically from the readings' `operatorName` field. Empty filter shows all operators.
 - **Floating filter bar**: a translucent, horizontally-scrollable chip bar floats at the top of the map. It leads with a **Filters** pill (opens a Material 3 `ModalBottomSheet` with the full network + operator chip set) followed by colour-dotted quick toggles for each network type. Because the quick toggles sit directly on the map with no scrim, toggling one previews the coverage grid live - the property the previous non-modal bottom sheet was built to preserve.
-- **Themed palette**: marker / box colours come from `rememberNetworkColors(MaterialTheme.colorScheme)`, so the legend stays consistent across Light / Dark / Material You.
+- **Customisable palette**: each network's colour comes from `rememberNetworkColors()`, which resolves the built-in defaults against any per-network overrides the user sets in *Settings → Appearance → Network Colours*. Edits flow through the `LocalNetworkColors` CompositionLocal, so the map, legend, filter chips and reading badges all repaint at once.
 - **Allocation-free rendering**: pre-allocated `Paint`, `Rect`, `GeoPoint`s, `Point`s; viewport culling + screen-rect culling in `CoverageGridOverlay.draw()`.
 
 ### 💾 Persistence
@@ -164,7 +164,7 @@ ScheduleManager (AlarmManager)   ── registers exact alarms for each schedule
 Two deliberate separation-of-concerns choices worth noting:
 
 - **Storage zoom ≠ visible map zoom.** Coverage readings are binned at a fixed storage zoom of Z=20 (~50 m cells at mid-latitudes). `MapController.setZoom()` is whatever the user pinches to. They are fully decoupled - zoom out to a city view and keep door-step granularity, or zoom in to building level and keep the same fine nationwide coverage.
-- **Map palette is live, not static.** `rememberNetworkColors(MaterialTheme.colorScheme)` recomputes on every theme / dynamic-colour change and a `LaunchedEffect(networkColors)` injects it into `CoverageGridOverlay.setPalette(...)`. The legend is meaningful across both Material You and the static slate/sky fallback.
+- **Map palette is live, not static.** `rememberNetworkColors()` reads the resolved palette from the `LocalNetworkColors` CompositionLocal, provided at the activity root from `HomeUiState.networkColors` (built-in defaults + the user's per-network overrides). A `LaunchedEffect(networkColors)` injects it into `CoverageGridOverlay.setPalette(...)`, so recolouring a network in Settings repaints the grid immediately. Overrides are persisted per-network in `SharedPreferences`.
 
 ---
 

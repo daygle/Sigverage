@@ -153,6 +153,46 @@ class PreferencesStore(context: Context) {
             prefs.edit { putString(KEY_DATE_FORMAT, value.name) }
         }
 
+    /**
+     * Per-network colour overrides, as ARGB ints keyed by [NetworkType].
+     *
+     * Only networks the user has explicitly recoloured appear in the map; a
+     * missing entry means "use the built-in default". Kept as raw ints (not
+     * Compose `Color`) so this data-layer class stays free of UI dependencies -
+     * the caller merges these with the default palette. Persisted individually
+     * under [KEY_NETWORK_COLOR_PREFIX] so a single edit is one key write and a
+     * reset is a single key removal.
+     */
+    val networkColorOverrides: Map<NetworkType, Int>
+        get() {
+            val overrides = HashMap<NetworkType, Int>()
+            for (type in NetworkType.entries) {
+                val key = keyForNetworkColor(type)
+                if (prefs.contains(key)) overrides[type] = prefs.getInt(key, 0)
+            }
+            return overrides
+        }
+
+    /** Override [type]'s colour with [argb] (an ARGB int). */
+    fun setNetworkColor(type: NetworkType, argb: Int) {
+        prefs.edit { putInt(keyForNetworkColor(type), argb) }
+    }
+
+    /** Drop [type]'s override so it reverts to the built-in default. */
+    fun clearNetworkColor(type: NetworkType) {
+        prefs.edit { remove(keyForNetworkColor(type)) }
+    }
+
+    /** Drop every network colour override, reverting the whole palette. */
+    fun clearAllNetworkColors() {
+        prefs.edit {
+            for (type in NetworkType.entries) remove(keyForNetworkColor(type))
+        }
+    }
+
+    private fun keyForNetworkColor(type: NetworkType): String =
+        "$KEY_NETWORK_COLOR_PREFIX${type.name}"
+
     companion object {
         private const val PREFS_NAME = "sigverage_prefs"
         private const val KEY_RETENTION_DAYS = "retention_days"
@@ -172,6 +212,9 @@ class PreferencesStore(context: Context) {
         private const val KEY_DEFAULT_OPERATOR_FILTER = "default_operator_filter"
         private const val KEY_TIME_FORMAT = "time_format"
         private const val KEY_DATE_FORMAT = "date_format"
+
+        /** Prefix for per-network colour overrides, e.g. `network_color_LTE`. */
+        private const val KEY_NETWORK_COLOR_PREFIX = "network_color_"
 
         /** First launch defaults to showing the onboarding screen. */
         const val DEFAULT_ONBOARDING_COMPLETED = false

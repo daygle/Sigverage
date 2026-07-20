@@ -53,7 +53,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.sigverage.app.R
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
-import com.sigverage.app.ui.theme.NetworkColors
+import com.sigverage.app.ui.theme.rememberNetworkColors
 import java.util.Locale
 import org.osmdroid.views.MapView
 
@@ -350,7 +350,7 @@ private fun NetworkDot(type: NetworkType) {
         modifier = Modifier
             .size(12.dp)
             .background(
-                color = NetworkColors[type] ?: Color.Gray,
+                color = rememberNetworkColors()[type] ?: Color.Gray,
                 shape = CircleShape,
             )
     )
