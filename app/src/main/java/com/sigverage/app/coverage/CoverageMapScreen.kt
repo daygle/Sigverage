@@ -395,9 +395,9 @@ private fun FloatingFilterBar(
  * overlaid on the map's bottom-right corner (the platform-conventional
  * spot). These replace osmdroid's dated built-in zoom buttons with
  * touch-target-sized, theme-aware FABs that match the rest of the app.
- * The "Capture here" action sits between recenter and zoom-in, styled with
- * the tertiary container so it reads as the primary map action; recording
- * start/stop still lives on the Settings page.
+ * The "Capture here" action sits between recenter and zoom-in, using the
+ * default FAB colour so it matches the zoom controls; recording start/stop
+ * still lives on the Settings page.
  */
 @Composable
 private fun MapControls(
@@ -422,13 +422,10 @@ private fun MapControls(
                 contentDescription = stringResource(R.string.map_recenter),
             )
         }
-        // Manual "capture here" between recenter and the zoom controls, tinted
-        // to stand out from the plain zoom FABs as the primary map action.
-        SmallFloatingActionButton(
-            onClick = onCapture,
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-        ) {
+        // Manual "capture here" between recenter and the zoom controls. Uses
+        // the default FAB colour so it matches the zoom buttons rather than
+        // standing out.
+        SmallFloatingActionButton(onClick = onCapture) {
             Icon(
                 imageVector = Icons.Default.Sensors,
                 contentDescription = stringResource(R.string.map_capture_here),
