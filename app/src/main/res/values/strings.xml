@@ -178,7 +178,7 @@
     <string name="settings_network_colors_dialog_title">%1$s colour</string>
     <string name="settings_network_colors_dialog_apply">Apply</string>
     <string name="settings_network_colors_reset">Reset</string>
-    <string name="settings_network_colors_reset_all">Reset all to defaults</string>
+    <string name="settings_network_colors_reset_all">Reset Defaults</string>
     <string name="color_channel_red">R</string>
     <string name="color_channel_green">G</string>
     <string name="color_channel_blue">B</string>
