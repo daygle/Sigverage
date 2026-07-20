@@ -21,6 +21,8 @@ private val Sky500 = Color(0xFF0EA5E9)
 private val Sky400 = Color(0xFF38BDF8)
 private val Sky700 = Color(0xFF0369A1)
 private val SignalGreen = Color(0xFF22C55E)
+private val SignalGreenDark = Color(0xFF15803D)
+private val SignalBlue = Color(0xFF3B82F6)
 private val SignalAmber = Color(0xFFF59E0B)
 private val SignalOrange = Color(0xFFF97316)
 private val SignalOrangeDark = Color(0xFFEA580C)
@@ -35,8 +37,9 @@ private val Slate50 = Color(0xFFFAFAFC)
  * Distinct colours for each cellular technology, chosen so every network
  * type gets its own immediately-recognisable hue:
  *
- *   5G        → blue
- *   4G (LTE)  → green
+ *   5G NR     → dark green
+ *   5G NSA    → green
+ *   4G (LTE)  → blue
  *   3G (HSPA) → amber / yellow
  *   2G (GSM)  → orange
  *   EDGE      → deeper orange
@@ -52,9 +55,9 @@ private val Slate50 = Color(0xFFFAFAFC)
  * where we can't read the CompositionLocal, or as the fallback default.
  */
 val NetworkColors: Map<NetworkType, Color> = mapOf(
-    NetworkType.FiveG to Sky500,
-    NetworkType.NR_NSA to Color(0xFFBAE6FD),
-    NetworkType.LTE to SignalGreen,
+    NetworkType.FiveG to SignalGreenDark,
+    NetworkType.NR_NSA to SignalGreen,
+    NetworkType.LTE to SignalBlue,
     NetworkType.HSPA to SignalAmber,
     NetworkType.GSM to SignalOrange,
     NetworkType.EDGE to SignalOrangeDark,
@@ -76,8 +79,9 @@ val LocalNetworkColors = compositionLocalOf { NetworkColors }
  * Composable that returns the network palette — one colour per [NetworkType].
  *
  * Historically this was a fixed, hardcoded palette so every technology got its
- * own immediately-recognisable hue (5G blue, 4G green, 3G amber, 2G orange,
- * …). Those hues remain the **defaults**, but the user can now recolour any
+ * own immediately-recognisable hue (5G NR dark green, 5G NSA green, 4G blue,
+ * 3G amber, 2G orange, …). Those hues remain the **defaults**, but the user can
+ * now recolour any
  * network from Settings; this reads the resolved palette from
  * [LocalNetworkColors] rather than returning a constant.
  */

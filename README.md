@@ -325,7 +325,7 @@ Every permission is justified by a concrete feature, and the manifest comments n
 | ---------- | ------------ | ------------- | ------- |
 | `ACCESS_FINE_LOCATION` | GPS pin for every reading (lat/lng). | All API levels | Requested on first launch via `RequestMultiplePermissions`. |
 | `ACCESS_COARSE_LOCATION` | Fallback when fine isn't granted (network-based fixes). | All API levels | Same prompt as fine. |
-| `ACCESS_BACKGROUND_LOCATION` | Sampling keeps accumulating while the screen is off. | API 30+: Android routes this to system Settings - it can't be granted from an in-app prompt. | Surfaced as an optional onboarding step (Android 10+) and in Settings → Permissions & Access; on Android 11+ both deep-link to system Settings where the user chooses "Allow all the time". |
+| `ACCESS_BACKGROUND_LOCATION` | Sampling keeps accumulating while the screen is off. | API 30+: Android routes this to system Settings - it can't be granted from an in-app prompt. | Surfaced as an optional onboarding step (Android 10+) and in Settings → Permissions & Access. The onboarding step raises an in-app **"Allow background location?"** confirmation with an explicit **Allow** button; confirming it then triggers the runtime dialog on Android 10 or deep-links to system Settings on Android 11+, where the user chooses "Allow all the time". |
 | `POST_NOTIFICATIONS` | Sticky low-priority notification for `SamplingService`. | API 33+ only. | Asked on first launch alongside location. |
 | `INTERNET` / `ACCESS_NETWORK_STATE` | osmdroid tile downloads. | All API levels. | Granted at install (normal permission). |
 | `FOREGROUND_SERVICE` | The sampling service itself. | All API levels. | Granted at install. |

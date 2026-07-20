@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -66,11 +67,14 @@ import com.sigverage.app.R
  *      10+ (API 29); skipped on older devices, where foreground location
  *      already covers the background case. Android UX guidance requires
  *      foreground location to be granted first, so this step follows the
- *      Location step. On Android 11+ (API 30) the platform forbids an in-app
- *      grant dialog, so the step deep-links to system Settings ("Allow all
- *      the time"); on Android 10 it uses the runtime dialog. Optional -
- *      a **Not now** action skips straight to Done, and neither path flips
- *      the partial-setup copy.
+ *      Location step. Tapping the primary action first raises an in-app
+ *      **"Allow background location?"** dialog (an explicit **Allow** button,
+ *      matching the familiar system-style prompt) rather than jumping straight
+ *      to the OS. Confirming there triggers the real grant: on Android 10 the
+ *      runtime dialog; on Android 11+ (API 30), where the platform forbids an
+ *      in-app grant dialog, a deep-link to system Settings ("Allow all the
+ *      time"). Optional - a **Not now** action skips straight to Done, and no
+ *      path flips the partial-setup copy.
  *   6. **Done** - confirmation screen with a button to enter the main app.
  *      When the user has denied location or notifications the Done body is
  *      swapped for a "you can finish from Settings → Permissions" nudge so
@@ -95,6 +99,9 @@ fun OnboardingScreen(viewModel: MainViewModel) {
     // copy on the Done page so users who skipped or denied aren't left
     // wondering why their first recording fails.
     var anyDenied by rememberSaveable { mutableStateOf(value = false) }
+    // Controls the in-app "Allow background location?" confirmation dialog.
+    // Survives rotation so the dialog stays up if the device is turned.
+    var showBackgroundDialog by rememberSaveable { mutableStateOf(value = false) }
 
     val locationLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -196,23 +203,10 @@ fun OnboardingScreen(viewModel: MainViewModel) {
                 icon = Icons.Filled.LocationOn,
                 title = stringResource(R.string.onboarding_background_title),
                 body = stringResource(R.string.onboarding_background_body),
-                // On Android 11+ the grant can only be completed in system
-                // Settings, so the primary action opens it; on Android 10 the
-                // runtime dialog still works.
-                cta = stringResource(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        R.string.onboarding_background_open_settings
-                    } else {
-                        R.string.onboarding_background_grant
-                    }
-                ),
-                onContinue = {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        backgroundSettingsLauncher.launch(appDetailsSettingsIntent(context.packageName))
-                    } else {
-                        backgroundPermLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-                    }
-                },
+                cta = stringResource(R.string.onboarding_background_grant),
+                // Raise our own "Allow" dialog first; confirming there kicks
+                // off the actual grant flow (see BackgroundLocationDialog below).
+                onContinue = { showBackgroundDialog = true },
                 // Optional: let the user move on without granting it.
                 secondaryCta = stringResource(R.string.onboarding_background_skip),
                 onSecondary = { step = step.next() }
@@ -228,7 +222,70 @@ fun OnboardingScreen(viewModel: MainViewModel) {
                 onContinue = viewModel::completeOnboarding,
             )
         }
+
+        // In-app confirmation for background location. Gives the user the
+        // familiar "Allow" prompt before we invoke the OS - on Android 10 the
+        // runtime dialog, on Android 11+ the system Settings deep-link (the
+        // platform disallows an in-app grant dialog for background location
+        // there, so the best we can do is explain and hand off).
+        if (showBackgroundDialog) {
+            BackgroundLocationDialog(
+                onAllow = {
+                    showBackgroundDialog = false
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        backgroundSettingsLauncher.launch(appDetailsSettingsIntent(context.packageName))
+                    } else {
+                        backgroundPermLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+                    }
+                },
+                onDismiss = { showBackgroundDialog = false },
+            )
+        }
     }
+}
+
+/**
+ * In-app "Allow background location?" confirmation shown from the Background
+ * Location onboarding step. Presents an explicit **Allow** button (mirroring
+ * the system permission prompt users recognise from other apps) plus a
+ * **Not now** dismissal that simply closes the dialog and leaves them on the
+ * step. On Android 11+ the body notes that the final "Allow all the time"
+ * choice happens on the location settings screen, since the platform forbids
+ * granting background location from an in-app dialog.
+ */
+@Composable
+private fun BackgroundLocationDialog(
+    onAllow: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(imageVector = Icons.Filled.LocationOn, contentDescription = null)
+        },
+        title = { Text(stringResource(R.string.onboarding_background_dialog_title)) },
+        text = {
+            Text(
+                stringResource(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        R.string.onboarding_background_dialog_body_settings
+                    } else {
+                        R.string.onboarding_background_dialog_body
+                    }
+                )
+            )
+        },
+        confirmButton = {
+            Button(onClick = onAllow) {
+                Text(stringResource(R.string.onboarding_background_dialog_allow))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.onboarding_background_dialog_deny))
+            }
+        },
+    )
 }
 
 /**
