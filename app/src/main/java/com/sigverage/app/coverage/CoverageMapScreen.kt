@@ -19,9 +19,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddLocation
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
@@ -430,7 +430,7 @@ private fun MapControls(
             contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
         ) {
             Icon(
-                imageVector = Icons.Default.AddLocation,
+                imageVector = Icons.Default.Sensors,
                 contentDescription = stringResource(R.string.map_capture_here),
             )
         }
