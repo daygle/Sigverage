@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -23,6 +25,7 @@ import com.sigverage.app.model.ThemeMode
 import com.sigverage.app.model.TimeFormat
 import com.sigverage.app.service.SamplingService
 import com.sigverage.app.service.ScheduleManager
+import com.sigverage.app.ui.theme.NetworkColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -106,6 +109,13 @@ data class HomeUiState(
     val timeFormat: TimeFormat = TimeFormat.System,
     /** Preferred date format for UI display. */
     val dateFormat: DateFormat = DateFormat.System,
+    /**
+     * The resolved per-network colour palette: the built-in defaults with any
+     * user overrides (Settings → Network Colours) applied. Provided to the
+     * whole Compose tree via `LocalNetworkColors` at the activity root so the
+     * map, legend, filter chips and reading badges all use these colours.
+     */
+    val networkColors: Map<NetworkType, Color> = NetworkColors,
 )
 
 /**
@@ -202,6 +212,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             defaultOperatorFilter = prefs.defaultOperatorFilter,
             coverageFilter = prefs.defaultNetworkFilter,
             operatorFilter = prefs.defaultOperatorFilter,
+            // Resolved network palette (defaults + any saved overrides) so the
+            // very first frame already draws the user's chosen colours.
+            networkColors = resolvedNetworkColors(),
         )
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -444,6 +457,41 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setDynamicColorEnabled(enabled: Boolean) {
         prefs.dynamicColorEnabled = enabled
         _ui.value = _ui.value.copy(dynamicColorEnabled = enabled)
+    }
+
+    /**
+     * The resolved network palette: the built-in [NetworkColors] defaults with
+     * any user overrides applied on top. Recomputed from [prefs] whenever an
+     * override changes so the whole app repaints to the new colour.
+     */
+    private fun resolvedNetworkColors(): Map<NetworkType, Color> {
+        val overrides = prefs.networkColorOverrides
+        return NetworkType.entries.associateWith { type ->
+            overrides[type]?.let { Color(it) } ?: (NetworkColors[type] ?: Color.Gray)
+        }
+    }
+
+    /**
+     * Override [type]'s colour and re-emit the resolved palette on [ui]. The
+     * activity root provides it via `LocalNetworkColors`, so the map, legend,
+     * chips and badges all repaint immediately. Persisted so the choice
+     * survives app restarts.
+     */
+    fun setNetworkColor(type: NetworkType, color: Color) {
+        prefs.setNetworkColor(type, color.toArgb())
+        _ui.value = _ui.value.copy(networkColors = resolvedNetworkColors())
+    }
+
+    /** Revert [type] to its built-in default colour. */
+    fun resetNetworkColor(type: NetworkType) {
+        prefs.clearNetworkColor(type)
+        _ui.value = _ui.value.copy(networkColors = resolvedNetworkColors())
+    }
+
+    /** Revert every network to its built-in default colour. */
+    fun resetAllNetworkColors() {
+        prefs.clearAllNetworkColors()
+        _ui.value = _ui.value.copy(networkColors = resolvedNetworkColors())
     }
 
     /**

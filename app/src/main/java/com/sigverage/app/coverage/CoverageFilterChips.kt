@@ -18,7 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.model.NetworkType
-import com.sigverage.app.ui.theme.NetworkColors
+import com.sigverage.app.ui.theme.rememberNetworkColors
 
 /**
  * Material 3 [FilterChip] strip for cellular network types.
@@ -47,6 +47,7 @@ fun CoverageFilterChips(
     onToggle: (NetworkType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val palette = rememberNetworkColors()
     FlowRow(
         modifier = modifier
             .fillMaxWidth()
@@ -56,7 +57,7 @@ fun CoverageFilterChips(
     ) {
         types.forEach { type ->
             val isSelected = type in selected
-            val swatch = NetworkColors[type] ?: Color.Gray
+            val swatch = palette[type] ?: Color.Gray
             FilterChip(
                 selected = isSelected,
                 onClick = { onToggle(type) },

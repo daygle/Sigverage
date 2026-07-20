@@ -8,12 +8,14 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.sigverage.app.ui.MainScreen
 import com.sigverage.app.ui.MainViewModel
 import com.sigverage.app.ui.OnboardingScreen
+import com.sigverage.app.ui.theme.LocalNetworkColors
 import com.sigverage.app.ui.theme.SigverageTheme
 
 /**
@@ -35,6 +37,9 @@ class MainActivity : ComponentActivity() {
                 themeMode = ui.themeMode,
                 dynamicColor = ui.dynamicColorEnabled,
             ) {
+                // Publish the user's resolved network palette to the whole tree
+                // so `rememberNetworkColors()` everywhere reflects their edits.
+                CompositionLocalProvider(LocalNetworkColors provides ui.networkColors) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -52,6 +57,7 @@ class MainActivity : ComponentActivity() {
                     } else {
                         OnboardingScreen(viewModel = viewModel)
                     }
+                }
                 }
             }
         }

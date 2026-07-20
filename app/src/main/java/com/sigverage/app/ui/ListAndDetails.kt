@@ -52,7 +52,7 @@ import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.SignalReading
 import com.sigverage.app.model.TimeFormat
 import com.sigverage.app.model.getUiDateTimeFormatter
-import com.sigverage.app.ui.theme.NetworkColors
+import com.sigverage.app.ui.theme.rememberNetworkColors
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -233,7 +233,7 @@ private fun signalStrengthColor(dbm: Int): Color = when {
 
 @Composable
 fun NetworkBadge(network: NetworkType) {
-    val color = NetworkColors[network] ?: Color.Gray
+    val color = rememberNetworkColors()[network] ?: Color.Gray
     // Some network hues are very light (e.g. 5G NSA, HSPA); white label text
     // is unreadable on them. Pick black/white by the badge's luminance so the
     // short label stays legible on every network colour.

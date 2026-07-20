@@ -8,6 +8,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import com.sigverage.app.model.NetworkType
@@ -42,9 +43,13 @@ private val Slate50 = Color(0xFFFAFAFC)
  *   CDMA      → red
  *   Unknown   → neutral gray
  *
- * Use this only from non-Compose contexts (DAOs, ViewModels, plain helpers)
- * where we can't call [rememberNetworkColors]. Both maps return identical
- * colours — the choice is just whether you need a `@Composable` scope or not.
+ * These are the **built-in defaults**. The user can override any network's
+ * colour from Settings → Network Colours; the resolved palette (defaults with
+ * user overrides applied) flows through [LocalNetworkColors] and is what
+ * `rememberNetworkColors()` returns inside a Compose scope.
+ *
+ * Use this map directly only from non-Compose contexts (DAOs, plain helpers)
+ * where we can't read the CompositionLocal, or as the fallback default.
  */
 val NetworkColors: Map<NetworkType, Color> = mapOf(
     NetworkType.FiveG to Sky500,
@@ -58,30 +63,26 @@ val NetworkColors: Map<NetworkType, Color> = mapOf(
 )
 
 /**
- * Composable that returns the network palette — a fixed set of distinct
- * colours, one per [NetworkType], chosen so every technology gets its own
- * immediately-recognisable hue:
+ * The network palette in effect for the current Compose tree. Defaults to the
+ * built-in [NetworkColors] and is overridden at the activity root with the
+ * user's resolved palette (built-in defaults + any per-network overrides the
+ * user saved in Settings → Network Colours). Reading it from a composable
+ * recomposes that composable whenever the palette changes, so the map, legend,
+ * chips and badges all repaint the instant a colour is edited.
+ */
+val LocalNetworkColors = compositionLocalOf { NetworkColors }
+
+/**
+ * Composable that returns the network palette — one colour per [NetworkType].
  *
- *   5G        → blue
- *   4G (LTE)  → green
- *   3G (HSPA) → amber / yellow
- *   2G (GSM)  → orange
- *   EDGE      → deeper orange
- *   CDMA      → red
- *   Unknown   → neutral gray
- *
- * Unlike the earlier scheme-dependent version, this palette uses
- * **hardcoded** colours so 3G always looks amber (not green) and 2G always
- * looks orange (not purple), regardless of the active `ColorScheme` — the
- * Material You colour slots don't include yellow or orange, so a
- * scheme-bound mapping could never produce the intended hues for HSPA,
- * GSM and EDGE. The trade-off is that 5G and 4G lose their scheme-tracking
- * ability, but in practice the hardcoded blue/green are close enough to
- * typical Material You primaries/tertiaries that the visual difference is
- * negligible.
+ * Historically this was a fixed, hardcoded palette so every technology got its
+ * own immediately-recognisable hue (5G blue, 4G green, 3G amber, 2G orange,
+ * …). Those hues remain the **defaults**, but the user can now recolour any
+ * network from Settings; this reads the resolved palette from
+ * [LocalNetworkColors] rather than returning a constant.
  */
 @Composable
-fun rememberNetworkColors(): Map<NetworkType, Color> = NetworkColors
+fun rememberNetworkColors(): Map<NetworkType, Color> = LocalNetworkColors.current
 
 private val LightColors = lightColorScheme(
     primary = Sky500,

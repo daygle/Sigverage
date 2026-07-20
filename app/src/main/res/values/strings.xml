@@ -171,6 +171,18 @@
     <string name="settings_dynamic_color_title">Dynamic Colour</string>
     <string name="settings_dynamic_color_subtitle">Use Material You colours derived from your wallpaper (Android 12 and above). On older devices this has no visible effect.</string>
 
+    <!-- Per-network colours -->
+    <string name="settings_network_colors_title">Network Colours</string>
+    <string name="settings_network_colors_subtitle">Choose the colour used for each network type on the map and in lists.</string>
+    <string name="settings_network_colors_page_hint">Tap a network to change its colour. Changes apply everywhere at once - the map, legend, filters and reading badges.</string>
+    <string name="settings_network_colors_dialog_title">%1$s colour</string>
+    <string name="settings_network_colors_dialog_apply">Apply</string>
+    <string name="settings_network_colors_reset">Reset</string>
+    <string name="settings_network_colors_reset_all">Reset all to defaults</string>
+    <string name="color_channel_red">R</string>
+    <string name="color_channel_green">G</string>
+    <string name="color_channel_blue">B</string>
+
     <!-- Manual recording toggle / status (Settings → Recording) -->
     <string name="settings_recording_title">Recording</string>
     <string name="settings_recording_subtitle">Start or stop coverage recording.</string>
