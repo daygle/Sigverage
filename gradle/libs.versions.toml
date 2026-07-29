@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.0"
+agp = "9.3.1"
 kotlin = "2.4.10"
 # KSP 2.3.x supports Kotlin 2.4.x. KSP2 versioning tracks the Kotlin
 # compiler directly (no "-x.y.z" suffix); KSP1 does not support 2.3+.
