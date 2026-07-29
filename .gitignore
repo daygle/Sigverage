@@ -12,7 +12,6 @@ captures/
 *.apk
 *.aab
 *.keystore
-nul
 .freebuff/
 .artifacts/
 

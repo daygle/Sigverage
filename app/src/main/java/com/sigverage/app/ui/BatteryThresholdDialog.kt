@@ -60,22 +60,15 @@ fun BatteryThresholdDialog(
     }
     var customError by remember { mutableStateOf<String?>(null) }
 
-    val resolvedPct: Int
-        get() {
-            if (selectedPreset == CUSTOM_SENTINEL) {
-                return customText.toIntOrNull() ?: 0
-            }
-            return selectedPreset
-        }
+    val resolvedPct =
+        if (selectedPreset == CUSTOM_SENTINEL) customText.toIntOrNull() ?: 0
+        else selectedPreset
 
-    val isValid: Boolean
-        get() {
-            if (selectedPreset == CUSTOM_SENTINEL) {
-                val n = customText.toIntOrNull()
-                return n != null && n in 1..100
-            }
-            return true
-        }
+    val isValid =
+        if (selectedPreset == CUSTOM_SENTINEL) {
+            val n = customText.toIntOrNull()
+            n != null && n in 1..100
+        } else true
 
     AlertDialog(
         onDismissRequest = onDismiss,
