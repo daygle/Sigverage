@@ -111,6 +111,16 @@ data class HomeUiState(
     /** Preferred date format for UI display. */
     val dateFormat: DateFormat = DateFormat.System,
     /**
+     * Battery percentage below which the wake lock is not acquired during
+     * sampling bursts. Defaults to [PreferencesStore.DEFAULT_BATTERY_LOW_THRESHOLD_PCT].
+     */
+    val batteryLowThresholdPct: Int = PreferencesStore.DEFAULT_BATTERY_LOW_THRESHOLD_PCT,
+    /**
+     * When `true`, the battery low threshold is ignored while the device is
+     * plugged in and charging. Defaults to `true`.
+     */
+    val skipBatteryThresholdWhenCharging: Boolean = true,
+    /**
      * The resolved per-network colour palette: the built-in defaults with any
      * user overrides (Settings → Network Colours) applied. Provided to the
      * whole Compose tree via `LocalNetworkColors` at the activity root so the
@@ -253,6 +263,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             autoRecordEnabled = prefs.autoRecordEnabled,
             // Battery-vs-accuracy sampling mode. Default Auto.
             samplingMode = prefs.samplingMode,
+            // Battery low threshold for wake lock gating.
+            batteryLowThresholdPct = prefs.batteryLowThresholdPct,
+            skipBatteryThresholdWhenCharging = prefs.skipBatteryThresholdWhenCharging,
             // Date and time formats.
             timeFormat = prefs.timeFormat,
             dateFormat = prefs.dateFormat,
@@ -582,6 +595,28 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun setSamplingMode(mode: SamplingMode) {
         prefs.samplingMode = mode
         _ui.value = _ui.value.copy(samplingMode = mode)
+    }
+
+    /**
+     * Update the battery low threshold for wake lock gating.
+     * Persisted immediately; the running foreground service picks up the new
+     * value on the next battery check (next movement transition or
+     * battery-level broadcast).
+     */
+    fun setBatteryLowThreshold(pct: Int) {
+        prefs.batteryLowThresholdPct = pct
+        _ui.value = _ui.value.copy(batteryLowThresholdPct = pct)
+    }
+
+    /**
+     * Toggle whether the battery low threshold is ignored while the device
+     * is plugged in and charging. When enabled, the wake lock stays active
+     * regardless of the battery percentage as long as the charger is
+     * connected.
+     */
+    fun setSkipBatteryThresholdWhenCharging(skip: Boolean) {
+        prefs.skipBatteryThresholdWhenCharging = skip
+        _ui.value = _ui.value.copy(skipBatteryThresholdWhenCharging = skip)
     }
 
     /**

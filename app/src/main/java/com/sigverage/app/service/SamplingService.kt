@@ -4,12 +4,16 @@ import android.Manifest
 import android.app.Notification
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
+import android.os.BatteryManager
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -77,6 +81,22 @@ class SamplingService : Service() {
      */
     private var lastRecordedTile: TileId? = null
 
+    /**
+     * Partial wake lock held during active sampling bursts so the CPU
+     * doesn't sleep mid-recording when the screen is off. Released when
+     * the device becomes still, the battery drops below
+     * [BATTERY_LOW_THRESHOLD_PCT], or the service is destroyed.
+     */
+    private var wakeLock: PowerManager.WakeLock? = null
+
+    /**
+     * Dynamically-registered receiver that monitors battery level during an
+     * active sampling burst. If the level drops below [BATTERY_LOW_THRESHOLD_PCT]
+     * mid-burst we release the wake lock to preserve the remaining charge.
+     * Registered in [startSampling], unregistered in [stopSampling].
+     */
+    private var batteryReceiver: BroadcastReceiver? = null
+
     private val transitionPendingIntent: PendingIntent by lazy {
         val intent = TransitionReceiver.buildIntent(this)
         PendingIntent.getBroadcast(
@@ -113,9 +133,33 @@ class SamplingService : Service() {
         return START_STICKY
     }
 
+    /**
+     * Called by the system when the last client unbinds and the user removes
+     * the task (swipes the app from recents).
+     *
+     * We restart the service immediately via [startForegroundService] so
+     * sampling continues even when the user clears the app from recents —
+     * this is expected behaviour for a background service the user
+     * deliberately enabled.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        // Restart the service. onStartCommand will call promoteToForeground
+        // and registerTransitions, so the service comes back armed and ready
+        // for the next activity transition.
+        val restart = Intent(applicationContext, SamplingService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(restart)
+        } else {
+            startService(restart)
+        }
+        super.onTaskRemoved(rootIntent)
+    }
+
     override fun onDestroy() {
         unregisterTransitions()
         stopSampling()
+        unregisterBatteryReceiver()  // safety-net: ensure receiver is unregistered
+        releaseWakeLock()  // safety-net: ensure lock is cleared even on unexpected destroy
         cellular.cleanup()
         scope.cancel()
         super.onDestroy()
@@ -125,6 +169,15 @@ class SamplingService : Service() {
 
     private fun startSampling() {
         if (locationJob?.isActive == true) return
+
+        // Acquire a partial wake lock so the CPU stays on during the sampling
+        // burst even when the screen is off — but only if the battery is above
+        // the low threshold. We release it in stopSampling().
+        acquireWakeLock()
+
+        // Register a battery-level monitor so we can release the wake lock if
+        // the device drains below the threshold mid-burst.
+        registerBatteryReceiver()
 
         // Read the user's battery-vs-accuracy mode at start time so a change
         // in Settings takes effect on the next still -> moving transition.
@@ -167,6 +220,10 @@ class SamplingService : Service() {
         // Forget the current cell: becoming still ends this pass, so the next
         // moving burst should record wherever it resumes, even the same cell.
         lastRecordedTile = null
+        // Release the wake lock now that the sampling burst is done, and stop
+        // listening for battery-level changes.
+        unregisterBatteryReceiver()
+        releaseWakeLock()
     }
 
     private fun registerTransitions() {
@@ -251,6 +308,82 @@ class SamplingService : Service() {
             .build()
     }
 
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        if (isBatteryLow()) return  // preserve remaining charge
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "Sigverage:SamplingWakeLock"
+        ).apply {
+            setReferenceCounted(false)
+            acquire(10 * 60 * 1000L) // 10-minute timeout as safety net
+        }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let {
+            if (it.isHeld) it.release()
+        }
+        wakeLock = null
+    }
+
+    /**
+     * Returns `true` when the device battery is critically low and we should
+     * avoid holding a wake lock to preserve the remaining charge.
+     *
+     * If [PreferencesStore.skipBatteryThresholdWhenCharging] is enabled and
+     * the device is plugged in, always returns `false` — battery preservation
+     * doesn't matter when on external power.
+     *
+     * Uses a sticky [Intent.ACTION_BATTERY_CHANGED] broadcast — it is always
+     * available without registering a receiver.
+     */
+    private fun isBatteryLow(): Boolean {
+        val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+
+        // If the user opted to skip the threshold while charging and the device
+        // is plugged in, pretend the battery is never low.
+        if (prefs.skipBatteryThresholdWhenCharging) {
+            val status = intent?.getIntExtra("status", BatteryManager.BATTERY_STATUS_UNKNOWN)
+                ?: BatteryManager.BATTERY_STATUS_UNKNOWN
+            if (status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                status == BatteryManager.BATTERY_STATUS_FULL
+            ) {
+                return false
+            }
+        }
+
+        val level = intent?.getIntExtra("level", -1) ?: -1
+        val scale = intent?.getIntExtra("scale", 100) ?: 100
+        if (level < 0 || scale <= 0) return false // can't determine — be permissive
+        return (level * 100 / scale) < prefs.batteryLowThresholdPct
+    }
+
+    /**
+     * Registers a dynamic [BroadcastReceiver] for [Intent.ACTION_BATTERY_CHANGED]
+     * so we can release the wake lock mid-burst if the device drains below
+     * [BATTERY_LOW_THRESHOLD_PCT]. Unregistered by [unregisterBatteryReceiver].
+     */
+    private fun registerBatteryReceiver() {
+        if (batteryReceiver != null) return
+        batteryReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (isBatteryLow() && wakeLock?.isHeld == true) {
+                    releaseWakeLock()
+                }
+            }
+        }
+        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    }
+
+    private fun unregisterBatteryReceiver() {
+        batteryReceiver?.let {
+            try { unregisterReceiver(it) } catch (_: Exception) { /* already gone */ }
+        }
+        batteryReceiver = null
+    }
+
     companion object {
         const val NOTIFICATION_ID = 7
         const val EXTRA_IS_MOVING = "extra_is_moving"
@@ -268,12 +401,16 @@ class SamplingService : Service() {
         }
 
         fun start(context: Context) {
+            PreferencesStore(context).recordingShouldBeRunning = true
+            WatchdogReceiver.scheduleNext(context)
             val i = Intent(context, SamplingService::class.java)
                 .putExtra(EXTRA_IS_MOVING, true)
             context.startForegroundService(i)
         }
 
         fun stop(context: Context) {
+            PreferencesStore(context).recordingShouldBeRunning = false
+            WatchdogReceiver.cancel(context)
             context.stopService(Intent(context, SamplingService::class.java))
         }
     }

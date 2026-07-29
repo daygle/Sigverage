@@ -94,6 +94,45 @@ class PreferencesStore(context: Context) {
         }
 
     /**
+     * Whether the foreground sampling service was running when the app last
+     * set this flag. Set to `true` when sampling starts (manual toggle,
+     * auto-record, or schedule) and `false` when sampling is explicitly
+     * stopped. The liveness watchdog reads this to decide whether the service
+     * should be restarted after an unexpected kill.
+     *
+     * Deliberately NOT the live `isSampling` from [HomeUiState] — that value
+     * is lost when the process dies; this persisted flag survives reboots and
+     * process death so the watchdog can act without the UI process.
+     */
+    var recordingShouldBeRunning: Boolean
+        get() = prefs.getBoolean(KEY_RECORDING_SHOULD_BE_RUNNING, false)
+        set(value) {
+            prefs.edit { putBoolean(KEY_RECORDING_SHOULD_BE_RUNNING, value) }
+        }
+
+    /**
+     * Battery percentage below which the wake lock is not acquired during
+     * sampling bursts, preserving the remaining charge on the device.
+     * Defaults to [DEFAULT_BATTERY_LOW_THRESHOLD_PCT] (= 15).
+     */
+    var batteryLowThresholdPct: Int
+        get() = prefs.getInt(KEY_BATTERY_LOW_THRESHOLD_PCT, DEFAULT_BATTERY_LOW_THRESHOLD_PCT)
+        set(value) {
+            prefs.edit { putInt(KEY_BATTERY_LOW_THRESHOLD_PCT, value.coerceIn(0, 100)) }
+        }
+
+    /**
+     * When `true` (the default), the battery low threshold is ignored while
+     * the device is plugged in and charging, since preserving battery doesn't
+     * matter when on external power.
+     */
+    var skipBatteryThresholdWhenCharging: Boolean
+        get() = prefs.getBoolean(KEY_SKIP_BATTERY_THRESHOLD_WHEN_CHARGING, true)
+        set(value) {
+            prefs.edit { putBoolean(KEY_SKIP_BATTERY_THRESHOLD_WHEN_CHARGING, value) }
+        }
+
+    /**
      * Location sampling mode - the battery-vs-accuracy trade-off applied while
      * recording. Defaults to [SamplingMode.Default] (= Auto). Consumed by the
      * foreground [com.sigverage.app.service.SamplingService] when it opens the
@@ -212,6 +251,15 @@ class PreferencesStore(context: Context) {
         private const val KEY_DEFAULT_OPERATOR_FILTER = "default_operator_filter"
         private const val KEY_TIME_FORMAT = "time_format"
         private const val KEY_DATE_FORMAT = "date_format"
+
+        private const val KEY_RECORDING_SHOULD_BE_RUNNING = "recording_should_be_running"
+
+        private const val KEY_BATTERY_LOW_THRESHOLD_PCT = "battery_low_threshold_pct"
+
+        private const val KEY_SKIP_BATTERY_THRESHOLD_WHEN_CHARGING = "skip_battery_threshold_when_charging"
+
+        /** Default battery low threshold: 15%. */
+        const val DEFAULT_BATTERY_LOW_THRESHOLD_PCT = 15
 
         /** Prefix for per-network colour overrides, e.g. `network_color_LTE`. */
         private const val KEY_NETWORK_COLOR_PREFIX = "network_color_"

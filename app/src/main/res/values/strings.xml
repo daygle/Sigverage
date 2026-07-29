@@ -202,6 +202,14 @@
     <!-- Location sampling mode (battery vs accuracy) -->
     <string name="settings_sampling_mode_title">Battery Usage</string>
     <string name="settings_sampling_mode_subtitle">Balance GPS accuracy against battery drain while recording.</string>
+    <string name="settings_battery_threshold_title">Battery Low Threshold</string>
+    <string name="settings_battery_threshold_subtitle">When the device battery drops below this level, the CPU wake lock is released during sampling to preserve the remaining charge. Readings may become less reliable below this point.</string>
+    <string name="battery_threshold_value">Below %1$d%%</string>
+    <string name="battery_threshold_custom_label">Custom (%)</string>
+    <string name="settings_skip_threshold_charging_title">Ignore When Charging</string>
+    <string name="settings_skip_threshold_charging_subtitle">Keep the wake lock active regardless of battery level while the device is plugged in and charging.</string>
+    <string name="battery_threshold_dialog_title">Battery Low Threshold</string>
+    <string name="battery_threshold_dialog_help">The CPU wake lock keeps the device awake during sampling bursts so readings complete reliably. When the battery drops below the chosen level the wake lock is released, trading reading quality for battery life.</string>
     <string name="sampling_mode_auto">Automatic</string>
     <string name="sampling_mode_auto_desc">Adapts to your device - saves power when the battery is low or Battery Saver is on.</string>
     <string name="sampling_mode_power_saver">Power Saver</string>

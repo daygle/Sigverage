@@ -122,6 +122,7 @@ fun SettingsScreen(
     var showDateFormatDialog by remember { mutableStateOf(value = false) }
     var showSamplingModeDialog by remember { mutableStateOf(value = false) }
     var showScheduleDialog by remember { mutableStateOf(value = false) }
+    var showBatteryThresholdDialog by remember { mutableStateOf(value = false) }
     var editingSchedule by remember { mutableStateOf<RecordingSchedule?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -242,6 +243,20 @@ fun SettingsScreen(
                         subtitle = stringResource(R.string.settings_sampling_mode_subtitle),
                         value = samplingModeLabelFor(ui.samplingMode),
                         onClick = { showSamplingModeDialog = true },
+                    )
+                    CardDivider()
+                    SettingsRow(
+                        title = stringResource(R.string.settings_battery_threshold_title),
+                        subtitle = stringResource(R.string.settings_battery_threshold_subtitle),
+                        value = stringResource(R.string.battery_threshold_value, ui.batteryLowThresholdPct),
+                        onClick = { showBatteryThresholdDialog = true },
+                    )
+                    CardDivider()
+                    SwitchRow(
+                        title = stringResource(R.string.settings_skip_threshold_charging_title),
+                        subtitle = stringResource(R.string.settings_skip_threshold_charging_subtitle),
+                        checked = ui.skipBatteryThresholdWhenCharging,
+                        onCheckedChange = viewModel::setSkipBatteryThresholdWhenCharging,
                     )
                     CardDivider()
                     SettingsRow(
@@ -433,6 +448,16 @@ fun SettingsScreen(
             onPick = { mode ->
                 viewModel.setSamplingMode(mode)
                 showSamplingModeDialog = false
+            },
+        )
+    }
+    if (showBatteryThresholdDialog) {
+        BatteryThresholdDialog(
+            current = ui.batteryLowThresholdPct,
+            onDismiss = { showBatteryThresholdDialog = false },
+            onPick = { pct ->
+                viewModel.setBatteryLowThreshold(pct)
+                showBatteryThresholdDialog = false
             },
         )
     }

@@ -28,6 +28,10 @@
     <!-- Activity Recognition: detect still/moving transitions for battery-efficient sampling -->
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
+    <!-- Wake lock: keep CPU awake during active sampling bursts so readings
+         complete when the screen is off on power-management-aggressive devices -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <!-- Schedule alarms: re-register alarms after reboot -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Schedule alarms: keep CPU alive long enough to process alarm -->
@@ -94,6 +98,12 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <!-- Periodic liveness watchdog: restarts SamplingService if killed
+             by the system while the user expects recording to be running. -->
+        <receiver
+            android:name=".service.WatchdogReceiver"
+            android:exported="false" />
 
     </application>
 </manifest>
