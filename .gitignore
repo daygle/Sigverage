@@ -12,6 +12,11 @@ captures/
 *.apk
 *.aab
 *.keystore
+# Windows 'nul' device: stray artifact from `> nul`, FINDSTR mishaps, etc.
+# Character class matches all case variants (NUL / Nul / nUl / ...) so the
+# guard catches the same quirk on Windows, macOS (APFS insensitive form)
+# and case-sensitive Linux alike.
+[Nn][Uu][Ll]
 .freebuff/
 .artifacts/
 
