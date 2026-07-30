@@ -146,12 +146,10 @@ class SamplingService : Service() {
         // Restart the service. onStartCommand will call promoteToForeground
         // and registerTransitions, so the service comes back armed and ready
         // for the next activity transition.
+        // minSdk is 26 (O), so startForegroundService is always available —
+        // no legacy startService fallback is required.
         val restart = Intent(applicationContext, SamplingService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(restart)
-        } else {
-            startService(restart)
-        }
+        startForegroundService(restart)
         super.onTaskRemoved(rootIntent)
     }
 

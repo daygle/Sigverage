@@ -228,7 +228,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Release the cellular scanner's telephony callback when the VM dies. */
     override fun onCleared() {
         cellular.cleanup()
-        super.onCleared()
     }
 
     val readings: StateFlow<List<SignalReading>> = repo.observeReadings()
