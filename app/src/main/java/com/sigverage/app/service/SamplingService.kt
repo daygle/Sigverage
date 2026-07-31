@@ -65,37 +65,11 @@ class SamplingService : Service() {
     private lateinit var cellular: CellularScanner
     private lateinit var repo: SignalRepository
     private lateinit var prefs: PreferencesStore
+    private lateinit var wakeLockManager: WakeLockManager
     private var locationJob: Job? = null
     private var transitionsRegistered = false
 
-    /**
-     * Coverage tile of the most recent reading we recorded, tracked in memory
-     * for the "leave and return" smart-sampling rule. While the device stays
-     * inside one cell we record a single reading; once a fix lands in a
-     * *different* tile this is updated, so re-entering the original cell later
-     * records again (and those readings are averaged together on the map).
-     *
-     * Deliberately not a database lookup: a persisted cell would be skipped
-     * forever, which is why revisiting a location never produced a second
-     * reading. Reset when sampling stops so each moving burst starts clean.
-     */
     private var lastRecordedTile: TileId? = null
-
-    /**
-     * Partial wake lock held during active sampling bursts so the CPU
-     * doesn't sleep mid-recording when the screen is off. Released when
-     * the device becomes still, the battery drops below
-     * [BATTERY_LOW_THRESHOLD_PCT], or the service is destroyed.
-     */
-    private var wakeLock: PowerManager.WakeLock? = null
-
-    /**
-     * Dynamically-registered receiver that monitors battery level during an
-     * active sampling burst. If the level drops below [BATTERY_LOW_THRESHOLD_PCT]
-     * mid-burst we release the wake lock to preserve the remaining charge.
-     * Registered in [startSampling], unregistered in [stopSampling].
-     */
-    private var batteryReceiver: BroadcastReceiver? = null
 
     private val transitionPendingIntent: PendingIntent by lazy {
         val intent = TransitionReceiver.buildIntent(this)
@@ -113,16 +87,13 @@ class SamplingService : Service() {
         cellular = CellularScanner(applicationContext)
         repo = SignalRepository.get(applicationContext)
         prefs = PreferencesStore(applicationContext)
+        wakeLockManager = WakeLockManager(applicationContext)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // CRITICAL: call startForeground within 5 seconds of startForegroundService.
         promoteToForeground()
-
-        // Register for activity transitions (STILL <-> MOVING).
         registerTransitions()
 
-        // Handle transition intent from TransitionReceiver.
         val isMoving = intent?.getBooleanExtra(EXTRA_IS_MOVING, false) ?: false
         if (isMoving) {
             startSampling()
@@ -133,21 +104,7 @@ class SamplingService : Service() {
         return START_STICKY
     }
 
-    /**
-     * Called by the system when the last client unbinds and the user removes
-     * the task (swipes the app from recents).
-     *
-     * We restart the service immediately via [startForegroundService] so
-     * sampling continues even when the user clears the app from recents —
-     * this is expected behaviour for a background service the user
-     * deliberately enabled.
-     */
     override fun onTaskRemoved(rootIntent: Intent?) {
-        // Restart the service. onStartCommand will call promoteToForeground
-        // and registerTransitions, so the service comes back armed and ready
-        // for the next activity transition.
-        // minSdk is 26 (O), so startForegroundService is always available —
-        // no legacy startService fallback is required.
         val restart = Intent(applicationContext, SamplingService::class.java)
         startForegroundService(restart)
         super.onTaskRemoved(rootIntent)
@@ -156,8 +113,6 @@ class SamplingService : Service() {
     override fun onDestroy() {
         unregisterTransitions()
         stopSampling()
-        unregisterBatteryReceiver()  // safety-net: ensure receiver is unregistered
-        releaseWakeLock()  // safety-net: ensure lock is cleared even on unexpected destroy
         cellular.cleanup()
         scope.cancel()
         super.onDestroy()
@@ -168,28 +123,13 @@ class SamplingService : Service() {
     private fun startSampling() {
         if (locationJob?.isActive == true) return
 
-        // Acquire a partial wake lock so the CPU stays on during the sampling
-        // burst even when the screen is off — but only if the battery is above
-        // the low threshold. We release it in stopSampling().
-        acquireWakeLock()
+        wakeLockManager.acquire()
 
-        // Register a battery-level monitor so we can release the wake lock if
-        // the device drains below the threshold mid-burst.
-        registerBatteryReceiver()
-
-        // Read the user's battery-vs-accuracy mode at start time so a change
-        // in Settings takes effect on the next still -> moving transition.
         val mode = prefs.samplingMode
         locationJob = scope.launch {
-            // Stream location fixes at the mode's cadence while moving.
             location.stream(mode).collectLatest { fix ->
-                // Quality gate: drop coarse fixes that would be binned into the
-                // wrong tile. Another fix will arrive shortly while moving.
                 if (!fix.isAccurateEnough()) return@collectLatest
 
-                // Smart sampling: while we stay inside one ~50 m cell (zoom 20)
-                // record a single reading. Leaving for another cell and coming
-                // back records again, so revisits accumulate and get averaged.
                 val tile = latLngToTile(
                     fix.latitude, fix.longitude,
                     CoverageGridOverlay.DEFAULT_STORAGE_ZOOM
@@ -215,18 +155,11 @@ class SamplingService : Service() {
     private fun stopSampling() {
         locationJob?.cancel()
         locationJob = null
-        // Forget the current cell: becoming still ends this pass, so the next
-        // moving burst should record wherever it resumes, even the same cell.
         lastRecordedTile = null
-        // Release the wake lock now that the sampling burst is done, and stop
-        // listening for battery-level changes.
-        unregisterBatteryReceiver()
-        releaseWakeLock()
+        wakeLockManager.release()
     }
 
     private fun registerTransitions() {
-        // onStartCommand runs on every movement transition; only arm the
-        // Activity Recognition request once to avoid needless re-registration.
         if (transitionsRegistered) return
         val activities = listOf(
             DetectedActivity.STILL,
@@ -253,7 +186,6 @@ class SamplingService : Service() {
             )
             transitionsRegistered = true
         } catch (_: SecurityException) {
-            // ACTIVITY_RECOGNITION not granted - degrade gracefully.
         }
     }
 
@@ -266,7 +198,6 @@ class SamplingService : Service() {
                     transitionPendingIntent
                 )
             } catch (_: Exception) {
-                // Best-effort cleanup.
             }
         }
         transitionsRegistered = false
@@ -306,92 +237,11 @@ class SamplingService : Service() {
             .build()
     }
 
-    private fun acquireWakeLock() {
-        if (wakeLock?.isHeld == true) return
-        if (isBatteryLow()) return  // preserve remaining charge
-        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = pm.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "Sigverage:SamplingWakeLock"
-        ).apply {
-            setReferenceCounted(false)
-            acquire(10 * 60 * 1000L) // 10-minute timeout as safety net
-        }
-    }
-
-    private fun releaseWakeLock() {
-        wakeLock?.let {
-            if (it.isHeld) it.release()
-        }
-        wakeLock = null
-    }
-
-    /**
-     * Returns `true` when the device battery is critically low and we should
-     * avoid holding a wake lock to preserve the remaining charge.
-     *
-     * If [PreferencesStore.skipBatteryThresholdWhenCharging] is enabled and
-     * the device is plugged in, always returns `false` — battery preservation
-     * doesn't matter when on external power.
-     *
-     * Uses a sticky [Intent.ACTION_BATTERY_CHANGED] broadcast — it is always
-     * available without registering a receiver.
-     */
-    private fun isBatteryLow(): Boolean {
-        val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-
-        // If the user opted to skip the threshold while charging and the device
-        // is plugged in, pretend the battery is never low.
-        if (prefs.skipBatteryThresholdWhenCharging) {
-            val status = intent?.getIntExtra("status", BatteryManager.BATTERY_STATUS_UNKNOWN)
-                ?: BatteryManager.BATTERY_STATUS_UNKNOWN
-            if (status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                status == BatteryManager.BATTERY_STATUS_FULL
-            ) {
-                return false
-            }
-        }
-
-        val level = intent?.getIntExtra("level", -1) ?: -1
-        val scale = intent?.getIntExtra("scale", 100) ?: 100
-        if (level < 0 || scale <= 0) return false // can't determine — be permissive
-        return (level * 100 / scale) < prefs.batteryLowThresholdPct
-    }
-
-    /**
-     * Registers a dynamic [BroadcastReceiver] for [Intent.ACTION_BATTERY_CHANGED]
-     * so we can release the wake lock mid-burst if the device drains below
-     * [BATTERY_LOW_THRESHOLD_PCT]. Unregistered by [unregisterBatteryReceiver].
-     */
-    private fun registerBatteryReceiver() {
-        if (batteryReceiver != null) return
-        batteryReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                if (isBatteryLow() && wakeLock?.isHeld == true) {
-                    releaseWakeLock()
-                }
-            }
-        }
-        registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-    }
-
-    private fun unregisterBatteryReceiver() {
-        batteryReceiver?.let {
-            try { unregisterReceiver(it) } catch (_: Exception) { /* already gone */ }
-        }
-        batteryReceiver = null
-    }
-
     companion object {
         const val NOTIFICATION_ID = 7
         const val EXTRA_IS_MOVING = "extra_is_moving"
         const val TRANSITION_REQUEST_CODE = 42
 
-        /**
-         * Called by [TransitionReceiver] when the device transitions
-         * between STILL and MOVING states. Forwards the state to the
-         * running service via an intent extra.
-         */
         fun onTransition(context: Context, isMoving: Boolean) {
             val i = Intent(context, SamplingService::class.java)
                 .putExtra(EXTRA_IS_MOVING, isMoving)

@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import com.sigverage.app.ui.MainScreen
 import com.sigverage.app.ui.MainViewModel
 import com.sigverage.app.ui.OnboardingScreen
+import com.sigverage.app.ui.SettingsViewModel
 import com.sigverage.app.ui.theme.LocalNetworkColors
 import com.sigverage.app.ui.theme.SigverageTheme
 
@@ -24,40 +25,35 @@ import com.sigverage.app.ui.theme.SigverageTheme
  */
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: MainViewModel by viewModels()
+    private val mainViewModel: MainViewModel by viewModels()
+    private val settingsViewModel: SettingsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            // Observe the ViewModel at the activity root so the theme
-            // re-resolves whenever the user toggles the override in Settings.
-            val ui by viewModel.ui.collectAsState()
+            val settingsUi by settingsViewModel.ui.collectAsState()
+
             SigverageTheme(
-                themeMode = ui.themeMode,
-                dynamicColor = ui.dynamicColorEnabled,
+                themeMode = settingsUi.themeMode,
+                dynamicColor = settingsUi.dynamicColorEnabled,
             ) {
-                // Publish the user's resolved network palette to the whole tree
-                // so `rememberNetworkColors()` everywhere reflects their edits.
-                CompositionLocalProvider(LocalNetworkColors provides ui.networkColors) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    // First-launch gate. Fresh installs (or users who have
-                    // never reached the final onboarding step) land on
-                    // the multi-step permission-onboarding screen;
-                    // everyone else goes straight to the main app. The
-                    // boolean is owned by `HomeUiState.onboardingCompleted`
-                    // and is initialised from `PreferencesStore` in the
-                    // ViewModel's `init` block, so this branch is
-                    // stable across recompositions.
-                    if (ui.onboardingCompleted) {
-                        MainScreen(viewModel = viewModel)
-                    } else {
-                        OnboardingScreen(viewModel = viewModel)
+                CompositionLocalProvider(LocalNetworkColors provides settingsUi.networkColors) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        if (settingsUi.onboardingCompleted) {
+                            MainScreen(
+                                mainViewModel = mainViewModel,
+                                settingsViewModel = settingsViewModel
+                            )
+                        } else {
+                            OnboardingScreen(
+                                settingsViewModel = settingsViewModel
+                            )
+                        }
                     }
-                }
                 }
             }
         }

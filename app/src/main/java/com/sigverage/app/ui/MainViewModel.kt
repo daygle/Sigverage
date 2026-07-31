@@ -4,10 +4,7 @@ import android.Manifest
 import android.app.Application
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -17,16 +14,9 @@ import com.sigverage.app.data.PreferencesStore
 import com.sigverage.app.data.SignalRepository
 import com.sigverage.app.location.FixSample
 import com.sigverage.app.location.LocationTracker
-import com.sigverage.app.model.DateFormat
 import com.sigverage.app.model.NetworkType
-import com.sigverage.app.model.RecordingSchedule
-import com.sigverage.app.model.SamplingMode
 import com.sigverage.app.model.SignalReading
-import com.sigverage.app.model.ThemeMode
-import com.sigverage.app.model.TimeFormat
 import com.sigverage.app.service.SamplingService
-import com.sigverage.app.service.ScheduleManager
-import com.sigverage.app.ui.theme.NetworkColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -37,11 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 /** UI-only state, decoupled from the persistent reading list. */
 data class HomeUiState(
@@ -59,74 +45,6 @@ data class HomeUiState(
      * Active filter; reset to [defaultOperatorFilter] on each Map open.
      */
     val operatorFilter: Set<String> = emptySet(),
-    /**
-     * Persisted default networks the map loads with (configured in Settings).
-     * On-map chip toggles change [coverageFilter] only, not this.
-     */
-    val defaultNetworkFilter: Set<NetworkType> = NetworkType.entries.toSet(),
-    /**
-     * Persisted default operators the map loads with (configured in Settings).
-     * Empty = all operators. On-map chip toggles change [operatorFilter] only.
-     */
-    val defaultOperatorFilter: Set<String> = emptySet(),
-    /** Retention in days; `0` means "forever" (the default - opt-in expiry). */
-    val retentionDays: Int = PreferencesStore.DEFAULT_RETENTION_DAYS,
-    /** Light/dark theme override (default: follow OS via [ThemeMode.System]). */
-    val themeMode: ThemeMode = ThemeMode.Default,
-    /**
-     * Material You palette opt-in. Drives the `dynamicColor` argument of
-     * `SigverageTheme` at the activity root. No-op on Android <12;
-     * see [com.sigverage.app.ui.theme.SigverageTheme] for the
-     * dynamic-vs-static palette resolution.
-     */
-    val dynamicColorEnabled: Boolean = PreferencesStore.DEFAULT_DYNAMIC_COLOR_ENABLED,
-    /**
-     * Whether the first-launch permission-onboarding screen has been
-     * completed (or skipped). Defaults to `false` so a fresh install starts
-     * on the onboarding screen instead of dropping the user straight into
-     * a Map tab that immediately fails to record.
-     */
-    val onboardingCompleted: Boolean = PreferencesStore.DEFAULT_ONBOARDING_COMPLETED,
-    /**
-     * Whether the foreground sampling service should be started
-     * automatically when `MainScreen` enters composition (i.e. once
-     * onboarding has finished). Defaults to `false` because this is an
-     * opt-in power-user feature: it posts a persistent notification and
-     * keeps the GPS radio hot until the user explicitly pauses recording.
-     *
-     * The actual start is performed by the `LaunchedEffect` inside
-     * `MainScreen`; this flag is only the persisted bit. Surfacing it on
-     * `HomeUiState` keeps the Settings switch in lock-step with what the
-     * UI will do on the next composition.
-     */
-    val autoRecordEnabled: Boolean = PreferencesStore.DEFAULT_AUTO_RECORD_ENABLED,
-    /**
-     * Location sampling mode: the battery-vs-accuracy trade-off applied while
-     * recording. Consumed by the foreground service; surfaced here so the
-     * Settings row reflects the persisted choice.
-     */
-    val samplingMode: SamplingMode = SamplingMode.Default,
-    /** Preferred time format for UI display. */
-    val timeFormat: TimeFormat = TimeFormat.System,
-    /** Preferred date format for UI display. */
-    val dateFormat: DateFormat = DateFormat.System,
-    /**
-     * Battery percentage below which the wake lock is not acquired during
-     * sampling bursts. Defaults to [PreferencesStore.DEFAULT_BATTERY_LOW_THRESHOLD_PCT].
-     */
-    val batteryLowThresholdPct: Int = PreferencesStore.DEFAULT_BATTERY_LOW_THRESHOLD_PCT,
-    /**
-     * When `true`, the battery low threshold is ignored while the device is
-     * plugged in and charging. Defaults to `true`.
-     */
-    val skipBatteryThresholdWhenCharging: Boolean = true,
-    /**
-     * The resolved per-network colour palette: the built-in defaults with any
-     * user overrides (Settings → Network Colours) applied. Provided to the
-     * whole Compose tree via `LocalNetworkColors` at the activity root so the
-     * map, legend, filter chips and reading badges all use these colours.
-     */
-    val networkColors: Map<NetworkType, Color> = NetworkColors,
 )
 
 /**
@@ -134,8 +52,6 @@ data class HomeUiState(
  *
  *  - `readings` and `count` flows that mirror Room (unidirectional).
  *  - `ui` flow for transient state (sampling flag, latest fix, etc).
- *  - All expensive work runs on `Dispatchers.IO`; CSV writing touches the
- *    filesystem and would ANR if invoked on the main thread.
  */
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -144,67 +60,25 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private val cellular = CellularScanner(app)
     private val prefs = PreferencesStore(app)
 
-    /**
-     * One-shot UI events (snackbar messages, transient notifications). Each
-     * event is consumed exactly once, even across configuration changes,
-     * because we wrap the underlying `Channel` in `receiveAsFlow()` rather
-     * than folding the event into `HomeUiState` (which would re-emit the
-     * same snackbar on rotation).
-     */
     private val _events = Channel<String>(Channel.BUFFERED)
     val events: Flow<String> = _events.receiveAsFlow()
 
-    /**
-     * One-shot "centre the map on this coordinate" requests, fired when the
-     * user taps a row's "Show on map" affordance on the list page or
-     * details sheet. Modeled as a Channel (not a StateFlow) so identical
-     * consecutive locations - e.g. tapping the same row twice - still trigger
-     * a fresh `animateTo`. Buffered so a request fired before the Map tab is
-     * composed (the user is on List at the time) gets picked up the moment
-     * MapPanel enters composition.
-     */
     private val _focusEvents = Channel<Pair<Double, Double>>(Channel.BUFFERED)
     val focusEvents: Flow<Pair<Double, Double>> = _focusEvents.receiveAsFlow()
 
-    /**
-     * Request the map panel to animate to (lat, lng). Safe to call from any
-     * thread; the Channel API is thread-safe and buffers if MapPanel isn't
-     * currently collecting.
-     */
     fun focusOnLocation(latitude: Double, longitude: Double) {
         _focusEvents.trySend(latitude to longitude)
     }
 
-    /**
-     * Emit a one-shot UI event (e.g. snackbar message) from any screen.
-     * The event is consumed by MainScreen's `LaunchedEffect` collector.
-     */
-    fun emitEvent(message: String) {
-        _events.trySend(message)
-    }
-
-    /**
-     * Capture a single reading at the device's current location, on demand.
-     *
-     * Backs the map's "Capture here" button. Requests a fresh single fix (not
-     * the possibly-stale last-known cache) so the reading reflects where the
-     * user is now, then reports the outcome via [events]. The radio is powered
-     * only for the one fix. Unlike background sampling this bypasses the
-     * per-cell smart-sampling gate: an explicit tap always records.
-     */
     fun captureNow() {
         viewModelScope.launch(Dispatchers.IO) {
             val app = getApplication<Application>()
             val fix = location.currentFix()
             if (fix == null) {
-                // No fix available: tell the user instead of silently doing
-                // nothing while the UI implies a reading was captured.
                 _events.trySend(app.getString(R.string.capture_no_location))
                 return@launch
             }
             if (!fix.isAccurateEnough()) {
-                // The only fix we have is too coarse to place on the map;
-                // storing it would drop the reading into the wrong tile.
                 _events.trySend(app.getString(R.string.capture_low_accuracy))
                 return@launch
             }
@@ -225,7 +99,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Release the cellular scanner's telephony callback when the VM dies. */
     override fun onCleared() {
         cellular.cleanup()
     }
@@ -233,62 +106,13 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val readings: StateFlow<List<SignalReading>> = repo.observeReadings()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val schedules: StateFlow<List<RecordingSchedule>> = repo.observeSchedules()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
     private val _ui = MutableStateFlow(HomeUiState())
     val ui: StateFlow<HomeUiState> = _ui.asStateFlow()
 
     init {
-        // Apply retention sweep silently on startup. The user already
-        // accepted the policy by leaving it active; no need to spam them
-        // with a snackbar mentioning how many rows got cleaned out.
-        val initialRetention = prefs.retentionDays
-        _ui.value = _ui.value.copy(retentionDays = initialRetention)
-        if (initialRetention > 0) applyRetention(initialRetention, announce = false)
-
-        // Load the persisted theme + dynamic-colour preference so the very
-        // first frame is already drawn in the right palette - no flash of
-        // light → dark, material-you → static.
-        _ui.value = _ui.value.copy(
-            themeMode = prefs.themeMode,
-            dynamicColorEnabled = prefs.dynamicColorEnabled,
-            // First-launch onboarding gate. Defaults to false so a fresh
-            // install starts on the onboarding screen; flips to true after
-            // the user reaches the final step or taps Skip.
-            onboardingCompleted = prefs.onboardingCompleted,
-            // Auto-record opt-in. Default false; only flips true if the
-            // user has explicitly toggled the Settings switch.
-            autoRecordEnabled = prefs.autoRecordEnabled,
-            // Battery-vs-accuracy sampling mode. Default Auto.
-            samplingMode = prefs.samplingMode,
-            // Battery low threshold for wake lock gating.
-            batteryLowThresholdPct = prefs.batteryLowThresholdPct,
-            skipBatteryThresholdWhenCharging = prefs.skipBatteryThresholdWhenCharging,
-            // Date and time formats.
-            timeFormat = prefs.timeFormat,
-            dateFormat = prefs.dateFormat,
-            // Persisted default map filters, plus the active filters seeded
-            // from them so the very first Map open is already filtered.
-            defaultNetworkFilter = prefs.defaultNetworkFilter,
-            defaultOperatorFilter = prefs.defaultOperatorFilter,
-            coverageFilter = prefs.defaultNetworkFilter,
-            operatorFilter = prefs.defaultOperatorFilter,
-            // Resolved network palette (defaults + any saved overrides) so the
-            // very first frame already draws the user's chosen colours.
-            networkColors = resolvedNetworkColors(),
-        )
-
         viewModelScope.launch(Dispatchers.IO) {
-            // Prefer a cached location (instant), but if none is available
-            // request a single fresh GPS fix so the map can centre on the
-            // user's actual position when it first opens instead of the
-            // hardcoded fallback.
             var fix = location.lastKnown()
             if (fix == null) {
-                // Give GPS up to 10 seconds to return a fix; if it doesn't,
-                // the map stays at its default centre and the user can tap
-                // the recenter button or wait for a tracking fix.
                 fix = withTimeoutOrNull(10_000L) { location.currentFix() }
             }
             if (fix != null) {
@@ -297,46 +121,22 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /**
-     * One-shot "reading deleted" events carrying the removed row so the UI can
-     * offer an Undo. Kept separate from [events] because these need a richer
-     * payload (the full reading) and an action-bearing snackbar, not a plain
-     * message. Buffered and consumed exactly once, like [events].
-     */
     private val _undoDeleteEvents = Channel<SignalReading>(Channel.BUFFERED)
     val undoDeleteEvents: Flow<SignalReading> = _undoDeleteEvents.receiveAsFlow()
 
-    /**
-     * Delete [reading] and surface an undoable event. The full row is carried
-     * on [undoDeleteEvents] so [restoreReading] can re-insert it verbatim -
-     * including its original id, which is free again once the row is removed.
-     */
     fun deleteReading(reading: SignalReading) {
         viewModelScope.launch(Dispatchers.IO) { repo.delete(reading.id) }
         _undoDeleteEvents.trySend(reading)
     }
 
-    /** Re-insert a previously deleted [reading] (Undo of [deleteReading]). */
     fun restoreReading(reading: SignalReading) {
         viewModelScope.launch(Dispatchers.IO) { repo.add(reading) }
-    }
-
-    fun deleteAll() {
-        viewModelScope.launch(Dispatchers.IO) { repo.deleteAll() }
     }
 
     fun setSampling(active: Boolean) {
         _ui.value = _ui.value.copy(isSampling = active)
     }
 
-    /**
-     * Start recording on demand (e.g. from the Settings recording toggle).
-     *
-     * Verifies the runtime permissions the foreground sampling service needs
-     * before starting; if any are missing we surface a snackbar via [events]
-     * and leave [HomeUiState.isSampling] false, so the UI reflects that no
-     * recording could start rather than implying one that can't run.
-     */
     fun startSampling() {
         val app = getApplication<Application>()
         if (missingSamplingPermissions(app).isNotEmpty()) {
@@ -347,18 +147,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         SamplingService.start(app)
     }
 
-    /** Stop recording on demand (mirror of [startSampling]). */
     fun stopSampling() {
         setSampling(active = false)
         SamplingService.stop(getApplication<Application>())
     }
 
-    /**
-     * The runtime permissions the foreground sampling service needs that are
-     * not currently granted. Empty means sampling can start. Shared by the
-     * auto-record path and the manual Settings recording toggle so both gate
-     * recording on exactly the same set of grants.
-     */
     fun missingSamplingPermissions(context: Context = getApplication<Application>()): List<String> {
         val missing = mutableListOf<String>()
         val fine = Manifest.permission.ACCESS_FINE_LOCATION
@@ -384,13 +177,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         return missing
     }
 
-    /**
-     * Toggle inclusion of [type] in the visible coverage grid.
-     *
-     * An empty filter set hides every tile; if the user toggles every
-     * network off they can pan around with a blank map and re-enable
-     * individual networks one by one.
-     */
     fun toggleCoverageFilter(type: NetworkType) {
         _ui.value = _ui.value.let { current ->
             val next = current.coverageFilter.toMutableSet()
@@ -399,13 +185,6 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /**
-     * Toggle inclusion of [operator] in the visible coverage grid.
-     *
-     * An empty operator filter set shows all operators. When operators
-     * are selected, only tiles with readings from those operators are
-     * shown on the map.
-     */
     fun toggleOperatorFilter(operator: String) {
         _ui.value = _ui.value.let { current ->
             val next = current.operatorFilter.toMutableSet()
@@ -414,444 +193,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /**
-     * Reset the *active* map filters to the user's persisted defaults. Called
-     * whenever the Map tab is opened, so any temporary on-map chip overrides
-     * from the previous visit are discarded in favour of the Settings default.
-     */
     fun applyDefaultMapFilters() {
-        _ui.value = _ui.value.let { current ->
-            current.copy(
-                coverageFilter = current.defaultNetworkFilter,
-                operatorFilter = current.defaultOperatorFilter,
-            )
-        }
-    }
-
-    /**
-     * Toggle [type] in the persisted *default* network filter (Settings). The
-     * last enabled network cannot be removed - a default of "no networks"
-     * would blank the map on every open - so a no-op toggle-off is ignored.
-     */
-    fun toggleDefaultNetwork(type: NetworkType) {
-        _ui.value = _ui.value.let { current ->
-            val next = current.defaultNetworkFilter.toMutableSet()
-            if (type in next) {
-                if (next.size == 1) return@let current // keep at least one
-                next.remove(type)
-            } else {
-                next.add(type)
-            }
-            prefs.defaultNetworkFilter = next
-            current.copy(defaultNetworkFilter = next)
-        }
-    }
-
-    /**
-     * Toggle [operator] in the persisted *default* operator filter (Settings).
-     * An empty set means "all operators".
-     */
-    fun toggleDefaultOperator(operator: String) {
-        _ui.value = _ui.value.let { current ->
-            val next = current.defaultOperatorFilter.toMutableSet()
-            if (!next.add(operator)) next.remove(operator)
-            prefs.defaultOperatorFilter = next
-            current.copy(defaultOperatorFilter = next)
-        }
-    }
-
-    /**
-     * Update the user's theme override and re-emit it on [ui]. The activity
-     * root `SigverageTheme` observes [ui] and swaps colour schemes
-     * accordingly. Persisted via the existing [PreferencesStore] so the
-     * choice survives app restarts.
-     */
-    fun setThemeMode(mode: ThemeMode) {
-        prefs.themeMode = mode
-        _ui.value = _ui.value.copy(themeMode = mode)
-    }
-
-    /** Update the user's preferred time format and re-emit. */
-    fun setTimeFormat(format: TimeFormat) {
-        prefs.timeFormat = format
-        _ui.value = _ui.value.copy(timeFormat = format)
-    }
-
-    /** Update the user's preferred date format and re-emit. */
-    fun setDateFormat(format: DateFormat) {
-        prefs.dateFormat = format
-        _ui.value = _ui.value.copy(dateFormat = format)
-    }
-
-    // ---- Schedule operations ----
-
-    fun saveSchedule(schedule: RecordingSchedule) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val id = repo.upsertSchedule(schedule)
-            val updated = schedule.copy(id = id)
-            ScheduleManager.rescheduleOne(getApplication(), updated)
-            _events.trySend(getApplication<Application>().getString(R.string.schedule_saved))
-        }
-    }
-
-    fun deleteSchedule(schedule: RecordingSchedule) {
-        viewModelScope.launch(Dispatchers.IO) {
-            ScheduleManager.cancelOne(getApplication(), schedule)
-            repo.deleteSchedule(schedule.id)
-            _events.trySend(getApplication<Application>().getString(R.string.schedule_deleted))
-        }
-    }
-
-    fun toggleScheduleEnabled(schedule: RecordingSchedule) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val updated = schedule.copy(enabled = !schedule.enabled)
-            repo.upsertSchedule(updated)
-            ScheduleManager.rescheduleOne(getApplication(), updated)
-        }
-    }
-
-    /**
-     * Toggle the Material You (Android 12+) dynamic palette. On devices
-     * older than Android 12 this preference has no effect - the static
-     * slate/sky palette is always used - but the flag is still read so a
-     * future upgrade "just works".
-     */
-    fun setDynamicColorEnabled(enabled: Boolean) {
-        prefs.dynamicColorEnabled = enabled
-        _ui.value = _ui.value.copy(dynamicColorEnabled = enabled)
-    }
-
-    /**
-     * The resolved network palette: the built-in [NetworkColors] defaults with
-     * any user overrides applied on top. Recomputed from [prefs] whenever an
-     * override changes so the whole app repaints to the new colour.
-     */
-    private fun resolvedNetworkColors(): Map<NetworkType, Color> {
-        val overrides = prefs.networkColorOverrides
-        return NetworkType.entries.associateWith { type ->
-            overrides[type]?.let { Color(it) } ?: (NetworkColors[type] ?: Color.Gray)
-        }
-    }
-
-    /**
-     * Override [type]'s colour and re-emit the resolved palette on [ui]. The
-     * activity root provides it via `LocalNetworkColors`, so the map, legend,
-     * chips and badges all repaint immediately. Persisted so the choice
-     * survives app restarts.
-     */
-    fun setNetworkColor(type: NetworkType, color: Color) {
-        prefs.setNetworkColor(type, color.toArgb())
-        _ui.value = _ui.value.copy(networkColors = resolvedNetworkColors())
-    }
-
-    /** Revert [type] to its built-in default colour. */
-    fun resetNetworkColor(type: NetworkType) {
-        prefs.clearNetworkColor(type)
-        _ui.value = _ui.value.copy(networkColors = resolvedNetworkColors())
-    }
-
-    /** Revert every network to its built-in default colour. */
-    fun resetAllNetworkColors() {
-        prefs.clearAllNetworkColors()
-        _ui.value = _ui.value.copy(networkColors = resolvedNetworkColors())
-    }
-
-    /**
-     * Mark the first-launch permission-onboarding screen as completed.
-     * Called when the user finishes the onboarding flow or taps Skip on
-     * any of its steps. Persists to SharedPreferences so the app lands on
-     * `MainScreen` instead of the onboarding screen on every subsequent
-     * launch.
-     */
-    fun completeOnboarding() {
-        prefs.onboardingCompleted = true
-        _ui.value = _ui.value.copy(onboardingCompleted = true)
-    }
-
-    /**
-     * Update the "auto-record on launch" preference. The actual service
-     * start happens inside `MainScreen`'s `LaunchedEffect` so the same
-     * path is used whether the user toggled the switch from Settings or
-     * simply opened the app with the preference already enabled.
-     *
-     * Toggling the switch off does NOT stop an in-progress foreground
-     * sampling session - "auto-record" only governs what happens on the
-     * next app launch. Manual pause stays the explicit way to stop a
-     * running session, matching the AppBar Play/Pause button as the
-     * single source of truth.
-     */
-    fun setAutoRecordEnabled(enabled: Boolean) {
-        prefs.autoRecordEnabled = enabled
-        _ui.value = _ui.value.copy(autoRecordEnabled = enabled)
-    }
-
-    /**
-     * Update the location sampling mode (battery-vs-accuracy trade-off).
-     * Persisted immediately; the running foreground service picks up the new
-     * mode the next time it (re)starts the location stream on a still ->
-     * moving transition, so an in-progress burst isn't interrupted.
-     */
-    fun setSamplingMode(mode: SamplingMode) {
-        prefs.samplingMode = mode
-        _ui.value = _ui.value.copy(samplingMode = mode)
-    }
-
-    /**
-     * Update the battery low threshold for wake lock gating.
-     * Persisted immediately; the running foreground service picks up the new
-     * value on the next battery check (next movement transition or
-     * battery-level broadcast).
-     */
-    fun setBatteryLowThreshold(pct: Int) {
-        prefs.batteryLowThresholdPct = pct
-        _ui.value = _ui.value.copy(batteryLowThresholdPct = pct)
-    }
-
-    /**
-     * Toggle whether the battery low threshold is ignored while the device
-     * is plugged in and charging. When enabled, the wake lock stays active
-     * regardless of the battery percentage as long as the charger is
-     * connected.
-     */
-    fun setSkipBatteryThresholdWhenCharging(skip: Boolean) {
-        prefs.skipBatteryThresholdWhenCharging = skip
-        _ui.value = _ui.value.copy(skipBatteryThresholdWhenCharging = skip)
-    }
-
-    /**
-     * Update the retention policy. `0` means "forever" (no automatic
-     * deletion); any positive value is the number of days readings may
-     * live before being pruned.
-     *
-     * Persists to SharedPreferences and immediately sweeps the database of
-     * stale rows. The deletion count is emitted on [events] for the UI to
-     * show in a snackbar. Calling with the same value is essentially a
-     * re-sweep and produces another (possibly zero) snackbar.
-     */
-    fun setRetentionDays(days: Int) {
-        val normalized = days.coerceAtLeast(0)
-        prefs.retentionDays = normalized
-        _ui.value = _ui.value.copy(retentionDays = normalized)
-        if (normalized > 0) applyRetention(normalized, announce = true)
-    }
-
-    /**
-     * Sweep readings older than [days] days. When [announce] is true the
-     * deletion count is emitted on [events] for the UI to show in a
-     * snackbar; when false (used at app start), the sweep is silent.
-     */
-    private fun applyRetention(days: Int, announce: Boolean) {
-        val cutoff = System.currentTimeMillis() -
-            (days.toLong() * 24L * 60L * 60L * 1000L)
-        viewModelScope.launch(Dispatchers.IO) {
-            val count = repo.deleteOlderThan(cutoff)
-            if (announce && count > 0) {
-                _events.trySend(
-                    getApplication<Application>().resources
-                        .getQuantityString(R.plurals.retention_purge_count, count, count)
-                )
-            }
-        }
-    }
-
-    /**
-     * Read readings from a CSV file at [source] (a Uri supplied by the
-     * Storage Access Framework `ACTION_OPEN_DOCUMENT` flow). Parses the same
-     * format that [exportCsv] produces. Returns the number of rows imported,
-     * `0` for an empty file, or `-1` on failure.
-     *
-     * Handles RFC-4180 quoting (doubled inner quotes, quoted fields with
-     * embedded commas/newlines) and reverses the formula-injection protection
-     * applied by [csvEscape] (strips the leading `'` that guards `=`, `+`,
-     * `-`, `@`).
-     */
-    suspend fun importCsv(source: Uri): Int = withContext(Dispatchers.IO) {
-        runCatching {
-            val app = getApplication<Application>()
-            val stream = app.contentResolver.openInputStream(source)
-                ?: return@runCatching -1
-            val readings = mutableListOf<SignalReading>()
-            stream.use { input ->
-                input.bufferedReader().use { reader ->
-                    // Skip header row.
-                    reader.readLine()
-                    var line: String?
-                    while (reader.readLine().also { line = it } != null) {
-                        val r = parseImportLine(line!!) ?: continue
-                        readings += r
-                    }
-                }
-            }
-            if (readings.isEmpty()) return@runCatching 0
-            repo.addAll(readings)
-            readings.size
-        }.getOrDefault(-1)
-    }
-
-    /**
-     * Parse one RFC-4180 CSV data line into a [SignalReading].
-     * Returns null for malformed lines (too few fields, bad numeric values).
-     *
-     * Expected columns (matching [exportCsv] output):
-     *   timestamp,latitude,longitude,accuracy_m,provider,
-     *   network_type,signal_dbm,rsrp_dbm,rsrq_db,snr_db,
-     *   mcc,mnc,cell_id,operator
-     */
-    private fun parseImportLine(line: String): SignalReading? {
-        val fields = splitCsvLine(line) ?: return null
-        if (fields.size < 14) return null
-
-        val timestamp = fields[0].toLongOrNull() ?: return null
-        val latitude = fields[1].toDoubleOrNull() ?: return null
-        val longitude = fields[2].toDoubleOrNull() ?: return null
-        val accuracy = fields[3].toFloatOrNull() ?: return null
-        val provider = fields[4]
-        val networkType = runCatching {
-            NetworkType.valueOf(fields[5])
-        }.getOrDefault(NetworkType.Unknown)
-        val signalDbm = fields[6].toIntOrNull()
-        val rsrpDbm = fields[7].toIntOrNull()
-        val rsrqDb = fields[8].toIntOrNull()
-        val snrDb = fields[9].toIntOrNull()
-        val mcc = fields[10].toIntOrNull()
-        val mnc = fields[11].toIntOrNull()
-        val cellId = fields[12].toLongOrNull()
-        // Reverse the formula-injection protection applied by csvEscape.
-        val operator = fields[13].let { raw ->
-            if (raw.isBlank()) null
-            else if (raw.startsWith("'")) raw.drop(1).trim().ifBlank { null }
-            else raw.trim().ifBlank { null }
-        }
-
-        return SignalReading(
-            timestamp = timestamp,
-            latitude = latitude,
-            longitude = longitude,
-            accuracyMeters = accuracy,
-            provider = provider,
-            networkType = networkType,
-            signalDbm = signalDbm,
-            rsrpDbm = rsrpDbm,
-            rsrqDb = rsrqDb,
-            snrDb = snrDb,
-            mcc = mcc,
-            mnc = mnc,
-            cellId = cellId,
-            operatorName = operator,
+        _ui.value = _ui.value.copy(
+            coverageFilter = prefs.defaultNetworkFilter,
+            operatorFilter = prefs.defaultOperatorFilter
         )
-    }
-
-    /**
-     * Split a single RFC-4180 CSV line into its field values.
-     * Handles quoted fields (with `""` for embedded quotes) and
-     * returns null if the line is malformed (unclosed quote).
-     */
-    private fun splitCsvLine(line: String): List<String>? {
-        val result = mutableListOf<String>()
-        val current = StringBuilder()
-        var inQuotes = false
-        var i = 0
-        while (i < line.length) {
-            val c = line[i]
-            when {
-                c == '"' && inQuotes -> {
-                    if (i + 1 < line.length && line[i + 1] == '"') {
-                        current.append('"')
-                        i += 2
-                    } else {
-                        inQuotes = false
-                        i++
-                    }
-                }
-                c == '"' && !inQuotes -> {
-                    inQuotes = true
-                    i++
-                }
-                c == ',' && !inQuotes -> {
-                    result += current.toString()
-                    current.clear()
-                    i++
-                }
-                else -> {
-                    current.append(c)
-                    i++
-                }
-            }
-        }
-        // Unclosed quote is a malformed line.
-        if (inQuotes) return null
-        result += current.toString()
-        return result
-    }
-
-    /**
-     * Write every reading to a CSV file at [destination] (a Uri supplied by
-     * the Storage Access Framework `ACTION_CREATE_DOCUMENT` flow). Returns the
-     * number of rows written or `-1` on failure. Designed to be `await`ed from
-     * a coroutine - internally hops to [Dispatchers.IO].
-     */
-    suspend fun exportCsv(destination: Uri): Int = withContext(Dispatchers.IO) {
-        runCatching {
-            val data = readings.value // snapshot of the StateFlow
-            if (data.isEmpty()) return@runCatching 0
-            val app = getApplication<Application>()
-            val sdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
-            val stream = app.contentResolver.openOutputStream(destination)
-                ?: return@runCatching 0
-            stream.use { out ->
-                out.bufferedWriter().use { writer ->
-                    writer.append(
-                        "timestamp,latitude,longitude,accuracy_m,provider," +
-                            "network_type,signal_dbm,rsrp_dbm,rsrq_db,snr_db," +
-                            "mcc,mnc,cell_id,operator\n"
-                    )
-                    for (r in data) writeRow(writer, r, sdf)
-                }
-            }
-            data.size
-        }.getOrDefault(-1)
-    }
-
-    private fun writeRow(
-        writer: java.io.BufferedWriter,
-        r: SignalReading,
-        sdf: SimpleDateFormat
-    ) {
-        writer.append(sdf.format(Date(r.timestamp))).append(',')
-        writer.append(r.latitude.toString()).append(',')
-        writer.append(r.longitude.toString()).append(',')
-        writer.append(r.accuracyMeters.toString()).append(',')
-        writer.append(r.provider).append(',')
-        writer.append(r.networkType.name).append(',')
-        writer.append(r.signalDbm?.toString().orEmpty()).append(',')
-        writer.append(r.rsrpDbm?.toString().orEmpty()).append(',')
-        writer.append(r.rsrqDb?.toString().orEmpty()).append(',')
-        writer.append(r.snrDb?.toString().orEmpty()).append(',')
-        writer.append(r.mcc?.toString().orEmpty()).append(',')
-        writer.append(r.mnc?.toString().orEmpty()).append(',')
-        writer.append(r.cellId?.toString().orEmpty()).append(',')
-        writer.append(r.operatorName?.let(::csvEscape) ?: "")
-        writer.append('\n')
-    }
-
-    /**
-     * RFC-4180 quoting (quote fields with comma/quote/newline, double inner
-     * quotes) plus spreadsheet formula-injection defence: a field beginning
-     * with a formula trigger (`=`, `+`, `-`, `@`, tab or CR) is prefixed with a
-     * single quote so Excel/Sheets treat it as text rather than executing it.
-     * The only free-text field exported is the network operator name, which is
-     * normally harmless but is ultimately attacker-influenceable (a rogue base
-     * station can advertise an arbitrary operator name).
-     */
-    private fun csvEscape(s: String): String {
-        val guarded = if (s.isNotEmpty() && s.first() in FORMULA_TRIGGERS) "'$s" else s
-        val needsQuote = guarded.any { it == ',' || it == '"' || it == '\n' || it == '\r' }
-        val escaped = guarded.replace("\"", "\"\"")
-        return if (needsQuote) "\"$escaped\"" else escaped
-    }
-
-    private companion object {
-        /** Leading characters that make a spreadsheet interpret a cell as a formula. */
-        private const val FORMULA_TRIGGERS = "=+-@\t\r"
     }
 }

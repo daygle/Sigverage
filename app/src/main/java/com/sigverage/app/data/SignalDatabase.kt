@@ -29,6 +29,9 @@ interface SignalReadingDao {
     @Query("SELECT * FROM signal_readings ORDER BY timestamp DESC")
     fun observeAll(): Flow<List<SignalReading>>
 
+    @Query("SELECT * FROM signal_readings")
+    suspend fun getAll(): List<SignalReading>
+
     @Insert
     suspend fun insert(reading: SignalReading): Long
 

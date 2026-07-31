@@ -94,11 +94,15 @@ private enum class Tab { Map, List, Settings }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(viewModel: MainViewModel) {
+fun MainScreen(
+    mainViewModel: MainViewModel,
+    settingsViewModel: SettingsViewModel,
+) {
     val ctx = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
-    val ui by viewModel.ui.collectAsState()
-    val readings by viewModel.readings.collectAsState()
+    val ui by mainViewModel.ui.collectAsState()
+    val settingsUi by settingsViewModel.ui.collectAsState()
+    val readings by mainViewModel.readings.collectAsState()
 
     val msgDeleted = stringResource(R.string.reading_deleted)
     val actionUndo = stringResource(R.string.undo)
@@ -107,35 +111,35 @@ fun MainScreen(viewModel: MainViewModel) {
 
     var tab by rememberSaveable { mutableStateOf(Tab.Map) }
     var sheetReading by remember { mutableStateOf<SignalReading?>(null) }
-    // Which Settings drill-out (if any) is open. When set, the Settings screen
-    // renders that sub-page full-screen, so we hide the app bar and bottom
-    // navigation and let the sub-page's own Scaffold own the system insets.
     var settingsSubPage by remember { mutableStateOf(SettingsSubPage.None) }
     val settingsSubPageActive = tab == Tab.Settings && (settingsSubPage != SettingsSubPage.None)
 
-    val jumpToReading: (SignalReading) -> Unit = remember(viewModel) {
+    val jumpToReading: (SignalReading) -> Unit = remember(mainViewModel) {
         { reading: SignalReading ->
             sheetReading = null
             tab = Tab.Map
-            viewModel.focusOnLocation(reading.latitude, reading.longitude)
+            mainViewModel.focusOnLocation(reading.latitude, reading.longitude)
         }
     }
 
-    // Opening the Map tab reapplies the user's saved default filters, so any
-    // temporary chip overrides from the last visit are discarded. Keyed on
-    // `tab` so it re-runs each time the user returns to the map.
     LaunchedEffect(tab) {
-        if (tab == Tab.Map) viewModel.applyDefaultMapFilters()
+        if (tab == Tab.Map) mainViewModel.applyDefaultMapFilters()
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.events.collect { message ->
+    LaunchedEffect(mainViewModel) {
+        mainViewModel.events.collect { message ->
             snackbar.showSnackbar(message)
         }
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.undoDeleteEvents.collect { reading ->
+    LaunchedEffect(settingsViewModel) {
+        settingsViewModel.events.collect { message ->
+            snackbar.showSnackbar(message)
+        }
+    }
+
+    LaunchedEffect(mainViewModel) {
+        mainViewModel.undoDeleteEvents.collect { reading ->
             val result = snackbar.showSnackbar(
                 message = msgDeleted,
                 actionLabel = actionUndo,
@@ -143,20 +147,20 @@ fun MainScreen(viewModel: MainViewModel) {
                 duration = SnackbarDuration.Short,
             )
             if (result == SnackbarResult.ActionPerformed) {
-                viewModel.restoreReading(reading)
+                mainViewModel.restoreReading(reading)
             }
         }
     }
 
-    LaunchedEffect(ui.autoRecordEnabled, ui.onboardingCompleted) {
-        if (!ui.autoRecordEnabled || !ui.onboardingCompleted) return@LaunchedEffect
-        val missing = viewModel.missingSamplingPermissions(ctx)
+    LaunchedEffect(settingsUi.autoRecordEnabled, settingsUi.onboardingCompleted) {
+        if (!settingsUi.autoRecordEnabled || !settingsUi.onboardingCompleted) return@LaunchedEffect
+        val missing = mainViewModel.missingSamplingPermissions(ctx)
         if (missing.isNotEmpty()) {
             snackbar.showSnackbar(msgNoPermissions)
             return@LaunchedEffect
         }
         if (ui.isSampling) return@LaunchedEffect
-        viewModel.setSampling(active = true)
+        mainViewModel.setSampling(active = true)
         SamplingService.start(ctx)
         snackbar.showSnackbar(msgStarted)
     }
@@ -166,11 +170,10 @@ fun MainScreen(viewModel: MainViewModel) {
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event != Lifecycle.Event.ON_RESUME) return@LifecycleEventObserver
-            val current = viewModel.ui.value
-            if (!current.autoRecordEnabled || !current.onboardingCompleted) return@LifecycleEventObserver
-            if (viewModel.missingSamplingPermissions(ctx).isNotEmpty()) return@LifecycleEventObserver
-            if (current.isSampling) return@LifecycleEventObserver
-            viewModel.setSampling(true)
+            if (!settingsUi.autoRecordEnabled || !settingsUi.onboardingCompleted) return@LifecycleEventObserver
+            if (mainViewModel.missingSamplingPermissions(ctx).isNotEmpty()) return@LifecycleEventObserver
+            if (ui.isSampling) return@LifecycleEventObserver
+            mainViewModel.setSampling(true)
             SamplingService.start(ctx)
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -179,12 +182,6 @@ fun MainScreen(viewModel: MainViewModel) {
 
     Scaffold(
         topBar = {
-            // The Map tab is immersive: the map runs edge-to-edge and its
-            // controls (filters, zoom) float on the map itself, so no app bar
-            // is drawn there. A Settings drill-out owns the whole screen via
-            // its own Scaffold, so no app bar there either. Otherwise a plain
-            // title bar shows - recording is started/stopped from the Settings
-            // page, so the bar carries no pause action.
             if (tab != Tab.Map && !settingsSubPageActive) {
                 TopAppBar(
                     title = {
@@ -193,7 +190,6 @@ fun MainScreen(viewModel: MainViewModel) {
                                 when (tab) {
                                     Tab.List -> R.string.tab_list
                                     Tab.Settings -> R.string.tab_settings
-                                    // Map draws no app bar, but the when must be exhaustive.
                                     Tab.Map -> R.string.app_name
                                 }
                             )
@@ -227,8 +223,6 @@ fun MainScreen(viewModel: MainViewModel) {
                 }
             }
         },
-        // While a Settings sub-page owns the screen, hand all system-bar insets
-        // to its own Scaffold so nothing double-pads around its top app bar.
         contentWindowInsets = if (settingsSubPageActive) {
             WindowInsets(0, 0, 0, 0)
         } else {
@@ -245,30 +239,28 @@ fun MainScreen(viewModel: MainViewModel) {
                     readings = readings,
                     lastFix = ui.lastFix,
                     coverageFilter = ui.coverageFilter,
-                    onToggleFilter = viewModel::toggleCoverageFilter,
+                    onToggleFilter = mainViewModel::toggleCoverageFilter,
                     operatorFilter = ui.operatorFilter,
-                    onToggleOperatorFilter = viewModel::toggleOperatorFilter,
-                    onCapture = viewModel::captureNow,
-                    focusEvents = viewModel.focusEvents,
+                    onToggleOperatorFilter = mainViewModel::toggleOperatorFilter,
+                    onCapture = mainViewModel::captureNow,
+                    focusEvents = mainViewModel.focusEvents,
                 )
                 Tab.List -> ListPanel(
                     readings = readings,
-                    timeFormat = ui.timeFormat,
-                    dateFormat = ui.dateFormat,
+                    timeFormat = settingsUi.timeFormat,
+                    dateFormat = settingsUi.dateFormat,
                     onClick = { sheetReading = it },
-                    onDelete = viewModel::deleteReading,
+                    onDelete = mainViewModel::deleteReading,
                     onFocusMap = jumpToReading,
                 )
                 Tab.Settings -> SettingsScreen(
-                    viewModel = viewModel,
+                    mainViewModel = mainViewModel,
+                    settingsViewModel = settingsViewModel,
                     subPage = settingsSubPage,
                     onSubPageChange = { settingsSubPage = it },
                 )
             }
 
-            // Recording indicator — shown only on the Map tab, positioned in the
-            // bottom-start corner where it won't overlap the floating filter bar
-            // (top-centre) or zoom controls (bottom-end).
             if (tab == Tab.Map) {
                 RecordingIndicator(
                     isRecording = ui.isSampling,
@@ -281,11 +273,11 @@ fun MainScreen(viewModel: MainViewModel) {
     sheetReading?.let { reading ->
         DetailsSheet(
             reading = reading,
-            timeFormat = ui.timeFormat,
-            dateFormat = ui.dateFormat,
+            timeFormat = settingsUi.timeFormat,
+            dateFormat = settingsUi.dateFormat,
             onDismiss = { sheetReading = null },
             onDelete = {
-                viewModel.deleteReading(reading)
+                mainViewModel.deleteReading(reading)
                 sheetReading = null
             },
             onShowOnMap = { jumpToReading(reading) }

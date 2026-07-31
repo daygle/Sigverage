@@ -22,6 +22,8 @@ class SignalRepository(
 
     fun observeReadings(): Flow<List<SignalReading>> = dao.observeAll()
 
+    suspend fun allReadingsOnce(): List<SignalReading> = dao.getAll()
+
     suspend fun add(reading: SignalReading): Long = dao.insert(reading)
 
     suspend fun addAll(readings: List<SignalReading>) = dao.insertAll(readings)

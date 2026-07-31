@@ -106,14 +106,16 @@ enum class SettingsSubPage { None, Permissions, Schedules, MapFilters, NetworkCo
  */
 @Composable
 fun SettingsScreen(
-    viewModel: MainViewModel,
+    mainViewModel: MainViewModel,
+    settingsViewModel: SettingsViewModel,
     subPage: SettingsSubPage,
     onSubPageChange: (SettingsSubPage) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val ui by viewModel.ui.collectAsState()
-    val readings by viewModel.readings.collectAsState()
-    val schedules by viewModel.schedules.collectAsState()
+    val mainUi by mainViewModel.ui.collectAsState()
+    val ui by settingsViewModel.ui.collectAsState()
+    val readings by mainViewModel.readings.collectAsState()
+    val schedules by settingsViewModel.schedules.collectAsState()
 
     var showRetentionDialog by remember { mutableStateOf(value = false) }
     var confirmDeleteAll by remember { mutableStateOf(value = false) }
@@ -131,14 +133,14 @@ fun SettingsScreen(
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val n = viewModel.exportCsv(uri)
+            val n = settingsViewModel.exportCsv(uri)
             @Suppress("LocalContextGetResourceValueCall", "LocalContextResourcesRead")
             val msg = when {
                 n > 0 -> context.resources.getQuantityString(R.plurals.export_done, n, n)
                 n == 0 -> context.getString(R.string.export_nothing)
                 else -> context.getString(R.string.export_failed, "I/O error")
             }
-            viewModel.emitEvent(msg)
+            settingsViewModel.emitEvent(msg)
         }
     }
     val csvImportLauncher = rememberLauncherForActivityResult(
@@ -146,14 +148,14 @@ fun SettingsScreen(
     ) { uri: Uri? ->
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
-            val n = viewModel.importCsv(uri)
+            val n = settingsViewModel.importCsv(uri)
             @Suppress("LocalContextGetResourceValueCall", "LocalContextResourcesRead")
             val msg = when {
                 n > 0 -> context.resources.getQuantityString(R.plurals.import_done, n, n)
                 n == 0 -> context.getString(R.string.import_nothing)
                 else -> context.getString(R.string.import_failed, "I/O error")
             }
-            viewModel.emitEvent(msg)
+            settingsViewModel.emitEvent(msg)
         }
     }
 
@@ -175,17 +177,17 @@ fun SettingsScreen(
                     editingSchedule = sched
                     showScheduleDialog = true
                 },
-                onDelete = { viewModel.deleteSchedule(it) },
-                onToggleEnabled = { viewModel.toggleScheduleEnabled(it) },
+                onDelete = { settingsViewModel.deleteSchedule(it) },
+                onToggleEnabled = { settingsViewModel.toggleScheduleEnabled(it) },
             )
         }
         SettingsSubPage.NetworkColors -> {
             BackHandler { onSubPageChange(SettingsSubPage.None) }
             NetworkColorsPage(
                 colors = ui.networkColors,
-                onPickColor = viewModel::setNetworkColor,
-                onResetColor = viewModel::resetNetworkColor,
-                onResetAll = viewModel::resetAllNetworkColors,
+                onPickColor = settingsViewModel::setNetworkColor,
+                onResetColor = settingsViewModel::resetNetworkColor,
+                onResetAll = settingsViewModel::resetAllNetworkColors,
                 onBack = { onSubPageChange(SettingsSubPage.None) },
             )
         }
@@ -201,10 +203,10 @@ fun SettingsScreen(
             }
             MapFiltersPage(
                 selectedNetworks = ui.defaultNetworkFilter,
-                onToggleNetwork = viewModel::toggleDefaultNetwork,
+                onToggleNetwork = settingsViewModel::toggleDefaultNetwork,
                 operators = operators,
                 selectedOperators = ui.defaultOperatorFilter,
-                onToggleOperator = viewModel::toggleDefaultOperator,
+                onToggleOperator = settingsViewModel::toggleDefaultOperator,
                 onBack = { onSubPageChange(SettingsSubPage.None) },
             )
         }
@@ -225,9 +227,9 @@ fun SettingsScreen(
                     SwitchRow(
                         title = stringResource(R.string.settings_recording_title),
                         subtitle = stringResource(R.string.settings_recording_subtitle),
-                        checked = ui.isSampling,
+                        checked = mainUi.isSampling,
                         onCheckedChange = { start ->
-                            if (start) viewModel.startSampling() else viewModel.stopSampling()
+                            if (start) mainViewModel.startSampling() else mainViewModel.stopSampling()
                         },
                     )
                     CardDivider()
@@ -235,7 +237,7 @@ fun SettingsScreen(
                         title = stringResource(R.string.settings_auto_record_title),
                         subtitle = stringResource(R.string.settings_auto_record_subtitle),
                         checked = ui.autoRecordEnabled,
-                        onCheckedChange = viewModel::setAutoRecordEnabled,
+                        onCheckedChange = settingsViewModel::setAutoRecordEnabled,
                     )
                     CardDivider()
                     SettingsRow(
@@ -256,7 +258,7 @@ fun SettingsScreen(
                         title = stringResource(R.string.settings_skip_threshold_charging_title),
                         subtitle = stringResource(R.string.settings_skip_threshold_charging_subtitle),
                         checked = ui.skipBatteryThresholdWhenCharging,
-                        onCheckedChange = viewModel::setSkipBatteryThresholdWhenCharging,
+                        onCheckedChange = settingsViewModel::setSkipBatteryThresholdWhenCharging,
                     )
                     CardDivider()
                     SettingsRow(
@@ -298,7 +300,7 @@ fun SettingsScreen(
                         title = stringResource(R.string.settings_dynamic_color_title),
                         subtitle = stringResource(R.string.settings_dynamic_color_subtitle),
                         checked = ui.dynamicColorEnabled,
-                        onCheckedChange = viewModel::setDynamicColorEnabled,
+                        onCheckedChange = settingsViewModel::setDynamicColorEnabled,
                     )
                     CardDivider()
                     SettingsRow(
@@ -402,53 +404,72 @@ fun SettingsScreen(
     }
 
     if (showRetentionDialog) {
-        RetentionDialog(
-            currentDays = ui.retentionDays,
-            onDismiss = { showRetentionDialog = false },
-            onPick = { days ->
-                viewModel.setRetentionDays(days)
+        val options = listOf(0, 30, 90, 180, 365)
+        SelectionDialog(
+            title = stringResource(R.string.retention_dialog_title),
+            options = options,
+            current = ui.retentionDays,
+            onOptionSelected = { days ->
+                settingsViewModel.setRetentionDays(days)
                 showRetentionDialog = false
             },
+            onDismiss = { showRetentionDialog = false },
+            labelProvider = { retentionLabelFor(it) },
+            footerSubtitle = stringResource(R.string.retention_dialog_help)
         )
     }
     if (showThemeDialog) {
-        ThemeDialog(
+        SelectionDialog(
+            title = stringResource(R.string.settings_theme_title),
+            options = ThemeMode.entries,
             current = ui.themeMode,
-            onDismiss = { showThemeDialog = false },
-            onPick = { mode ->
-                viewModel.setThemeMode(mode)
+            onOptionSelected = { mode ->
+                settingsViewModel.setThemeMode(mode)
                 showThemeDialog = false
             },
+            onDismiss = { showThemeDialog = false },
+            labelProvider = { themeLabelFor(it) },
+            footerSubtitle = stringResource(R.string.settings_theme_subtitle)
         )
     }
     if (showTimeFormatDialog) {
-        TimeFormatDialog(
+        SelectionDialog(
+            title = stringResource(R.string.settings_time_format_title),
+            options = TimeFormat.entries,
             current = ui.timeFormat,
-            onDismiss = { showTimeFormatDialog = false },
-            onPick = { format ->
-                viewModel.setTimeFormat(format)
+            onOptionSelected = { format ->
+                settingsViewModel.setTimeFormat(format)
                 showTimeFormatDialog = false
             },
+            onDismiss = { showTimeFormatDialog = false },
+            labelProvider = { timeFormatLabelFor(it) }
         )
     }
     if (showDateFormatDialog) {
-        DateFormatDialog(
+        SelectionDialog(
+            title = stringResource(R.string.settings_date_format_title),
+            options = DateFormat.entries,
             current = ui.dateFormat,
-            onDismiss = { showDateFormatDialog = false },
-            onPick = { format ->
-                viewModel.setDateFormat(format)
+            onOptionSelected = { format ->
+                settingsViewModel.setDateFormat(format)
                 showDateFormatDialog = false
             },
+            onDismiss = { showDateFormatDialog = false },
+            labelProvider = { dateFormatLabelFor(it) }
         )
     }
     if (showSamplingModeDialog) {
-        SamplingModeDialog(
+        SelectionDialog(
+            title = stringResource(R.string.settings_sampling_mode_title),
+            options = SamplingMode.entries,
             current = ui.samplingMode,
-            onDismiss = { showSamplingModeDialog = false },
-            onPick = { mode ->
-                viewModel.setSamplingMode(mode)
+            onOptionSelected = { mode ->
+                settingsViewModel.setSamplingMode(mode)
                 showSamplingModeDialog = false
             },
+            onDismiss = { showSamplingModeDialog = false },
+            labelProvider = { samplingModeLabelFor(it) },
+            descriptionProvider = { samplingModeDescFor(it) }
         )
     }
     if (showBatteryThresholdDialog) {
@@ -456,7 +477,7 @@ fun SettingsScreen(
             current = ui.batteryLowThresholdPct,
             onDismiss = { showBatteryThresholdDialog = false },
             onPick = { pct ->
-                viewModel.setBatteryLowThreshold(pct)
+                settingsViewModel.setBatteryLowThreshold(pct)
                 showBatteryThresholdDialog = false
             },
         )
@@ -469,7 +490,7 @@ fun SettingsScreen(
                 editingSchedule = null
             },
             onSave = { schedule ->
-                viewModel.saveSchedule(schedule)
+                settingsViewModel.saveSchedule(schedule)
                 showScheduleDialog = false
                 editingSchedule = null
             },
@@ -483,7 +504,7 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        viewModel.deleteAll()
+                        settingsViewModel.deleteAllReadings()
                         confirmDeleteAll = false
                     },
                 ) { Text(stringResource(R.string.confirm_yes)) }
@@ -1046,6 +1067,14 @@ private fun samplingModeLabelFor(mode: SamplingMode): String = when (mode) {
     SamplingMode.PowerSaver -> stringResource(R.string.sampling_mode_power_saver)
     SamplingMode.Balanced -> stringResource(R.string.sampling_mode_balanced)
     SamplingMode.HighAccuracy -> stringResource(R.string.sampling_mode_high_accuracy)
+}
+
+@Composable
+private fun samplingModeDescFor(mode: SamplingMode): String = when (mode) {
+    SamplingMode.Auto -> stringResource(R.string.sampling_mode_auto_desc)
+    SamplingMode.PowerSaver -> stringResource(R.string.sampling_mode_power_saver_desc)
+    SamplingMode.Balanced -> stringResource(R.string.sampling_mode_balanced_desc)
+    SamplingMode.HighAccuracy -> stringResource(R.string.sampling_mode_high_accuracy_desc)
 }
 
 @Composable

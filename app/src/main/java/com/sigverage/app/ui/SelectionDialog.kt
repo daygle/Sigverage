@@ -20,35 +20,44 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.sigverage.app.R
-import com.sigverage.app.model.SamplingMode
 
 /**
- * Modal dialog for choosing the location [SamplingMode] - the battery-vs-
- * accuracy trade-off applied while recording.
+ * A generic single-selection dialog with a list of radio buttons.
  *
- * Each option shows a title and a one-line description of its power impact so
- * the choice is self-explanatory. Selecting a row applies it immediately via
- * [MainViewModel.setSamplingMode] and dismisses the dialog.
+ * @param T The type of item being selected.
+ * @param title The dialog title.
+ * @param options A list of options to display.
+ * @param current The currently selected option.
+ * @param onOptionSelected Callback when an option is tapped.
+ * @param onDismiss Callback when the dialog should be closed.
+ * @param labelProvider A function that returns the display string for an option.
+ * @param descriptionProvider Optional function that returns a description string for an option.
+ * @param footerSubtitle Optional help text shown below the list.
  */
 @Composable
-fun SamplingModeDialog(
-    current: SamplingMode,
+fun <T> SelectionDialog(
+    title: String,
+    options: List<T>,
+    current: T,
+    onOptionSelected: (T) -> Unit,
     onDismiss: () -> Unit,
-    onPick: (SamplingMode) -> Unit,
+    labelProvider: @Composable (T) -> String,
+    descriptionProvider: (@Composable (T) -> String)? = null,
+    footerSubtitle: String? = null,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.settings_sampling_mode_title)) },
+        title = { Text(title) },
         text = {
             Column(Modifier.selectableGroup()) {
-                OPTIONS.forEach { option ->
-                    val selected = option.mode == current
+                options.forEach { option ->
+                    val selected = option == current
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .selectable(
                                 selected = selected,
-                                onClick = { onPick(option.mode) },
+                                onClick = { onOptionSelected(option) },
                                 role = Role.RadioButton,
                             )
                             .padding(vertical = 8.dp),
@@ -58,19 +67,29 @@ fun SamplingModeDialog(
                             selected = selected,
                             onClick = null,
                         )
-                        Spacer(Modifier.width(8.dp))
+                        Spacer(Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = stringResource(option.labelRes),
+                                text = labelProvider(option),
                                 style = MaterialTheme.typography.bodyLarge,
                             )
-                            Text(
-                                text = stringResource(option.descRes),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            if (descriptionProvider != null) {
+                                Text(
+                                    text = descriptionProvider(option),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
+                }
+                if (footerSubtitle != null) {
+                    Spacer(Modifier.padding(top = 8.dp))
+                    Text(
+                        text = footerSubtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.outline,
+                    )
                 }
             }
         },
@@ -81,32 +100,3 @@ fun SamplingModeDialog(
         },
     )
 }
-
-private data class SamplingModeOption(
-    val mode: SamplingMode,
-    val labelRes: Int,
-    val descRes: Int,
-)
-
-private val OPTIONS: List<SamplingModeOption> = listOf(
-    SamplingModeOption(
-        SamplingMode.Auto,
-        R.string.sampling_mode_auto,
-        R.string.sampling_mode_auto_desc,
-    ),
-    SamplingModeOption(
-        SamplingMode.PowerSaver,
-        R.string.sampling_mode_power_saver,
-        R.string.sampling_mode_power_saver_desc,
-    ),
-    SamplingModeOption(
-        SamplingMode.Balanced,
-        R.string.sampling_mode_balanced,
-        R.string.sampling_mode_balanced_desc,
-    ),
-    SamplingModeOption(
-        SamplingMode.HighAccuracy,
-        R.string.sampling_mode_high_accuracy,
-        R.string.sampling_mode_high_accuracy_desc,
-    ),
-)

@@ -82,7 +82,7 @@ import com.sigverage.app.R
  *
  * A persistent **Skip** affordance lives at the top-right corner of every
  * step so the user can leave onboarding immediately. Skipping sets
- * `viewModel.completeOnboarding()` to `true`; the user lands on
+ * `settingsViewModel.completeOnboarding()` to `true`; the user lands on
  * `MainScreen` and can finish granting permissions from Settings
  * → Permissions or by starting sampling from the Map FAB.
  *
@@ -93,7 +93,9 @@ import com.sigverage.app.R
  */
 @Composable
 @SuppressLint("InlinedApi")
-fun OnboardingScreen(viewModel: MainViewModel) {
+fun OnboardingScreen(
+    settingsViewModel: SettingsViewModel,
+) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.Welcome) }
     // True once any permission was denied. Survives rotation. Drives the
     // copy on the Done page so users who skipped or denied aren't left
@@ -151,7 +153,7 @@ fun OnboardingScreen(viewModel: MainViewModel) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         TextButton(
-            onClick = viewModel::completeOnboarding,
+            onClick = settingsViewModel::completeOnboarding,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(8.dp),
@@ -219,7 +221,7 @@ fun OnboardingScreen(viewModel: MainViewModel) {
                     else R.string.onboarding_done_body
                 ),
                 cta = stringResource(R.string.onboarding_open_app),
-                onContinue = viewModel::completeOnboarding,
+                onContinue = settingsViewModel::completeOnboarding,
             )
         }
 
