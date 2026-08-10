@@ -72,18 +72,24 @@ class WatchdogReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val triggerAt = System.currentTimeMillis() + WATCHDOG_INTERVAL_MS
+            // This PendingIntent wraps an explicit Intent (WatchdogReceiver) and is
+            // FLAG_IMMUTABLE; the implicit-pendingintents alerts below are false positives —
+            // CodeQL cannot see FLAG_IMMUTABLE combined via Kotlin's `or` (github/codeql#20153).
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 if (am.canScheduleExactAlarms()) {
                     am.setExactAndAllowWhileIdle(
+                        // codeql[java/android/implicit-pendingintents]
                         AlarmManager.RTC_WAKEUP, triggerAt, pi
                     )
                 } else {
                     am.setAndAllowWhileIdle(
+                        // codeql[java/android/implicit-pendingintents]
                         AlarmManager.RTC_WAKEUP, triggerAt, pi
                     )
                 }
             } else {
                 am.setExactAndAllowWhileIdle(
+                    // codeql[java/android/implicit-pendingintents]
                     AlarmManager.RTC_WAKEUP, triggerAt, pi
                 )
             }

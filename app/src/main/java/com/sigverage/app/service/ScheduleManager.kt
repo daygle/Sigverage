@@ -128,13 +128,19 @@ object ScheduleManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        // These PendingIntents wrap explicit Intents (ScheduleReceiver) and are
+        // FLAG_IMMUTABLE; the implicit-pendingintents alerts below are false positives —
+        // CodeQL cannot see FLAG_IMMUTABLE combined via Kotlin's `or` (github/codeql#20153).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (am.canScheduleExactAlarms()) {
+                // codeql[java/android/implicit-pendingintents]
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetCal.timeInMillis, pi)
             } else {
+                // codeql[java/android/implicit-pendingintents]
                 am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetCal.timeInMillis, pi)
             }
         } else {
+            // codeql[java/android/implicit-pendingintents]
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetCal.timeInMillis, pi)
         }
     }
