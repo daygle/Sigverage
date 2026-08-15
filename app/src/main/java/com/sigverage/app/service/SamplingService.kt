@@ -77,7 +77,7 @@ class SamplingService : Service() {
             this,
             TRANSITION_REQUEST_CODE,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            PendingIntentFlags.updateCurrentImmutable(),
         )
     }
 
@@ -222,7 +222,7 @@ class SamplingService : Service() {
             this,
             0,
             Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            PendingIntentFlags.updateCurrentImmutable()
         )
         return NotificationCompat.Builder(this, SigverageApp.CHANNEL_SAMPLING)
             .setSmallIcon(R.drawable.ic_signal_notification)

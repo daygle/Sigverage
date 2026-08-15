@@ -57,7 +57,7 @@ object ScheduleManager {
             val intent = Intent(context, ScheduleReceiver::class.java)
             val pi = PendingIntent.getBroadcast(
                 context, requestCode, intent,
-                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE,
+                PendingIntentFlags.noCreateImmutable(),
             )
             if (pi != null) am.cancel(pi)
         }
@@ -79,12 +79,12 @@ object ScheduleManager {
         }
         PendingIntent.getBroadcast(
             context, startCode, startIntent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            PendingIntentFlags.noCreateImmutable()
         )?.let { am.cancel(it) }
 
         PendingIntent.getBroadcast(
             context, stopCode, stopIntent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            PendingIntentFlags.noCreateImmutable()
         )?.let { am.cancel(it) }
     }
 
@@ -125,22 +125,16 @@ object ScheduleManager {
         }
         val pi = PendingIntent.getBroadcast(
             context, requestCode, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            PendingIntentFlags.updateCurrentImmutable()
         )
 
-        // These PendingIntents wrap explicit Intents (ScheduleReceiver) and are
-        // FLAG_IMMUTABLE; the implicit-pendingintents alerts below are false positives —
-        // CodeQL cannot see FLAG_IMMUTABLE combined via Kotlin's `or` (github/codeql#20153).
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (am.canScheduleExactAlarms()) {
-                // codeql[java/android/implicit-pendingintents]
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetCal.timeInMillis, pi)
             } else {
-                // codeql[java/android/implicit-pendingintents]
                 am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetCal.timeInMillis, pi)
             }
         } else {
-            // codeql[java/android/implicit-pendingintents]
             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, targetCal.timeInMillis, pi)
         }
     }
