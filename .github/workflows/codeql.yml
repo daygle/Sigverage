@@ -63,9 +63,16 @@ jobs:
         if: matrix.build-mode == 'manual'
         run: chmod +x ./gradlew
 
+      # Pin Kotlin to the newest version CodeQL's extractor supports for this
+      # traced build only (see the init script for details). The regular
+      # Android CI build in android-ci.yml still compiles against the catalog
+      # version, so real build breakages are still caught there.
       - name: Build with Gradle
         if: matrix.build-mode == 'manual'
-        run: ./gradlew --no-daemon assembleDebug
+        run: >-
+          ./gradlew --no-daemon
+          --init-script .github/codeql/kotlin-version.init.gradle.kts
+          assembleDebug
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v4
