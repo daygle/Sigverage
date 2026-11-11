@@ -1,9 +1,10 @@
 package com.sigverage.app.data
 
 import android.content.Context
-import androidx.room.Room
-import androidx.room.migration.Migration
-import androidx.sqlite.db.SupportSQLiteDatabase
+import androidx.room3.Room
+import androidx.room3.migration.Migration
+import androidx.sqlite.SQLiteConnection
+import androidx.sqlite.execSQL
 import com.sigverage.app.model.RecordingSchedule
 import com.sigverage.app.model.SignalReading
 import kotlinx.coroutines.flow.Flow
@@ -72,8 +73,8 @@ class SignalRepository(
          * Creates the new `recording_schedules` table.
          */
         private val MIGRATION_1_2 = object : Migration(1, 2) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
+            override suspend fun migrate(connection: SQLiteConnection) {
+                connection.execSQL(
                     """CREATE TABLE IF NOT EXISTS recording_schedules (
                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                        name TEXT NOT NULL,
@@ -96,8 +97,8 @@ class SignalRepository(
          * validation fails on open.
          */
         private val MIGRATION_2_3 = object : Migration(2, 3) {
-            override fun migrate(db: SupportSQLiteDatabase) {
-                db.execSQL(
+            override suspend fun migrate(connection: SQLiteConnection) {
+                connection.execSQL(
                     "CREATE INDEX IF NOT EXISTS " +
                         "`index_signal_readings_latitude_longitude` " +
                         "ON `signal_readings` (`latitude`, `longitude`)"

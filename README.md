@@ -3,7 +3,7 @@
 > **Native cellular signal mapper. Record cellular technology and signal strength at your location, then paint a coverage map from your own readings.**
 > Supporting 2G, 3G, 4G (LTE), and 5G (NR/NSA), visualized on OpenStreetMap, fully on-device.
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.10-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.4.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Android](https://img.shields.io/badge/Android-26--37-3DDC84?logo=android&logoColor=white)](https://developer.android.com)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Version](https://img.shields.io/badge/Version-1.0.1-blue)](#summary)
@@ -45,10 +45,10 @@ Sigverage is a privacy-first Android application that records cellular signal st
 
 | Component | Technology |
 | --- | --- |
-| **Language** | Kotlin 2.1.10 |
+| **Language** | Kotlin 2.4.21 |
 | **UI Framework** | Jetpack Compose (Material 3) |
 | **Maps** | [osmdroid](https://github.com/osmdroid/osmdroid) (OpenStreetMap) |
-| **Database** | Room (SQLite) with KSP |
+| **Database** | Room 3 (SQLite) with KSP |
 | **Location** | Android `LocationManager` with adaptive sampling |
 | **Activity** | Google Play Services (Activity Recognition) |
 | **Background** | Typed Foreground Service + WakeLock |

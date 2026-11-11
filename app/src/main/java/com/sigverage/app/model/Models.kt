@@ -1,9 +1,9 @@
 package com.sigverage.app.model
 
-import androidx.room.Entity
-import androidx.room.Index
-import androidx.room.PrimaryKey
-import androidx.room.TypeConverter
+import androidx.room3.ColumnTypeConverter
+import androidx.room3.Entity
+import androidx.room3.Index
+import androidx.room3.PrimaryKey
 
 /**
  * Cellular technology classification surfaced to the UI.
@@ -78,11 +78,11 @@ data class RecordingSchedule(
  * as a comma-separated string (e.g. "1,2,3,4,5" for Mon-Fri).
  */
 class DaysOfWeekConverter {
-    @TypeConverter
+    @ColumnTypeConverter
     fun fromSet(days: Set<Int>): String =
         days.asSequence().sorted().joinToString(",")
 
-    @TypeConverter
+    @ColumnTypeConverter
     fun toSet(csv: String): Set<Int> {
         if (csv.isBlank()) return emptySet()
         return csv.split(",").mapNotNull { it.trim().toIntOrNull() }.toSet()

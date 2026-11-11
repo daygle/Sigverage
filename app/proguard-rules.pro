@@ -1,7 +1,7 @@
-# Keep Room generated DAO implementations and type converters
--keep class androidx.room.** { *; }
+# Keep Room 3 generated DAO implementations and type converters
+-keep class androidx.room3.** { *; }
 -keepclassmembers class * {
-    @androidx.room.* <methods>;
+    @androidx.room3.* <methods>;
 }
 
 # osmdroid uses reflection in several places (tile providers, etc.)

@@ -1,13 +1,13 @@
 package com.sigverage.app.data
 
-import androidx.room.Dao
-import androidx.room.Database
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
-import androidx.room.RoomDatabase
-import androidx.room.TypeConverter
-import androidx.room.TypeConverters
+import androidx.room3.ColumnTypeConverter
+import androidx.room3.ColumnTypeConverters
+import androidx.room3.Dao
+import androidx.room3.Database
+import androidx.room3.Insert
+import androidx.room3.OnConflictStrategy
+import androidx.room3.Query
+import androidx.room3.RoomDatabase
 import com.sigverage.app.model.DaysOfWeekConverter
 import com.sigverage.app.model.NetworkType
 import com.sigverage.app.model.RecordingSchedule
@@ -15,10 +15,10 @@ import com.sigverage.app.model.SignalReading
 import kotlinx.coroutines.flow.Flow
 
 class Converters {
-    @TypeConverter
+    @ColumnTypeConverter
     fun fromNetworkType(value: NetworkType): String = value.name
 
-    @TypeConverter
+    @ColumnTypeConverter
     fun toNetworkType(value: String): NetworkType =
         runCatching { NetworkType.valueOf(value) }.getOrDefault(NetworkType.Unknown)
 }
@@ -80,7 +80,7 @@ interface ScheduleDao {
     version = 3,
     exportSchema = false,
 )
-@TypeConverters(Converters::class, DaysOfWeekConverter::class)
+@ColumnTypeConverters(Converters::class, DaysOfWeekConverter::class)
 abstract class SignalDatabase : RoomDatabase() {
     abstract fun signalReadingDao(): SignalReadingDao
     abstract fun scheduleDao(): ScheduleDao
