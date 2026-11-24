@@ -7,7 +7,12 @@ plugins {
 android {
     namespace = "com.sigverage.app"
     // core 1.19 / lifecycle 2.11 require compiling against API 37+.
-    compileSdk = 37
+    // Compose 1.13 (BOM 2026.11.01) requires the 37.1 minor API level.
+    compileSdk {
+        version = release(37) {
+            minorApiLevel = 1
+        }
+    }
 
     defaultConfig {
         applicationId = "com.sigverage.app"
